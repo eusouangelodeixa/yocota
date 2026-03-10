@@ -191,10 +191,10 @@ export default function Checkouts() {
       };
 
       if (editingId) {
-        const { error } = await supabase.from("checkouts").update(payload).eq("id", editingId);
+        const { error } = await supabase.from("checkouts").update(payload as any).eq("id", editingId);
         if (error) throw error;
       } else {
-        const { error } = await supabase.from("checkouts").insert(payload);
+        const { error } = await supabase.from("checkouts").insert(payload as any);
         if (error) {
           if (error.code === "23505") throw new Error("Slug já existe. Escolha outro.");
           throw error;

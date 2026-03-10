@@ -172,7 +172,7 @@ export default function Products() {
       };
 
       if (editingId) {
-        const { error } = await supabase.from("products").update(payload).eq("id", editingId);
+        const { error } = await supabase.from("products").update(payload as any).eq("id", editingId);
         if (error) throw error;
 
         try {
