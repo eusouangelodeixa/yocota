@@ -27,7 +27,7 @@ serve(async (req) => {
     // Get checkout with product
     const { data: checkout, error: checkoutError } = await supabase
       .from("checkouts")
-      .select("*, products!checkouts_product_id_fkey(id, name, price, stripe_price_id)")
+      .select("*, products!checkouts_product_id_fkey(id, name, price, currency, stripe_price_id)")
       .eq("id", checkout_id)
       .eq("active", true)
       .single();
