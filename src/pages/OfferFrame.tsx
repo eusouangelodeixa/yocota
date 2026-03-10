@@ -36,7 +36,7 @@ export default function OfferFrame() {
 
       const { data, error: fetchError } = await supabase
         .from("offer_sessions")
-        .select("*, offers(id, name, product_id, products(name, description, price))")
+        .select("id, token, offer_id, order_id, customer_id, decision, expires_at, offers:offer_id(id, name, product_id, products:product_id(name, description, price))")
         .eq("token", token)
         .maybeSingle();
 
