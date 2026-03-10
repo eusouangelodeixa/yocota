@@ -71,7 +71,7 @@ serve(async (req) => {
         } else {
           lineItems.push({
             price_data: {
-              currency: "brl",
+              currency: bumpCurrency,
               product_data: { name: bumpProduct.name },
               unit_amount: bumpProduct.price,
             },
