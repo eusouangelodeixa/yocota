@@ -215,13 +215,16 @@ export default function Checkouts() {
                 </Select>
               </div>
               <div className="space-y-2">
-                <Label>URL de Redirecionamento (após pagamento)</Label>
+                <Label>URL Final (após pagamento e ofertas)</Label>
                 <Input
                   value={form.redirect_url}
                   onChange={(e) => setForm({ ...form, redirect_url: e.target.value })}
                   placeholder="https://exemplo.com/obrigado"
                   required
                 />
+                <p className="text-xs text-muted-foreground">
+                  Destino final do cliente após o pagamento e todas as ofertas do funil (upsell/downsell). Se não houver ofertas, redireciona direto para cá.
+                </p>
               </div>
               <div className="space-y-2">
                 <Label>Order Bump (opcional)</Label>
