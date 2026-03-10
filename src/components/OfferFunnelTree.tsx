@@ -100,48 +100,51 @@ function OfferNode({
   );
 }
 
-export function OfferFunnelTree({ offers }: OfferFunnelTreeProps) {
-  // Find root offers (not referenced by any other offer)
-  const referencedIds = new Set<string>();
-  offers.forEach((o) => {
-    if (o.accept_next_offer_id) referencedIds.add(o.accept_next_offer_id);
-    if (o.reject_next_offer_id) referencedIds.add(o.reject_next_offer_id);
-  });
+export const OfferFunnelTree = React.forwardRef<HTMLDivElement, OfferFunnelTreeProps>(
+  ({ offers }, ref) => {
+    // Find root offers (not referenced by any other offer)
+    const referencedIds = new Set<string>();
+    offers.forEach((o) => {
+      if (o.accept_next_offer_id) referencedIds.add(o.accept_next_offer_id);
+      if (o.reject_next_offer_id) referencedIds.add(o.reject_next_offer_id);
+    });
 
-  const roots = offers.filter((o) => !referencedIds.has(o.id));
+    const roots = offers.filter((o) => !referencedIds.has(o.id));
 
-  if (offers.length === 0) {
-    return (
-      <Card>
-        <CardContent className="py-12 text-center text-muted-foreground">
-          Crie ofertas para visualizar o funil
-        </CardContent>
-      </Card>
-    );
-  }
-
-  if (roots.length === 0) {
-    return (
-      <Card>
-        <CardContent className="py-12 text-center text-muted-foreground">
-          Todas as ofertas estão referenciadas em loops. Verifique a configuração.
-        </CardContent>
-      </Card>
-    );
-  }
-
-  return (
-    <div className="space-y-8 overflow-x-auto pb-4">
-      {roots.map((root) => (
-        <Card key={root.id}>
-          <CardHeader>
-            <CardTitle className="text-base">Funil: {root.name}</CardTitle>
-          </CardHeader>
-          <CardContent className="flex justify-center py-6">
-            <OfferNode offer={root} offers={offers} />
+    if (offers.length === 0) {
+      return (
+        <Card ref={ref}>
+          <CardContent className="py-12 text-center text-muted-foreground">
+            Crie ofertas para visualizar o funil
           </CardContent>
         </Card>
-      ))}
-    </div>
-  );
-}
+      );
+    }
+
+    if (roots.length === 0) {
+      return (
+        <Card ref={ref}>
+          <CardContent className="py-12 text-center text-muted-foreground">
+            Todas as ofertas estão referenciadas em loops. Verifique a configuração.
+          </CardContent>
+        </Card>
+      );
+    }
+
+    return (
+      <div ref={ref} className="space-y-8 overflow-x-auto pb-4">
+        {roots.map((root) => (
+          <Card key={root.id}>
+            <CardHeader>
+              <CardTitle className="text-base">Funil: {root.name}</CardTitle>
+            </CardHeader>
+            <CardContent className="flex justify-center py-6">
+              <OfferNode offer={root} offers={offers} />
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+    );
+  }
+);
+OfferFunnelTree.displayName = "OfferFunnelTree";
