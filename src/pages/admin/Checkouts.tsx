@@ -43,10 +43,10 @@ function OfferSelect({ value, onChange }: { value: string; onChange: (v: string)
   });
 
   return (
-    <Select value={value} onValueChange={onChange}>
+    <Select value={value || "__none__"} onValueChange={(v) => onChange(v === "__none__" ? "" : v)}>
       <SelectTrigger><SelectValue placeholder="Nenhuma" /></SelectTrigger>
       <SelectContent>
-        <SelectItem value="">Nenhuma</SelectItem>
+        <SelectItem value="__none__">Nenhuma</SelectItem>
         {offers?.map((o) => (
           <SelectItem key={o.id} value={o.id}>{o.name}</SelectItem>
         ))}
