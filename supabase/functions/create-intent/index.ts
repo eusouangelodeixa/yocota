@@ -22,7 +22,7 @@ serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
     );
 
-    const { checkout_id, customer_name, customer_email, customer_phone, include_bump, utm_data } = await req.json();
+    const { checkout_id, customer_name, customer_email, customer_phone, selected_bump_ids, include_bump, utm_data } = await req.json();
 
     // Get checkout with product
     const { data: checkout, error: checkoutError } = await supabase
@@ -56,27 +56,50 @@ serve(async (req) => {
       });
     }
 
-    // Order bump
-    if (include_bump && checkout.order_bump_product_id) {
-      const { data: bumpProduct } = await supabase
-        .from("products")
-        .select("id, name, price, currency, stripe_price_id")
-        .eq("id", checkout.order_bump_product_id)
-        .single();
+    // Multi order bumps - new system
+    const bumpIds: string[] = selected_bump_ids || [];
+    
+    // Backward compat: if old include_bump flag is used with legacy single bump
+    if (bumpIds.length === 0 && include_bump && checkout.order_bump_product_id) {
+      bumpIds.push(checkout.order_bump_product_id);
+    }
 
-      if (bumpProduct) {
-        const bumpCurrency = bumpProduct.currency || currency;
-        if (bumpProduct.stripe_price_id) {
-          lineItems.push({ price: bumpProduct.stripe_price_id, quantity: 1 });
-        } else {
-          lineItems.push({
-            price_data: {
-              currency: bumpCurrency,
-              product_data: { name: bumpProduct.name },
-              unit_amount: bumpProduct.price,
-            },
-            quantity: 1,
-          });
+    if (bumpIds.length > 0) {
+      // Verify bumps belong to this checkout
+      const { data: validBumps } = await supabase
+        .from("checkout_order_bumps")
+        .select("product_id")
+        .eq("checkout_id", checkout_id);
+
+      const validBumpIds = new Set((validBumps || []).map((b: any) => b.product_id));
+      
+      // Also allow legacy single bump
+      if (checkout.order_bump_product_id) {
+        validBumpIds.add(checkout.order_bump_product_id);
+      }
+
+      const filteredBumpIds = bumpIds.filter((id: string) => validBumpIds.has(id));
+
+      if (filteredBumpIds.length > 0) {
+        const { data: bumpProducts } = await supabase
+          .from("products")
+          .select("id, name, price, currency, stripe_price_id")
+          .in("id", filteredBumpIds);
+
+        for (const bp of (bumpProducts || [])) {
+          const bumpCurrency = bp.currency || currency;
+          if (bp.stripe_price_id) {
+            lineItems.push({ price: bp.stripe_price_id, quantity: 1 });
+          } else {
+            lineItems.push({
+              price_data: {
+                currency: bumpCurrency,
+                product_data: { name: bp.name },
+                unit_amount: bp.price,
+              },
+              quantity: 1,
+            });
+          }
         }
       }
     }
@@ -88,21 +111,15 @@ serve(async (req) => {
       customerId = customers.data[0].id;
     }
 
-    // Determine success URL:
-    // If checkout has upsell offers, redirect to our success page first
-    // Otherwise, redirect directly to the external redirect_url
     const origin = req.headers.get("origin") || "";
     let successUrl: string;
 
     if (checkout.first_offer_id) {
-      // Redirect to our intermediate success page that shows offers
       successUrl = `${origin}/success/${checkout.id}?session_id={CHECKOUT_SESSION_ID}`;
     } else {
-      // No offers, redirect directly
       successUrl = `${checkout.redirect_url}?session_id={CHECKOUT_SESSION_ID}`;
     }
 
-    // Create Checkout Session with setup_future_usage to save card for upsells
     const sessionConfig: any = {
       customer: customerId,
       customer_email: customerId ? undefined : customer_email,
@@ -114,7 +131,7 @@ serve(async (req) => {
         checkout_id: checkout.id,
         customer_name,
         customer_phone: customer_phone || "",
-        include_bump: include_bump ? "true" : "false",
+        selected_bump_ids: JSON.stringify(bumpIds),
         utm_source: utm_data?.utm_source || "",
         utm_medium: utm_data?.utm_medium || "",
         utm_campaign: utm_data?.utm_campaign || "",
@@ -123,7 +140,6 @@ serve(async (req) => {
       },
     };
 
-    // Save payment method for future upsell one-click charges
     if (checkout.first_offer_id) {
       sessionConfig.payment_intent_data = {
         setup_future_usage: "off_session",

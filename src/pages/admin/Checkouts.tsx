@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -13,13 +13,12 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
 import { slugify, formatCents } from "@/lib/formatters";
-import { Plus, Copy, Pencil, Trash2, Eye, Palette } from "lucide-react";
+import { Plus, Copy, Pencil, Trash2, Eye, Palette, X, GripVertical } from "lucide-react";
 
 interface CheckoutForm {
   name: string;
   product_id: string;
   redirect_url: string;
-  order_bump_product_id: string;
   checkout_slug: string;
   first_offer_id: string;
   // Customization
@@ -30,13 +29,14 @@ interface CheckoutForm {
   cta_text: string;
   banner_url: string;
   show_product_image: boolean;
+  // Multi order bumps
+  order_bump_product_ids: string[];
 }
 
 const emptyForm: CheckoutForm = {
   name: "",
   product_id: "",
   redirect_url: "",
-  order_bump_product_id: "",
   checkout_slug: "",
   first_offer_id: "",
   primary_color: "#2563eb",
@@ -46,6 +46,7 @@ const emptyForm: CheckoutForm = {
   cta_text: "Finalizar compra",
   banner_url: "",
   show_product_image: true,
+  order_bump_product_ids: [],
 };
 
 function OfferSelect({ value, onChange }: { value: string; onChange: (v: string) => void }) {
@@ -71,33 +72,30 @@ function OfferSelect({ value, onChange }: { value: string; onChange: (v: string)
   );
 }
 
-function CheckoutPreview({ form, product }: { form: CheckoutForm; product: any }) {
+function CheckoutPreview({ form, product, bumpProducts }: { form: CheckoutForm; product: any; bumpProducts: any[] }) {
+  const totalBase = product?.price || 0;
+  
   return (
     <div
       className="rounded-xl overflow-hidden shadow-lg border border-border/60 max-w-[320px] mx-auto"
       style={{ backgroundColor: form.bg_color }}
     >
-      {/* Banner */}
       {form.banner_url && (
         <div className="w-full h-24 overflow-hidden">
           <img src={form.banner_url} alt="" className="w-full h-full object-cover" />
         </div>
       )}
 
-      {/* Price Banner */}
       <div
         className="px-5 py-4 text-center"
         style={{ background: `linear-gradient(135deg, ${form.primary_color}, ${form.accent_color})` }}
       >
-        <p className="text-white/70 text-[10px] font-medium uppercase tracking-wider mb-0.5">
-          Investimento
-        </p>
+        <p className="text-white/70 text-[10px] font-medium uppercase tracking-wider mb-0.5">Investimento</p>
         <div className="text-2xl font-extrabold text-white">
           {product ? formatCents(product.price, product.currency || "brl") : "R$ 0,00"}
         </div>
       </div>
 
-      {/* Content */}
       <div className="p-4 space-y-3">
         <div className="text-center">
           <h3 className="font-bold text-sm" style={{ color: "#1a1a2e" }}>
@@ -105,7 +103,6 @@ function CheckoutPreview({ form, product }: { form: CheckoutForm; product: any }
           </h3>
         </div>
 
-        {/* Mock Inputs */}
         <div className="space-y-2">
           {["Nome completo", "Email"].map((label) => (
             <div key={label}>
@@ -115,7 +112,21 @@ function CheckoutPreview({ form, product }: { form: CheckoutForm; product: any }
           ))}
         </div>
 
-        {/* CTA */}
+        {/* Preview bumps */}
+        {bumpProducts.length > 0 && (
+          <div className="space-y-2">
+            {bumpProducts.map((bp) => (
+              <div key={bp.id} className="rounded-lg border border-dashed border-gray-300 p-2 flex items-center gap-2">
+                <div className="w-3 h-3 rounded border border-gray-300" />
+                <span className="text-[10px] font-medium text-gray-600 flex-1 truncate">{bp.name}</span>
+                <span className="text-[10px] font-bold" style={{ color: form.primary_color }}>
+                  +{formatCents(bp.price, bp.currency || "brl")}
+                </span>
+              </div>
+            ))}
+          </div>
+        )}
+
         <button
           className="w-full h-9 rounded-lg text-white text-xs font-bold shadow-md transition-all"
           style={{ backgroundColor: form.primary_color }}
@@ -124,11 +135,7 @@ function CheckoutPreview({ form, product }: { form: CheckoutForm; product: any }
         </button>
 
         <div className="flex items-center justify-center gap-2 text-[9px] text-gray-400">
-          <span>🔒 SSL</span>
-          <span>•</span>
-          <span>🛡️ Protegido</span>
-          <span>•</span>
-          <span>💳 Stripe</span>
+          <span>🔒 SSL</span><span>•</span><span>🛡️ Protegido</span><span>•</span><span>💳 Stripe</span>
         </div>
       </div>
     </div>
@@ -167,6 +174,16 @@ export default function Checkouts() {
     },
   });
 
+  // Load bumps for editing
+  const loadBumpsForCheckout = async (checkoutId: string): Promise<string[]> => {
+    const { data } = await supabase
+      .from("checkout_order_bumps")
+      .select("product_id")
+      .eq("checkout_id", checkoutId)
+      .order("sort_order");
+    return data?.map((b: any) => b.product_id) || [];
+  };
+
   const saveMutation = useMutation({
     mutationFn: async (form: CheckoutForm) => {
       if (!form.product_id) throw new Error("Selecione um produto");
@@ -179,7 +196,7 @@ export default function Checkouts() {
         product_id: form.product_id,
         checkout_slug: slug,
         redirect_url: form.redirect_url,
-        order_bump_product_id: form.order_bump_product_id || null,
+        order_bump_product_id: form.order_bump_product_ids[0] || null, // keep legacy field in sync
         first_offer_id: form.first_offer_id || null,
         primary_color: form.primary_color,
         accent_color: form.accent_color,
@@ -190,15 +207,31 @@ export default function Checkouts() {
         show_product_image: form.show_product_image,
       };
 
+      let checkoutId: string;
+
       if (editingId) {
         const { error } = await supabase.from("checkouts").update(payload as any).eq("id", editingId);
         if (error) throw error;
+        checkoutId = editingId;
       } else {
-        const { error } = await supabase.from("checkouts").insert(payload as any);
+        const { data, error } = await supabase.from("checkouts").insert(payload as any).select("id").single();
         if (error) {
           if (error.code === "23505") throw new Error("Slug já existe. Escolha outro.");
           throw error;
         }
+        checkoutId = data.id;
+      }
+
+      // Sync order bumps: delete all, re-insert
+      await supabase.from("checkout_order_bumps").delete().eq("checkout_id", checkoutId);
+      if (form.order_bump_product_ids.length > 0) {
+        const rows = form.order_bump_product_ids.map((pid, i) => ({
+          checkout_id: checkoutId,
+          product_id: pid,
+          sort_order: i,
+        }));
+        const { error: bumpError } = await supabase.from("checkout_order_bumps").insert(rows as any);
+        if (bumpError) throw bumpError;
       }
     },
     onSuccess: () => {
@@ -238,13 +271,13 @@ export default function Checkouts() {
     toast.success("URL copiada!");
   };
 
-  const openEdit = (checkout: any) => {
+  const openEdit = async (checkout: any) => {
+    const bumpIds = await loadBumpsForCheckout(checkout.id);
     setEditingId(checkout.id);
     setForm({
       name: checkout.name,
       product_id: checkout.product_id,
       redirect_url: checkout.redirect_url,
-      order_bump_product_id: checkout.order_bump_product_id ?? "",
       checkout_slug: checkout.checkout_slug,
       first_offer_id: checkout.first_offer_id ?? "",
       primary_color: checkout.primary_color || "#2563eb",
@@ -254,6 +287,7 @@ export default function Checkouts() {
       cta_text: checkout.cta_text || "Finalizar compra",
       banner_url: checkout.banner_url ?? "",
       show_product_image: checkout.show_product_image ?? true,
+      order_bump_product_ids: bumpIds,
     });
     setDialogOpen(true);
   };
@@ -265,7 +299,24 @@ export default function Checkouts() {
     setDialogOpen(true);
   };
 
+  const addBump = (productId: string) => {
+    if (!productId || productId === "__none__") return;
+    if (form.order_bump_product_ids.includes(productId)) {
+      toast.error("Este produto já está como order bump");
+      return;
+    }
+    setForm({ ...form, order_bump_product_ids: [...form.order_bump_product_ids, productId] });
+  };
+
+  const removeBump = (productId: string) => {
+    setForm({ ...form, order_bump_product_ids: form.order_bump_product_ids.filter((id) => id !== productId) });
+  };
+
   const selectedProduct = products?.find((p: any) => p.id === form.product_id);
+  const bumpProducts = (products || []).filter((p: any) => form.order_bump_product_ids.includes(p.id));
+  const availableBumpProducts = (products || []).filter(
+    (p: any) => p.id !== form.product_id && !form.order_bump_product_ids.includes(p.id)
+  );
 
   return (
     <div>
@@ -350,23 +401,71 @@ export default function Checkouts() {
                       Destino final do cliente após o pagamento e todas as ofertas do funil.
                     </p>
                   </div>
-                  <div className="space-y-2">
-                    <Label>Order Bump (opcional)</Label>
-                    <Select
-                      value={form.order_bump_product_id || "__none__"}
-                      onValueChange={(v) => setForm({ ...form, order_bump_product_id: v === "__none__" ? "" : v })}
-                    >
-                      <SelectTrigger><SelectValue placeholder="Nenhum" /></SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="__none__">Nenhum</SelectItem>
-                        {products
-                          ?.filter((p: any) => p.id !== form.product_id)
-                          .map((p: any) => (
-                            <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
+
+                  {/* Multi Order Bumps */}
+                  <div className="space-y-3">
+                    <Label>Order Bumps</Label>
+                    <p className="text-xs text-muted-foreground">
+                      Adicione produtos extras que o cliente pode incluir antes de finalizar a compra.
+                    </p>
+
+                    {/* Current bumps list */}
+                    {bumpProducts.length > 0 && (
+                      <div className="space-y-2">
+                        {bumpProducts.map((bp: any, idx: number) => (
+                          <div
+                            key={bp.id}
+                            className="flex items-center gap-3 rounded-lg border border-border bg-muted/30 px-3 py-2"
+                          >
+                            <GripVertical className="h-4 w-4 text-muted-foreground shrink-0" />
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm font-medium truncate">{bp.name}</p>
+                              <p className="text-xs text-muted-foreground">
+                                {formatCents(bp.price, bp.currency || "brl")}
+                              </p>
+                            </div>
+                            <Badge variant="secondary" className="text-[10px] shrink-0">
+                              #{idx + 1}
+                            </Badge>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon"
+                              className="h-7 w-7 shrink-0"
+                              onClick={() => removeBump(bp.id)}
+                            >
+                              <X className="h-3.5 w-3.5 text-destructive" />
+                            </Button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
+                    {/* Add bump selector */}
+                    {availableBumpProducts.length > 0 && (
+                      <Select
+                        value="__none__"
+                        onValueChange={(v) => addBump(v)}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="+ Adicionar order bump" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="__none__" disabled>Selecione um produto</SelectItem>
+                          {availableBumpProducts.map((p: any) => (
+                            <SelectItem key={p.id} value={p.id}>
+                              {p.name} — {formatCents(p.price, p.currency || "brl")}
+                            </SelectItem>
                           ))}
-                      </SelectContent>
-                    </Select>
+                        </SelectContent>
+                      </Select>
+                    )}
+
+                    {form.order_bump_product_ids.length === 0 && (
+                      <p className="text-xs text-muted-foreground italic">Nenhum order bump adicionado.</p>
+                    )}
                   </div>
+
                   <div className="space-y-2">
                     <Label>Primeira Oferta (Upsell/Downsell)</Label>
                     <OfferSelect value={form.first_offer_id} onChange={(v) => setForm({ ...form, first_offer_id: v })} />
@@ -463,7 +562,7 @@ export default function Checkouts() {
 
                 <TabsContent value="preview">
                   <div className="flex justify-center py-6">
-                    <CheckoutPreview form={form} product={selectedProduct} />
+                    <CheckoutPreview form={form} product={selectedProduct} bumpProducts={bumpProducts} />
                   </div>
                 </TabsContent>
               </Tabs>

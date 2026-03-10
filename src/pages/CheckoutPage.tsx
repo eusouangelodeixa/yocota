@@ -9,13 +9,19 @@ import { toast } from "sonner";
 import { formatCents } from "@/lib/formatters";
 import { Loader2, ShieldCheck, Lock, CreditCard, CheckCircle2, Sparkles } from "lucide-react";
 
+interface BumpProduct {
+  id: string;
+  name: string;
+  price: number;
+  currency: string;
+}
+
 interface CheckoutData {
   id: string;
   name: string;
   checkout_slug: string;
   redirect_url: string;
   product_id: string;
-  order_bump_product_id: string | null;
   primary_color: string;
   accent_color: string;
   bg_color: string;
@@ -24,7 +30,7 @@ interface CheckoutData {
   banner_url: string | null;
   show_product_image: boolean;
   product: { id: string; name: string; description: string | null; price: number; currency: string; image_url: string | null };
-  bump_product?: { id: string; name: string; price: number; currency: string } | null;
+  bump_products: BumpProduct[];
 }
 
 export default function CheckoutPage() {
@@ -36,7 +42,7 @@ export default function CheckoutPage() {
   const [customerName, setCustomerName] = useState("");
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
-  const [includeBump, setIncludeBump] = useState(false);
+  const [selectedBumps, setSelectedBumps] = useState<Set<string>>(new Set());
   const [processing, setProcessing] = useState(false);
   const [abandonedSaved, setAbandonedSaved] = useState(false);
 
@@ -68,6 +74,22 @@ export default function CheckoutPage() {
         return;
       }
 
+      // Load bumps from junction table
+      const { data: bumpsData } = await supabase
+        .from("checkout_order_bumps")
+        .select("product_id, sort_order, products(id, name, price, currency)")
+        .eq("checkout_id", data.id)
+        .order("sort_order");
+
+      const bumpProducts: BumpProduct[] = (bumpsData || [])
+        .filter((b: any) => b.products)
+        .map((b: any) => ({
+          id: b.products.id,
+          name: b.products.name,
+          price: b.products.price,
+          currency: b.products.currency || "brl",
+        }));
+
       const checkoutData: CheckoutData = {
         ...data,
         primary_color: data.primary_color || "#2563eb",
@@ -76,17 +98,8 @@ export default function CheckoutPage() {
         cta_text: data.cta_text || "Finalizar compra",
         show_product_image: data.show_product_image ?? true,
         product: data.products as any,
+        bump_products: bumpProducts,
       };
-
-      if (data.order_bump_product_id) {
-        const { data: bump } = await supabase
-          .from("products")
-          .select("id, name, price, currency")
-          .eq("id", data.order_bump_product_id)
-          .eq("active", true)
-          .single();
-        checkoutData.bump_product = bump as any;
-      }
 
       setCheckout(checkoutData);
       setLoading(false);
@@ -110,12 +123,26 @@ export default function CheckoutPage() {
     }
   }, [email, abandonedSaved, checkout, customerName, phone]);
 
+  const toggleBump = (productId: string) => {
+    setSelectedBumps((prev) => {
+      const next = new Set(prev);
+      if (next.has(productId)) {
+        next.delete(productId);
+      } else {
+        next.add(productId);
+      }
+      return next;
+    });
+  };
+
   const totalAmount = () => {
     if (!checkout) return 0;
     let total = checkout.product.price;
-    if (includeBump && checkout.bump_product) {
-      total += checkout.bump_product.price;
-    }
+    checkout.bump_products.forEach((bp) => {
+      if (selectedBumps.has(bp.id)) {
+        total += bp.price;
+      }
+    });
     return total;
   };
 
@@ -138,7 +165,7 @@ export default function CheckoutPage() {
           customer_name: customerName,
           customer_email: email,
           customer_phone: phone || null,
-          include_bump: includeBump,
+          selected_bump_ids: Array.from(selectedBumps),
           utm_data: utms,
         },
       });
@@ -213,7 +240,6 @@ export default function CheckoutPage() {
 
         {/* Main Card */}
         <div className="bg-white rounded-2xl shadow-xl shadow-black/5 border border-gray-100 overflow-hidden">
-          {/* Banner */}
           {c.banner_url && (
             <div className="w-full h-32 overflow-hidden">
               <img src={c.banner_url} alt="" className="w-full h-full object-cover" />
@@ -225,9 +251,7 @@ export default function CheckoutPage() {
             className="px-6 py-5 text-center"
             style={{ background: `linear-gradient(135deg, ${c.primary_color}, ${c.accent_color})` }}
           >
-            <p className="text-white/70 text-xs font-medium uppercase tracking-wider mb-1">
-              Investimento
-            </p>
+            <p className="text-white/70 text-xs font-medium uppercase tracking-wider mb-1">Investimento</p>
             <div className="text-3xl sm:text-4xl font-extrabold text-white tracking-tight">
               {formatCents(c.product.price, currency)}
             </div>
@@ -279,51 +303,72 @@ export default function CheckoutPage() {
                 </div>
               </div>
 
-              {/* Order Bump */}
-              {c.bump_product && (
-                <div
-                  className={`relative rounded-xl border-2 p-4 transition-all duration-200 cursor-pointer ${
-                    includeBump ? "shadow-sm" : "border-dashed hover:border-opacity-60"
-                  }`}
-                  style={{
-                    borderColor: includeBump ? c.primary_color : "#e5e7eb",
-                    backgroundColor: includeBump ? c.primary_color + "08" : "transparent",
-                  }}
-                  onClick={() => setIncludeBump(!includeBump)}
-                >
-                  <div className="absolute -top-2.5 left-4">
-                    <span
-                      className="text-[10px] font-bold uppercase tracking-wider px-2.5 py-0.5 rounded-full text-white flex items-center gap-1"
-                      style={{ backgroundColor: c.primary_color }}
+              {/* Order Bumps */}
+              {c.bump_products.length > 0 && (
+                <div className="space-y-3">
+                  {c.bump_products.map((bp, idx) => (
+                    <div
+                      key={bp.id}
+                      className={`relative rounded-xl border-2 p-4 transition-all duration-200 cursor-pointer ${
+                        selectedBumps.has(bp.id) ? "shadow-sm" : "border-dashed hover:border-opacity-60"
+                      }`}
+                      style={{
+                        borderColor: selectedBumps.has(bp.id) ? c.primary_color : "#e5e7eb",
+                        backgroundColor: selectedBumps.has(bp.id) ? c.primary_color + "08" : "transparent",
+                      }}
+                      onClick={() => toggleBump(bp.id)}
                     >
-                      <Sparkles className="h-3 w-3" />
-                      Oferta especial
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-3 mt-1">
-                    <Checkbox
-                      id="bump"
-                      checked={includeBump}
-                      onCheckedChange={(checked) => setIncludeBump(checked === true)}
-                      className="mt-0.5"
-                    />
-                    <div className="flex-1">
-                      <label htmlFor="bump" className="font-semibold text-sm cursor-pointer text-gray-900">
-                        Adicionar: {c.bump_product.name}
-                      </label>
-                      <p className="text-xs text-gray-500 mt-0.5">Aproveite o desconto exclusivo</p>
+                      {idx === 0 && (
+                        <div className="absolute -top-2.5 left-4">
+                          <span
+                            className="text-[10px] font-bold uppercase tracking-wider px-2.5 py-0.5 rounded-full text-white flex items-center gap-1"
+                            style={{ backgroundColor: c.primary_color }}
+                          >
+                            <Sparkles className="h-3 w-3" />
+                            Oferta especial
+                          </span>
+                        </div>
+                      )}
+                      <div className={`flex items-center gap-3 ${idx === 0 ? "mt-1" : ""}`}>
+                        <Checkbox
+                          checked={selectedBumps.has(bp.id)}
+                          onCheckedChange={() => toggleBump(bp.id)}
+                          className="mt-0.5"
+                        />
+                        <div className="flex-1">
+                          <label className="font-semibold text-sm cursor-pointer text-gray-900">
+                            Adicionar: {bp.name}
+                          </label>
+                          <p className="text-xs text-gray-500 mt-0.5">Aproveite o desconto exclusivo</p>
+                        </div>
+                        <span className="text-sm font-bold whitespace-nowrap" style={{ color: c.primary_color }}>
+                          +{formatCents(bp.price, bp.currency || currency)}
+                        </span>
+                      </div>
                     </div>
-                    <span className="text-sm font-bold whitespace-nowrap" style={{ color: c.primary_color }}>
-                      +{formatCents(c.bump_product.price, c.bump_product.currency || currency)}
-                    </span>
-                  </div>
+                  ))}
                 </div>
               )}
 
               {/* Total */}
-              <div className="bg-gray-50 rounded-xl p-4">
-                <div className="flex justify-between items-center">
-                  <span className="text-sm font-medium text-gray-500">Total a pagar</span>
+              <div className="bg-gray-50 rounded-xl p-4 space-y-2">
+                <div className="flex justify-between items-center text-sm text-gray-500">
+                  <span>{c.product.name}</span>
+                  <span>{formatCents(c.product.price, currency)}</span>
+                </div>
+                {c.bump_products
+                  .filter((bp) => selectedBumps.has(bp.id))
+                  .map((bp) => (
+                    <div key={bp.id} className="flex justify-between items-center text-sm text-gray-500">
+                      <span className="flex items-center gap-1.5">
+                        <Sparkles className="h-3 w-3" style={{ color: c.primary_color }} />
+                        {bp.name}
+                      </span>
+                      <span>+{formatCents(bp.price, bp.currency || currency)}</span>
+                    </div>
+                  ))}
+                <div className="border-t border-gray-200 pt-2 flex justify-between items-center">
+                  <span className="text-sm font-medium text-gray-600">Total a pagar</span>
                   <span className="text-2xl font-extrabold text-gray-900">
                     {formatCents(totalAmount(), currency)}
                   </span>
