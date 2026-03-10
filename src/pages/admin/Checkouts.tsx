@@ -20,6 +20,7 @@ interface CheckoutForm {
   redirect_url: string;
   order_bump_product_id: string;
   checkout_slug: string;
+  first_offer_id: string;
 }
 
 const emptyForm: CheckoutForm = {
