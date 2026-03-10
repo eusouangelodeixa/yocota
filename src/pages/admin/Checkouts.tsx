@@ -122,6 +122,7 @@ export default function Checkouts() {
       redirect_url: checkout.redirect_url,
       order_bump_product_id: checkout.order_bump_product_id ?? "",
       checkout_slug: checkout.checkout_slug,
+      first_offer_id: checkout.first_offer_id ?? "",
     });
     setDialogOpen(true);
   };
