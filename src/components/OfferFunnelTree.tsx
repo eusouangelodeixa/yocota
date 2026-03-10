@@ -64,11 +64,11 @@ function OfferNode({
         <div className="flex gap-12 mt-4">
           {/* Accept branch */}
           <div className="flex flex-col items-center">
-            <div className="flex items-center gap-1 text-xs font-medium text-green-600 mb-2">
+            <div className="flex items-center gap-1 text-xs font-medium text-success mb-2">
               <Check className="h-3 w-3" />
               Aceitar
             </div>
-            <ArrowDown className="h-4 w-4 text-green-600 mb-2" />
+            <ArrowDown className="h-4 w-4 text-success mb-2" />
             {acceptOffer ? (
               <OfferNode offer={acceptOffer} offers={offers} depth={depth + 1} visited={nextVisited} />
             ) : (
