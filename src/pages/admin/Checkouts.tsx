@@ -217,6 +217,10 @@ export default function Checkouts() {
                   </SelectContent>
                 </Select>
               </div>
+              <div className="space-y-2">
+                <Label>Primeira Oferta (Upsell/Downsell)</Label>
+                <OfferSelect value={form.first_offer_id} onChange={(v) => setForm({ ...form, first_offer_id: v })} />
+              </div>
               <Button type="submit" className="w-full" disabled={saveMutation.isPending}>
                 {saveMutation.isPending ? "Salvando..." : "Salvar"}
               </Button>
