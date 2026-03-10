@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useParams } from "react-router-dom";
+import { useParams, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -23,9 +23,18 @@ interface SessionData {
   };
 }
 
+interface PreviewData {
+  name: string;
+  product: { name: string; description: string | null; price: number };
+}
+
 export default function OfferFrame() {
   const { token } = useParams<{ token: string }>();
+  const [searchParams] = useSearchParams();
+  const isPreview = searchParams.get("preview") === "1";
+
   const [session, setSession] = useState<SessionData | null>(null);
+  const [preview, setPreview] = useState<PreviewData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [processing, setProcessing] = useState(false);
@@ -35,6 +44,29 @@ export default function OfferFrame() {
     async function loadSession() {
       if (!token) return;
 
+      // Preview mode: token is actually an offer ID
+      if (isPreview) {
+        const { data: offer, error: offerError } = await supabase
+          .from("offers")
+          .select("id, name, product_id, products:product_id(name, description, price)")
+          .eq("id", token)
+          .maybeSingle();
+
+        if (offerError || !offer) {
+          setError("Oferta não encontrada para preview");
+          setLoading(false);
+          return;
+        }
+
+        setPreview({
+          name: offer.name,
+          product: offer.products as any,
+        });
+        setLoading(false);
+        return;
+      }
+
+      // Real mode: token is an offer_session token
       const { data, error: fetchError } = await supabase
         .from("offer_sessions")
         .select("id, token, offer_id, order_id, customer_id, decision, expires_at, offers:offer_id(id, name, product_id, page_url, products:product_id(name, description, price))")
@@ -66,7 +98,7 @@ export default function OfferFrame() {
       setLoading(false);
     }
     loadSession();
-  }, [token]);
+  }, [token, isPreview]);
 
   const handleDecision = async (decision: "accepted" | "rejected") => {
     if (!session || !token) return;
@@ -98,10 +130,8 @@ export default function OfferFrame() {
       // If standalone (not in iframe) and there's a next offer
       if (window.parent === window) {
         if (nextPageUrl && nextToken) {
-          // Next offer has external page — redirect there
           window.location.href = `${nextPageUrl}${nextPageUrl.includes("?") ? "&" : "?"}offer_token=${nextToken}`;
         } else if (data?.next_offer_url) {
-          // Next offer is inline — redirect to offer-frame
           window.location.href = data.next_offer_url;
         }
       }
@@ -114,7 +144,7 @@ export default function OfferFrame() {
 
   if (loading) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-background">
+      <div className="flex items-center justify-center min-h-[400px] bg-transparent">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
       </div>
     );
@@ -122,11 +152,51 @@ export default function OfferFrame() {
 
   if (error) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-background px-4">
+      <div className="flex items-center justify-center min-h-[400px] bg-transparent px-4">
         <Card className="w-full max-w-sm">
           <CardContent className="py-8 text-center">
-            <AlertTriangle className="h-10 w-10 text-warning mx-auto mb-3" />
+            <AlertTriangle className="h-10 w-10 text-yellow-500 mx-auto mb-3" />
             <p className="text-muted-foreground">{error}</p>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  // Preview mode UI
+  if (isPreview && preview) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px] bg-transparent px-4 py-6">
+        <Card className="w-full max-w-sm border-2 border-dashed border-primary/40 relative">
+          <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-primary text-primary-foreground text-xs px-3 py-0.5 rounded-full font-semibold">
+            PREVIEW
+          </div>
+          <CardContent className="py-6 text-center space-y-4">
+            <div>
+              <h2 className="text-lg font-bold text-foreground">{preview.name}</h2>
+              <p className="text-sm text-muted-foreground mt-1">{preview.product.name}</p>
+              {preview.product.description && (
+                <p className="text-xs text-muted-foreground mt-1">{preview.product.description}</p>
+              )}
+            </div>
+            <div className="text-3xl font-bold text-primary">
+              {formatCentsToBRL(preview.product.price)}
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Cobrança automática no mesmo cartão da compra anterior
+            </p>
+            <div className="space-y-2 pt-2">
+              <Button className="w-full h-12 text-base" disabled>
+                <CheckCircle className="mr-2 h-4 w-4" />
+                Sim, quero!
+              </Button>
+              <Button variant="ghost" className="w-full text-muted-foreground" disabled>
+                Não, obrigado
+              </Button>
+            </div>
+            <p className="text-xs text-yellow-600 bg-yellow-50 dark:bg-yellow-900/20 dark:text-yellow-400 p-2 rounded">
+              ⚠️ Modo preview — botões desativados. Em produção, o cliente verá esta oferta com botões funcionais.
+            </p>
           </CardContent>
         </Card>
       </div>
@@ -135,7 +205,7 @@ export default function OfferFrame() {
 
   if (result && !result.redirecting) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-background px-4">
+      <div className="flex items-center justify-center min-h-[400px] bg-transparent px-4">
         <Card className="w-full max-w-sm">
           <CardContent className="py-8 text-center">
             {result.decision === "accepted" ? (
@@ -163,7 +233,7 @@ export default function OfferFrame() {
   const product = offer.products;
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-background px-4 py-6">
+    <div className="flex items-center justify-center min-h-[400px] bg-transparent px-4 py-6">
       <Card className="w-full max-w-sm border-2 border-primary/20">
         <CardContent className="py-6 text-center space-y-4">
           <div>
