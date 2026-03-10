@@ -66,37 +66,58 @@ export type Database = {
       }
       checkouts: {
         Row: {
+          accent_color: string | null
           active: boolean
+          banner_url: string | null
+          bg_color: string | null
           checkout_slug: string
           created_at: string
+          cta_text: string | null
           first_offer_id: string | null
+          headline_text: string | null
           id: string
           name: string
           order_bump_product_id: string | null
+          primary_color: string | null
           product_id: string
           redirect_url: string
+          show_product_image: boolean | null
         }
         Insert: {
+          accent_color?: string | null
           active?: boolean
+          banner_url?: string | null
+          bg_color?: string | null
           checkout_slug: string
           created_at?: string
+          cta_text?: string | null
           first_offer_id?: string | null
+          headline_text?: string | null
           id?: string
           name: string
           order_bump_product_id?: string | null
+          primary_color?: string | null
           product_id: string
           redirect_url: string
+          show_product_image?: boolean | null
         }
         Update: {
+          accent_color?: string | null
           active?: boolean
+          banner_url?: string | null
+          bg_color?: string | null
           checkout_slug?: string
           created_at?: string
+          cta_text?: string | null
           first_offer_id?: string | null
+          headline_text?: string | null
           id?: string
           name?: string
           order_bump_product_id?: string | null
+          primary_color?: string | null
           product_id?: string
           redirect_url?: string
+          show_product_image?: boolean | null
         }
         Relationships: [
           {
@@ -416,11 +437,13 @@ export type Database = {
         Row: {
           active: boolean
           created_at: string
+          currency: string
           delivery_attachment: string | null
           delivery_message: string | null
           delivery_type: Database["public"]["Enums"]["delivery_type"]
           description: string | null
           id: string
+          image_url: string | null
           name: string
           price: number
           stripe_price_id: string | null
@@ -430,11 +453,13 @@ export type Database = {
         Insert: {
           active?: boolean
           created_at?: string
+          currency?: string
           delivery_attachment?: string | null
           delivery_message?: string | null
           delivery_type?: Database["public"]["Enums"]["delivery_type"]
           description?: string | null
           id?: string
+          image_url?: string | null
           name: string
           price: number
           stripe_price_id?: string | null
@@ -444,11 +469,13 @@ export type Database = {
         Update: {
           active?: boolean
           created_at?: string
+          currency?: string
           delivery_attachment?: string | null
           delivery_message?: string | null
           delivery_type?: Database["public"]["Enums"]["delivery_type"]
           description?: string | null
           id?: string
+          image_url?: string | null
           name?: string
           price?: number
           stripe_price_id?: string | null

@@ -27,7 +27,7 @@ serve(async (req) => {
     // Get checkout with product
     const { data: checkout, error: checkoutError } = await supabase
       .from("checkouts")
-      .select("*, products!checkouts_product_id_fkey(id, name, price, stripe_price_id)")
+      .select("*, products!checkouts_product_id_fkey(id, name, price, currency, stripe_price_id)")
       .eq("id", checkout_id)
       .eq("active", true)
       .single();
@@ -40,6 +40,7 @@ serve(async (req) => {
     }
 
     const lineItems: any[] = [];
+    const currency = checkout.products.currency || "brl";
 
     // Main product
     if (checkout.products.stripe_price_id) {
@@ -47,7 +48,7 @@ serve(async (req) => {
     } else {
       lineItems.push({
         price_data: {
-          currency: "brl",
+          currency,
           product_data: { name: checkout.products.name },
           unit_amount: checkout.products.price,
         },
@@ -59,17 +60,18 @@ serve(async (req) => {
     if (include_bump && checkout.order_bump_product_id) {
       const { data: bumpProduct } = await supabase
         .from("products")
-        .select("id, name, price, stripe_price_id")
+        .select("id, name, price, currency, stripe_price_id")
         .eq("id", checkout.order_bump_product_id)
         .single();
 
       if (bumpProduct) {
+        const bumpCurrency = bumpProduct.currency || currency;
         if (bumpProduct.stripe_price_id) {
           lineItems.push({ price: bumpProduct.stripe_price_id, quantity: 1 });
         } else {
           lineItems.push({
             price_data: {
-              currency: "brl",
+              currency: bumpCurrency,
               product_data: { name: bumpProduct.name },
               unit_amount: bumpProduct.price,
             },
