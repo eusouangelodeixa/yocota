@@ -196,12 +196,12 @@ export default function Offers() {
                 <div className="space-y-2">
                   <Label>Se aceitar → próxima oferta</Label>
                   <Select
-                    value={form.accept_next_offer_id}
-                    onValueChange={(v) => setForm({ ...form, accept_next_offer_id: v })}
+                    value={form.accept_next_offer_id || "__none__"}
+                    onValueChange={(v) => setForm({ ...form, accept_next_offer_id: v === "__none__" ? "" : v })}
                   >
                     <SelectTrigger><SelectValue placeholder="Nenhuma" /></SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">Nenhuma (fim)</SelectItem>
+                      <SelectItem value="__none__">Nenhuma (fim)</SelectItem>
                       {offers
                         ?.filter((o: any) => o.id !== editingId)
                         .map((o: any) => (
