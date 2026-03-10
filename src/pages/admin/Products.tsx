@@ -183,7 +183,7 @@ export default function Products() {
           console.warn("Stripe sync failed:", e);
         }
       } else {
-        const { data, error } = await supabase.from("products").insert(payload).select().single();
+        const { data, error } = await supabase.from("products").insert(payload as any).select().single();
         if (error) throw error;
 
         try {
