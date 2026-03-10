@@ -18,20 +18,24 @@ Checkout system with upsell engine - Phase 1 & 2 fully implemented using React+V
 - Enums: product_type, delivery_type, order_status, order_item_type, delivery_status
 
 ## Edge Functions
-- create-intent: creates Stripe Checkout Session, redirects to /success/:checkoutId if offers exist
+- create-intent: creates Stripe Checkout Session, redirects to /success/:checkoutId if offers exist, adds setup_future_usage for card saving
 - sync-product: syncs products to Stripe
 - stripe-webhook: processes Stripe events, saves payment_method, creates offer_sessions
-- offer-decision: processes accept/reject, one-click Stripe off-session charge, chains next offer
+- offer-decision: processes accept/reject, one-click Stripe off-session charge, chains next offer, returns next_offer_page_url + next_offer_token
 - generate-offer-url: creates offer_session with opaque token
 
-## Upsell Flow (COMPLETE)
-1. Checkout → Stripe payment → redirect to /success/:checkoutId
-2. SuccessPage polls for order creation (webhook async), shows offer iframe
-3. OfferFrame shows offer, customer accepts/rejects
-4. offer-decision charges one-click if accepted, creates next offer_session
-5. OfferFrame posts message to parent (SuccessPage) with nextToken
-6. SuccessPage updates iframe src or shows completion
-7. After all offers → auto-redirect to checkout.redirect_url
+## Upsell Flow — Two Modes
+### Mode 1: External Page (recommended)
+1. Offer has page_url set → after payment, SuccessPage redirects to page_url?offer_token=TOKEN
+2. External page has iframe embed code (copied from admin button <Code>)
+3. Iframe loads /offer-frame/TOKEN, shows accept/reject
+4. On decision, iframe posts message to parent with nextPageUrl + nextToken
+5. Parent JS redirects to next offer's page_url or shows completion
+
+### Mode 2: Inline (automatic)
+1. Offer has NO page_url → SuccessPage shows iframe directly
+2. On decision, SuccessPage updates iframe src with next token
+3. After all offers → auto-redirect to checkout.redirect_url
 
 ## Key Rules (from PRD)
 - Card data NEVER touches server (Stripe Elements/Checkout)
