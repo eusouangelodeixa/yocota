@@ -40,6 +40,7 @@ serve(async (req) => {
     }
 
     const lineItems: any[] = [];
+    const currency = checkout.products.currency || "brl";
 
     // Main product
     if (checkout.products.stripe_price_id) {
@@ -47,7 +48,7 @@ serve(async (req) => {
     } else {
       lineItems.push({
         price_data: {
-          currency: "brl",
+          currency,
           product_data: { name: checkout.products.name },
           unit_amount: checkout.products.price,
         },
