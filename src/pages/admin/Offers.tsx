@@ -11,7 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { formatCentsToBRL } from "@/lib/formatters";
-import { Plus, Pencil, Trash2, GitBranch, Copy, Code, ExternalLink } from "lucide-react";
+import { Plus, Pencil, Trash2, GitBranch, Copy, Code, ExternalLink, Eye } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { OfferFunnelTree } from "@/components/OfferFunnelTree";
 
@@ -35,13 +35,16 @@ const emptyForm: OfferForm = {
 
 function EmbedCodeDialog({ offer }: { offer: any }) {
   const appUrl = window.location.origin;
+  const iframeId = offer.iframe_id || "offer-iframe-" + offer.id.slice(0, 8);
 
   const embedCode = `<!-- Iframe de Oferta: ${offer.name} -->
-<div id="offer-container">
+<div id="offer-container-${iframeId}" style="width:100%;min-height:500px;">
   <iframe
-    id="${offer.iframe_id || "offer-iframe"}"
+    id="${iframeId}"
     style="width:100%;min-height:500px;border:none;border-radius:12px;"
     title="Oferta Especial"
+    allow="payment"
+    loading="lazy"
   ></iframe>
 </div>
 
@@ -49,15 +52,15 @@ function EmbedCodeDialog({ offer }: { offer: any }) {
 (function() {
   var params = new URLSearchParams(window.location.search);
   var token = params.get('offer_token');
+  var iframe = document.getElementById('${iframeId}');
+  var container = document.getElementById('offer-container-${iframeId}');
+
   if (token) {
-    var iframe = document.getElementById('${offer.iframe_id || "offer-iframe"}');
     iframe.src = '${appUrl}/offer-frame/' + token;
   } else {
-    // Sem token — esconder o container
-    document.getElementById('offer-container').style.display = 'none';
+    container.style.display = 'none';
   }
 
-  // Escutar decisão do iframe para redirecionar à próxima oferta
   window.addEventListener('message', function(event) {
     if (event.data && event.data.type === 'offer-complete') {
       var nextToken = event.data.nextToken;
@@ -67,17 +70,23 @@ function EmbedCodeDialog({ offer }: { offer: any }) {
       } else if (nextToken) {
         iframe.src = '${appUrl}/offer-frame/' + nextToken;
       } else {
-        // Fim do funil — redirecionar para página de obrigado ou esconder
-        document.getElementById('offer-container').innerHTML = '<p>Obrigado!</p>';
+        container.innerHTML = '<div style="text-align:center;padding:40px;"><h3>Obrigado!</h3><p>Voce sera redirecionado em breve...</p></div>';
       }
     }
   });
 })();
 </script>`;
 
+  const previewUrl = `${appUrl}/offer-frame/${offer.id}?preview=1`;
+
   const copyEmbed = () => {
     navigator.clipboard.writeText(embedCode);
     toast.success("Código copiado!");
+  };
+
+  const copyPreviewUrl = () => {
+    navigator.clipboard.writeText(previewUrl);
+    toast.success("URL de preview copiada!");
   };
 
   return (
@@ -96,6 +105,24 @@ function EmbedCodeDialog({ offer }: { offer: any }) {
         </DialogHeader>
         <div className="space-y-4">
           <div className="space-y-2">
+            <Label className="text-xs font-semibold">🔍 Preview (testar visual)</Label>
+            <div className="flex gap-2">
+              <Input value={previewUrl} readOnly className="text-xs" />
+              <Button variant="outline" size="sm" onClick={copyPreviewUrl}>
+                <Copy className="h-3 w-3" />
+              </Button>
+              <Button variant="outline" size="sm" asChild>
+                <a href={previewUrl} target="_blank" rel="noopener noreferrer">
+                  <Eye className="h-3 w-3" />
+                </a>
+              </Button>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Abra este link para ver como a oferta aparece no iframe. Botões desativados no preview.
+            </p>
+          </div>
+
+          <div className="space-y-2">
             <Label className="text-xs font-semibold">URL da página desta oferta</Label>
             <p className="text-xs text-muted-foreground">
               {offer.page_url ? (
@@ -104,8 +131,8 @@ function EmbedCodeDialog({ offer }: { offer: any }) {
                   {offer.page_url}
                 </span>
               ) : (
-                <span className="text-warning">
-                  ⚠️ Nenhuma URL definida. Sem URL, a oferta será exibida inline na nossa página de sucesso.
+                <span className="text-yellow-600 dark:text-yellow-400">
+                  ⚠️ Nenhuma URL definida. Sem URL, a oferta será exibida inline na página de sucesso.
                 </span>
               )}
             </p>
@@ -131,6 +158,13 @@ function EmbedCodeDialog({ offer }: { offer: any }) {
               <li>Ao aceitar/recusar, o iframe redireciona automaticamente para a próxima oferta do funil.</li>
               <li>O pagamento do upsell é <strong>one-click</strong> (mesmo cartão).</li>
             </ol>
+          </div>
+
+          <div className="bg-muted/50 border border-border p-3 rounded-lg">
+            <p className="text-xs text-foreground font-semibold mb-1">⚡ Teste rápido:</p>
+            <p className="text-xs text-muted-foreground">
+              Use o link de Preview acima para ver o visual. O iframe real só funciona com um token válido gerado após uma compra.
+            </p>
           </div>
         </div>
       </DialogContent>
@@ -446,6 +480,11 @@ export default function Offers() {
                         <TableCell>
                           <div className="flex gap-1">
                             <EmbedCodeDialog offer={offer} />
+                            <Button variant="ghost" size="icon" title="Preview" asChild>
+                              <a href={`/offer-frame/${offer.id}?preview=1`} target="_blank" rel="noopener noreferrer">
+                                <Eye className="h-4 w-4" />
+                              </a>
+                            </Button>
                             <Button variant="ghost" size="icon" onClick={() => openEdit(offer)}>
                               <Pencil className="h-4 w-4" />
                             </Button>
