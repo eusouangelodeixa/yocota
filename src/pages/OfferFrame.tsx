@@ -125,7 +125,7 @@ export default function OfferFrame() {
           <CardContent className="py-8 text-center">
             {result.decision === "accepted" ? (
               <>
-                <CheckCircle className="h-10 w-10 text-green-500 mx-auto mb-3" />
+                <CheckCircle className="h-10 w-10 text-success mx-auto mb-3" />
                 <p className="font-semibold text-foreground">Oferta aceita!</p>
                 <p className="text-sm text-muted-foreground mt-1">Seu pagamento foi processado.</p>
               </>

@@ -43,10 +43,10 @@ function OfferSelect({ value, onChange }: { value: string; onChange: (v: string)
   });
 
   return (
-    <Select value={value} onValueChange={onChange}>
+    <Select value={value || "__none__"} onValueChange={(v) => onChange(v === "__none__" ? "" : v)}>
       <SelectTrigger><SelectValue placeholder="Nenhuma" /></SelectTrigger>
       <SelectContent>
-        <SelectItem value="">Nenhuma</SelectItem>
+        <SelectItem value="__none__">Nenhuma</SelectItem>
         {offers?.map((o) => (
           <SelectItem key={o.id} value={o.id}>{o.name}</SelectItem>
         ))}
@@ -226,12 +226,12 @@ export default function Checkouts() {
               <div className="space-y-2">
                 <Label>Order Bump (opcional)</Label>
                 <Select
-                  value={form.order_bump_product_id}
-                  onValueChange={(v) => setForm({ ...form, order_bump_product_id: v })}
+                  value={form.order_bump_product_id || "__none__"}
+                  onValueChange={(v) => setForm({ ...form, order_bump_product_id: v === "__none__" ? "" : v })}
                 >
                   <SelectTrigger><SelectValue placeholder="Nenhum" /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">Nenhum</SelectItem>
+                    <SelectItem value="__none__">Nenhum</SelectItem>
                     {products
                       ?.filter((p) => p.id !== form.product_id)
                       .map((p) => (
