@@ -32,6 +32,29 @@ const emptyForm: CheckoutForm = {
   first_offer_id: "",
 };
 
+function OfferSelect({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+  const { data: offers } = useQuery({
+    queryKey: ["offers-list"],
+    queryFn: async () => {
+      const { data, error } = await supabase.from("offers").select("id, name").order("name");
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  return (
+    <Select value={value} onValueChange={onChange}>
+      <SelectTrigger><SelectValue placeholder="Nenhuma" /></SelectTrigger>
+      <SelectContent>
+        <SelectItem value="">Nenhuma</SelectItem>
+        {offers?.map((o) => (
+          <SelectItem key={o.id} value={o.id}>{o.name}</SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
+  );
+}
+
 export default function Checkouts() {
   const queryClient = useQueryClient();
   const [dialogOpen, setDialogOpen] = useState(false);
