@@ -60,11 +60,12 @@ serve(async (req) => {
     if (include_bump && checkout.order_bump_product_id) {
       const { data: bumpProduct } = await supabase
         .from("products")
-        .select("id, name, price, stripe_price_id")
+        .select("id, name, price, currency, stripe_price_id")
         .eq("id", checkout.order_bump_product_id)
         .single();
 
       if (bumpProduct) {
+        const bumpCurrency = bumpProduct.currency || currency;
         if (bumpProduct.stripe_price_id) {
           lineItems.push({ price: bumpProduct.stripe_price_id, quantity: 1 });
         } else {
