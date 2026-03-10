@@ -152,7 +152,7 @@ export default function SuccessPage() {
       <div className="min-h-screen bg-background flex flex-col items-center justify-center px-4 py-8">
         <div className="w-full max-w-md mb-4 text-center">
           <div className="flex items-center justify-center gap-2 mb-2">
-            <CheckCircle className="h-5 w-5 text-green-500" />
+            <CheckCircle className="h-5 w-5 text-primary" />
             <p className="font-semibold text-foreground">Pagamento confirmado!</p>
           </div>
           <p className="text-sm text-muted-foreground">Temos uma oferta especial para você:</p>
