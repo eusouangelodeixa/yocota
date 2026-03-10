@@ -69,6 +69,7 @@ export type Database = {
           active: boolean
           checkout_slug: string
           created_at: string
+          first_offer_id: string | null
           id: string
           name: string
           order_bump_product_id: string | null
@@ -79,6 +80,7 @@ export type Database = {
           active?: boolean
           checkout_slug: string
           created_at?: string
+          first_offer_id?: string | null
           id?: string
           name: string
           order_bump_product_id?: string | null
@@ -89,6 +91,7 @@ export type Database = {
           active?: boolean
           checkout_slug?: string
           created_at?: string
+          first_offer_id?: string | null
           id?: string
           name?: string
           order_bump_product_id?: string | null
@@ -96,6 +99,13 @@ export type Database = {
           redirect_url?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "checkouts_first_offer_id_fkey"
+            columns: ["first_offer_id"]
+            isOneToOne: false
+            referencedRelation: "offers"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "checkouts_order_bump_product_id_fkey"
             columns: ["order_bump_product_id"]
@@ -183,6 +193,67 @@ export type Database = {
             columns: ["order_item_id"]
             isOneToOne: false
             referencedRelation: "order_items"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      offer_sessions: {
+        Row: {
+          created_at: string
+          customer_id: string
+          decided_at: string | null
+          decision: string | null
+          expires_at: string
+          id: string
+          offer_id: string
+          order_id: string
+          stripe_payment_intent_id: string | null
+          token: string
+        }
+        Insert: {
+          created_at?: string
+          customer_id: string
+          decided_at?: string | null
+          decision?: string | null
+          expires_at?: string
+          id?: string
+          offer_id: string
+          order_id: string
+          stripe_payment_intent_id?: string | null
+          token?: string
+        }
+        Update: {
+          created_at?: string
+          customer_id?: string
+          decided_at?: string | null
+          decision?: string | null
+          expires_at?: string
+          id?: string
+          offer_id?: string
+          order_id?: string
+          stripe_payment_intent_id?: string | null
+          token?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "offer_sessions_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "offer_sessions_offer_id_fkey"
+            columns: ["offer_id"]
+            isOneToOne: false
+            referencedRelation: "offers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "offer_sessions_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
             referencedColumns: ["id"]
           },
         ]
