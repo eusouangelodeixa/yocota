@@ -11,7 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { formatCentsToBRL } from "@/lib/formatters";
-import { Plus, Pencil, Trash2, GitBranch, Copy, Code, ExternalLink } from "lucide-react";
+import { Plus, Pencil, Trash2, GitBranch, Copy, Code, ExternalLink, Eye } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { OfferFunnelTree } from "@/components/OfferFunnelTree";
 
