@@ -11,7 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { formatCentsToBRL } from "@/lib/formatters";
-import { Plus, Pencil, Trash2, GitBranch } from "lucide-react";
+import { Plus, Pencil, Trash2, GitBranch, Copy, Code, ExternalLink } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { OfferFunnelTree } from "@/components/OfferFunnelTree";
 
@@ -32,6 +32,111 @@ const emptyForm: OfferForm = {
   accept_next_offer_id: "",
   reject_next_offer_id: "",
 };
+
+function EmbedCodeDialog({ offer }: { offer: any }) {
+  const appUrl = window.location.origin;
+
+  const embedCode = `<!-- Iframe de Oferta: ${offer.name} -->
+<div id="offer-container">
+  <iframe
+    id="${offer.iframe_id || "offer-iframe"}"
+    style="width:100%;min-height:500px;border:none;border-radius:12px;"
+    title="Oferta Especial"
+  ></iframe>
+</div>
+
+<script>
+(function() {
+  var params = new URLSearchParams(window.location.search);
+  var token = params.get('offer_token');
+  if (token) {
+    var iframe = document.getElementById('${offer.iframe_id || "offer-iframe"}');
+    iframe.src = '${appUrl}/offer-frame/' + token;
+  } else {
+    // Sem token — esconder o container
+    document.getElementById('offer-container').style.display = 'none';
+  }
+
+  // Escutar decisão do iframe para redirecionar à próxima oferta
+  window.addEventListener('message', function(event) {
+    if (event.data && event.data.type === 'offer-complete') {
+      var nextToken = event.data.nextToken;
+      var nextPageUrl = event.data.nextPageUrl;
+      if (nextPageUrl && nextToken) {
+        window.location.href = nextPageUrl + (nextPageUrl.indexOf('?') > -1 ? '&' : '?') + 'offer_token=' + nextToken;
+      } else if (nextToken) {
+        iframe.src = '${appUrl}/offer-frame/' + nextToken;
+      } else {
+        // Fim do funil — redirecionar para página de obrigado ou esconder
+        document.getElementById('offer-container').innerHTML = '<p>Obrigado!</p>';
+      }
+    }
+  });
+})();
+</script>`;
+
+  const copyEmbed = () => {
+    navigator.clipboard.writeText(embedCode);
+    toast.success("Código copiado!");
+  };
+
+  return (
+    <Dialog>
+      <DialogTrigger asChild>
+        <Button variant="ghost" size="icon" title="Código do iframe">
+          <Code className="h-4 w-4" />
+        </Button>
+      </DialogTrigger>
+      <DialogContent className="max-w-2xl">
+        <DialogHeader>
+          <DialogTitle>Código do Iframe — {offer.name}</DialogTitle>
+          <p className="text-sm text-muted-foreground">
+            Cole este código na sua página de vendas externa onde o iframe da oferta deve aparecer.
+          </p>
+        </DialogHeader>
+        <div className="space-y-4">
+          <div className="space-y-2">
+            <Label className="text-xs font-semibold">URL da página desta oferta</Label>
+            <p className="text-xs text-muted-foreground">
+              {offer.page_url ? (
+                <span className="flex items-center gap-1">
+                  <ExternalLink className="h-3 w-3" />
+                  {offer.page_url}
+                </span>
+              ) : (
+                <span className="text-warning">
+                  ⚠️ Nenhuma URL definida. Sem URL, a oferta será exibida inline na nossa página de sucesso.
+                </span>
+              )}
+            </p>
+          </div>
+
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <Label className="text-xs font-semibold">Código para colar na página</Label>
+              <Button variant="outline" size="sm" onClick={copyEmbed}>
+                <Copy className="mr-2 h-3 w-3" /> Copiar
+              </Button>
+            </div>
+            <pre className="bg-muted text-xs p-4 rounded-lg overflow-x-auto whitespace-pre-wrap break-all max-h-64 overflow-y-auto">
+              {embedCode}
+            </pre>
+          </div>
+
+          <div className="bg-accent/50 p-3 rounded-lg">
+            <p className="text-xs text-foreground font-semibold mb-1">📋 Como funciona:</p>
+            <ol className="text-xs text-muted-foreground space-y-1 list-decimal list-inside">
+              <li>Após o pagamento, o sistema redireciona o cliente para a <strong>URL da Página</strong> com <code>?offer_token=TOKEN</code></li>
+              <li>O script lê o token da URL e carrega o iframe com a oferta.</li>
+              <li>Ao aceitar/recusar, o iframe redireciona automaticamente para a próxima oferta do funil.</li>
+              <li>O pagamento do upsell é <strong>one-click</strong> (mesmo cartão).</li>
+            </ol>
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
 
 export default function Offers() {
   const queryClient = useQueryClient();
@@ -177,22 +282,33 @@ export default function Offers() {
                   </SelectContent>
                 </Select>
               </div>
-              <div className="space-y-2">
-                <Label>URL da Página (opcional)</Label>
-                <Input
-                  value={form.page_url}
-                  onChange={(e) => setForm({ ...form, page_url: e.target.value })}
-                  placeholder="https://exemplo.com/oferta"
-                />
+
+              <div className="bg-muted/50 p-3 rounded-lg space-y-3">
+                <p className="text-xs font-semibold text-foreground">🌐 Página Externa (opcional)</p>
+                <p className="text-xs text-muted-foreground">
+                  Se preenchido, o cliente será redirecionado para esta URL após o pagamento. 
+                  Nessa página, você cola o código do iframe (botão <Code className="inline h-3 w-3" /> na tabela).
+                  Se vazio, a oferta aparece na nossa página de sucesso automaticamente.
+                </p>
+                <div className="space-y-2">
+                  <Label className="text-xs">URL da Página</Label>
+                  <Input
+                    value={form.page_url}
+                    onChange={(e) => setForm({ ...form, page_url: e.target.value })}
+                    placeholder="https://suapagina.com/upsell-1"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-xs">ID do Iframe</Label>
+                  <Input
+                    value={form.iframe_id}
+                    onChange={(e) => setForm({ ...form, iframe_id: e.target.value })}
+                    placeholder="offer-iframe"
+                  />
+                  <p className="text-xs text-muted-foreground">ID do elemento iframe na sua página. Padrão: "offer-iframe"</p>
+                </div>
               </div>
-              <div className="space-y-2">
-                <Label>ID do Iframe (opcional)</Label>
-                <Input
-                  value={form.iframe_id}
-                  onChange={(e) => setForm({ ...form, iframe_id: e.target.value })}
-                  placeholder="iframe-upsell-1"
-                />
-              </div>
+
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label>Se aceitar → próxima oferta</Label>
@@ -244,17 +360,28 @@ export default function Offers() {
 
       <Card className="mb-4 border-dashed">
         <CardContent className="py-4">
-          <h3 className="font-semibold text-sm text-foreground mb-2">📌 Como funciona o funil de upsell</h3>
-          <ol className="text-xs text-muted-foreground space-y-1 list-decimal list-inside">
-            <li>Crie as ofertas abaixo (cada uma vinculada a um produto).</li>
-            <li>Encadeie-as: defina qual oferta aparece se o cliente aceitar ou recusar.</li>
-            <li>No <strong>Checkout</strong>, selecione a <strong>Primeira Oferta</strong> do funil.</li>
-            <li>Após o pagamento no Stripe, o cliente verá as ofertas automaticamente na página de sucesso.</li>
-            <li>O pagamento do upsell é <strong>one-click</strong> (cobrado no mesmo cartão).</li>
-          </ol>
-          <p className="text-xs text-muted-foreground mt-2">
-            Os campos <strong>URL da Página</strong> e <strong>ID do Iframe</strong> são opcionais — use-os caso queira hospedar a oferta em uma página externa com um iframe embutido.
-          </p>
+          <h3 className="font-semibold text-sm text-foreground mb-2">📌 Como configurar o funil</h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs text-muted-foreground">
+            <div>
+              <p className="font-semibold text-foreground mb-1">Modo 1: Página Externa (recomendado)</p>
+              <ol className="space-y-1 list-decimal list-inside">
+                <li>Crie ofertas com <strong>URL da Página</strong> preenchida.</li>
+                <li>Clique no botão <Code className="inline h-3 w-3" /> para copiar o código do iframe.</li>
+                <li>Cole o código na sua página de vendas externa.</li>
+                <li>No <strong>Checkout</strong>, selecione a primeira oferta.</li>
+                <li>Após pagar, o cliente é redirecionado para sua página com o iframe.</li>
+              </ol>
+            </div>
+            <div>
+              <p className="font-semibold text-foreground mb-1">Modo 2: Página Inline (automático)</p>
+              <ol className="space-y-1 list-decimal list-inside">
+                <li>Crie ofertas <strong>sem URL da Página</strong>.</li>
+                <li>No <strong>Checkout</strong>, selecione a primeira oferta.</li>
+                <li>Após pagar, o cliente vê as ofertas na nossa página de sucesso.</li>
+                <li>Não precisa colar código em lugar nenhum.</li>
+              </ol>
+            </div>
+          </div>
         </CardContent>
       </Card>
 
@@ -276,21 +403,22 @@ export default function Offers() {
                     <TableHead>Nome</TableHead>
                     <TableHead>Produto</TableHead>
                     <TableHead>Preço</TableHead>
+                    <TableHead>Modo</TableHead>
                     <TableHead>Se Aceitar</TableHead>
                     <TableHead>Se Recusar</TableHead>
-                    <TableHead className="w-24">Ações</TableHead>
+                    <TableHead className="w-32">Ações</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {isLoading ? (
                     <TableRow>
-                      <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
+                      <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
                         Carregando...
                       </TableCell>
                     </TableRow>
                   ) : offers?.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
+                      <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
                         Nenhuma oferta encontrada
                       </TableCell>
                     </TableRow>
@@ -300,6 +428,11 @@ export default function Offers() {
                         <TableCell className="font-medium">{offer.name}</TableCell>
                         <TableCell>{offer.products?.name}</TableCell>
                         <TableCell>{formatCentsToBRL(offer.products?.price ?? 0)}</TableCell>
+                        <TableCell>
+                          <Badge variant={offer.page_url ? "default" : "secondary"} className="text-xs">
+                            {offer.page_url ? "Externa" : "Inline"}
+                          </Badge>
+                        </TableCell>
                         <TableCell>
                           <Badge variant="outline" className="text-xs">
                             {getOfferName(offer.accept_next_offer_id)}
@@ -312,6 +445,7 @@ export default function Offers() {
                         </TableCell>
                         <TableCell>
                           <div className="flex gap-1">
+                            <EmbedCodeDialog offer={offer} />
                             <Button variant="ghost" size="icon" onClick={() => openEdit(offer)}>
                               <Pencil className="h-4 w-4" />
                             </Button>
