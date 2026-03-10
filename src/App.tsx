@@ -10,8 +10,10 @@ import Dashboard from "@/pages/admin/Dashboard";
 import Products from "@/pages/admin/Products";
 import Checkouts from "@/pages/admin/Checkouts";
 import Orders from "@/pages/admin/Orders";
+import Offers from "@/pages/admin/Offers";
 import Placeholder from "@/pages/admin/Placeholder";
 import CheckoutPage from "@/pages/CheckoutPage";
+import OfferFrame from "@/pages/OfferFrame";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
