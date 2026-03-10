@@ -480,6 +480,11 @@ export default function Offers() {
                         <TableCell>
                           <div className="flex gap-1">
                             <EmbedCodeDialog offer={offer} />
+                            <Button variant="ghost" size="icon" title="Preview" asChild>
+                              <a href={`/offer-frame/${offer.id}?preview=1`} target="_blank" rel="noopener noreferrer">
+                                <Eye className="h-4 w-4" />
+                              </a>
+                            </Button>
                             <Button variant="ghost" size="icon" onClick={() => openEdit(offer)}>
                               <Pencil className="h-4 w-4" />
                             </Button>
