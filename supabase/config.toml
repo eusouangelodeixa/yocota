@@ -11,3 +11,9 @@ verify_jwt = false
 
 [functions.confirm-payment]
 verify_jwt = false
+
+[functions.offer-decision]
+verify_jwt = false
+
+[functions.generate-offer-url]
+verify_jwt = false

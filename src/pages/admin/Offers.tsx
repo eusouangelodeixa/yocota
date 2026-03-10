@@ -146,6 +146,7 @@ export default function Offers() {
           <DialogContent className="max-w-lg">
             <DialogHeader>
               <DialogTitle>{editingId ? "Editar Oferta" : "Nova Oferta"}</DialogTitle>
+              <p className="text-sm text-muted-foreground">Configure os detalhes da oferta de upsell/downsell.</p>
             </DialogHeader>
             <form
               onSubmit={(e) => {
