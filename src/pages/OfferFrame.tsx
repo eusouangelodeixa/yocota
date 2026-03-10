@@ -18,6 +18,7 @@ interface SessionData {
     id: string;
     name: string;
     product_id: string;
+    page_url: string | null;
     products: { name: string; description: string | null; price: number };
   };
 }
@@ -28,7 +29,7 @@ export default function OfferFrame() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [processing, setProcessing] = useState(false);
-  const [result, setResult] = useState<{ decision: string; nextUrl?: string } | null>(null);
+  const [result, setResult] = useState<{ decision: string; redirecting?: boolean } | null>(null);
 
   useEffect(() => {
     async function loadSession() {
@@ -36,7 +37,7 @@ export default function OfferFrame() {
 
       const { data, error: fetchError } = await supabase
         .from("offer_sessions")
-        .select("id, token, offer_id, order_id, customer_id, decision, expires_at, offers:offer_id(id, name, product_id, products:product_id(name, description, price))")
+        .select("id, token, offer_id, order_id, customer_id, decision, expires_at, offers:offer_id(id, name, product_id, page_url, products:product_id(name, description, price))")
         .eq("token", token)
         .maybeSingle();
 
@@ -46,14 +47,12 @@ export default function OfferFrame() {
         return;
       }
 
-      // Check expiry
       if (new Date(data.expires_at) < new Date()) {
         setError("Esta oferta expirou");
         setLoading(false);
         return;
       }
 
-      // Already decided
       if (data.decision) {
         setResult({ decision: data.decision });
         setLoading(false);
@@ -81,26 +80,30 @@ export default function OfferFrame() {
       if (fnError) throw new Error(fnError.message);
       if (data?.error) throw new Error(data.error);
 
-      const nextUrl = data?.next_offer_url || undefined;
-      const nextToken = nextUrl ? nextUrl.split("/offer-frame/")[1] : null;
+      const nextToken = data?.next_offer_token || null;
+      const nextPageUrl = data?.next_offer_page_url || null;
 
-      setResult({
-        decision,
-        nextUrl,
-      });
+      setResult({ decision, redirecting: !!nextToken });
 
-      // Notify parent window (SuccessPage) about the decision
+      // Notify parent window (SuccessPage or external page) about the decision
       if (window.parent !== window) {
         window.parent.postMessage({
           type: "offer-complete",
           decision,
           nextToken,
+          nextPageUrl,
         }, "*");
       }
 
-      // If there's a next offer and we're standalone (not in iframe), redirect
-      if (nextUrl && window.parent === window) {
-        window.location.href = nextUrl;
+      // If standalone (not in iframe) and there's a next offer
+      if (window.parent === window) {
+        if (nextPageUrl && nextToken) {
+          // Next offer has external page — redirect there
+          window.location.href = `${nextPageUrl}${nextPageUrl.includes("?") ? "&" : "?"}offer_token=${nextToken}`;
+        } else if (data?.next_offer_url) {
+          // Next offer is inline — redirect to offer-frame
+          window.location.href = data.next_offer_url;
+        }
       }
     } catch (err: any) {
       setError(err.message || "Erro ao processar decisão");
@@ -130,14 +133,14 @@ export default function OfferFrame() {
     );
   }
 
-  if (result && !result.nextUrl) {
+  if (result && !result.redirecting) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-background px-4">
         <Card className="w-full max-w-sm">
           <CardContent className="py-8 text-center">
             {result.decision === "accepted" ? (
               <>
-                <CheckCircle className="h-10 w-10 text-success mx-auto mb-3" />
+                <CheckCircle className="h-10 w-10 text-primary mx-auto mb-3" />
                 <p className="font-semibold text-foreground">Oferta aceita!</p>
                 <p className="text-sm text-muted-foreground mt-1">Seu pagamento foi processado.</p>
               </>

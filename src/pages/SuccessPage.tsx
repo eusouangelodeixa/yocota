@@ -5,22 +5,15 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Loader2, CheckCircle, PartyPopper } from "lucide-react";
 
-interface OrderWithOffer {
-  order_id: string;
-  offer_token: string | null;
-  redirect_url: string;
-}
-
 export default function SuccessPage() {
   const { checkoutId } = useParams<{ checkoutId: string }>();
   const [searchParams] = useSearchParams();
   const sessionId = searchParams.get("session_id");
 
-  const [state, setState] = useState<"loading" | "offer" | "done" | "error">("loading");
-  const [orderData, setOrderData] = useState<OrderWithOffer | null>(null);
+  const [state, setState] = useState<"loading" | "offer-inline" | "done" | "error">("loading");
+  const [redirectUrl, setRedirectUrl] = useState<string>("");
   const [offerToken, setOfferToken] = useState<string | null>(null);
 
-  // Poll for the order to be created by the webhook
   useEffect(() => {
     if (!checkoutId || !sessionId) {
       setState("error");
@@ -28,12 +21,12 @@ export default function SuccessPage() {
     }
 
     let attempts = 0;
-    const maxAttempts = 30; // 30 seconds max
+    const maxAttempts = 30;
 
     const poll = async () => {
       attempts++;
 
-      // Find order by stripe_payment_intent_id or by checkout_id (recent)
+      // Find the paid order for this checkout
       const { data: order } = await supabase
         .from("orders")
         .select("id, checkout_id")
@@ -45,7 +38,6 @@ export default function SuccessPage() {
 
       if (!order) {
         if (attempts >= maxAttempts) {
-          // Timeout - just redirect
           const { data: checkout } = await supabase
             .from("checkouts")
             .select("redirect_url")
@@ -62,62 +54,73 @@ export default function SuccessPage() {
         return;
       }
 
-      // Check for pending offer session
-      const { data: offerSession } = await supabase
-        .from("offer_sessions")
-        .select("token, decision")
-        .eq("order_id", order.id)
-        .is("decision", null)
-        .order("created_at", { ascending: true })
-        .limit(1)
-        .maybeSingle();
-
-      // Get redirect_url
+      // Get checkout redirect_url
       const { data: checkout } = await supabase
         .from("checkouts")
         .select("redirect_url")
         .eq("id", checkoutId)
         .single();
 
-      setOrderData({
-        order_id: order.id,
-        offer_token: offerSession?.token || null,
-        redirect_url: checkout?.redirect_url || "",
-      });
+      setRedirectUrl(checkout?.redirect_url || "");
 
-      if (offerSession?.token) {
-        setOfferToken(offerSession.token);
-        setState("offer");
-      } else {
+      // Check for pending offer session
+      const { data: offerSession } = await supabase
+        .from("offer_sessions")
+        .select("token, decision, offer_id")
+        .eq("order_id", order.id)
+        .is("decision", null)
+        .order("created_at", { ascending: true })
+        .limit(1)
+        .maybeSingle();
+
+      if (!offerSession?.token) {
+        // No offers — go to final redirect
         setState("done");
-        // Auto-redirect after 3 seconds if no offers
-        setTimeout(() => {
-          if (checkout?.redirect_url) {
-            window.location.href = checkout.redirect_url;
-          }
-        }, 3000);
+        if (checkout?.redirect_url) {
+          setTimeout(() => { window.location.href = checkout.redirect_url; }, 3000);
+        }
+        return;
+      }
+
+      // Check if the offer has an external page_url
+      const { data: offer } = await supabase
+        .from("offers")
+        .select("page_url")
+        .eq("id", offerSession.offer_id)
+        .single();
+
+      if (offer?.page_url) {
+        // EXTERNAL MODE: redirect to the offer's external page with token
+        window.location.href = `${offer.page_url}${offer.page_url.includes("?") ? "&" : "?"}offer_token=${offerSession.token}`;
+      } else {
+        // INLINE MODE: show iframe in our success page
+        setOfferToken(offerSession.token);
+        setState("offer-inline");
       }
     };
 
     poll();
   }, [checkoutId, sessionId]);
 
-  // Listen for messages from the offer iframe
+  // Listen for messages from offer iframe (inline mode)
   const handleIframeMessage = useCallback((event: MessageEvent) => {
     if (event.data?.type === "offer-complete") {
-      const nextToken = event.data.nextToken;
-      if (nextToken) {
+      const { nextToken, nextPageUrl } = event.data;
+      if (nextPageUrl && nextToken) {
+        // Next offer has external page — redirect there
+        window.location.href = `${nextPageUrl}${nextPageUrl.includes("?") ? "&" : "?"}offer_token=${nextToken}`;
+      } else if (nextToken) {
+        // Next offer is inline — update iframe
         setOfferToken(nextToken);
       } else {
+        // No more offers — done
         setState("done");
-        if (orderData?.redirect_url) {
-          setTimeout(() => {
-            window.location.href = orderData.redirect_url;
-          }, 3000);
+        if (redirectUrl) {
+          setTimeout(() => { window.location.href = redirectUrl; }, 3000);
         }
       }
     }
-  }, [orderData]);
+  }, [redirectUrl]);
 
   useEffect(() => {
     window.addEventListener("message", handleIframeMessage);
@@ -147,7 +150,7 @@ export default function SuccessPage() {
     );
   }
 
-  if (state === "offer" && offerToken) {
+  if (state === "offer-inline" && offerToken) {
     return (
       <div className="min-h-screen bg-background flex flex-col items-center justify-center px-4 py-8">
         <div className="w-full max-w-md mb-4 text-center">
@@ -168,9 +171,7 @@ export default function SuccessPage() {
           className="mt-4 text-sm text-muted-foreground"
           onClick={() => {
             setState("done");
-            if (orderData?.redirect_url) {
-              window.location.href = orderData.redirect_url;
-            }
+            if (redirectUrl) window.location.href = redirectUrl;
           }}
         >
           Pular ofertas →
@@ -189,10 +190,8 @@ export default function SuccessPage() {
           <p className="text-sm text-muted-foreground">
             Obrigado pela sua compra. Você receberá os detalhes por email.
           </p>
-          {orderData?.redirect_url && (
-            <p className="text-xs text-muted-foreground">
-              Redirecionando em alguns segundos...
-            </p>
+          {redirectUrl && (
+            <p className="text-xs text-muted-foreground">Redirecionando em alguns segundos...</p>
           )}
         </CardContent>
       </Card>

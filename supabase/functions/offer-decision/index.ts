@@ -126,7 +126,6 @@ serve(async (req) => {
         }
       } catch (stripeError: any) {
         console.error("Stripe off-session charge failed:", stripeError);
-        // Mark as failed but don't crash
         await supabase
           .from("offer_sessions")
           .update({ decision: "failed", decided_at: new Date().toISOString() })
@@ -155,8 +154,17 @@ serve(async (req) => {
       : offer.reject_next_offer_id;
 
     let nextOfferUrl: string | null = null;
+    let nextOfferPageUrl: string | null = null;
+    let nextOfferToken: string | null = null;
 
     if (nextOfferId) {
+      // Get next offer's page_url
+      const { data: nextOffer } = await supabase
+        .from("offers")
+        .select("page_url")
+        .eq("id", nextOfferId)
+        .single();
+
       // Create a new offer session for the next offer
       const { data: nextSession } = await supabase
         .from("offer_sessions")
@@ -169,7 +177,11 @@ serve(async (req) => {
         .single();
 
       if (nextSession) {
-        const origin = req.headers.get("origin") || Deno.env.get("SUPABASE_URL")?.replace(".supabase.co", "") || "";
+        nextOfferToken = nextSession.token;
+        nextOfferPageUrl = nextOffer?.page_url || null;
+
+        // Build the offer-frame URL for inline mode
+        const origin = req.headers.get("origin") || "";
         nextOfferUrl = `${origin}/offer-frame/${nextSession.token}`;
       }
     }
@@ -178,6 +190,8 @@ serve(async (req) => {
       success: true,
       decision,
       next_offer_url: nextOfferUrl,
+      next_offer_page_url: nextOfferPageUrl,
+      next_offer_token: nextOfferToken,
     }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
       status: 200,
