@@ -76,6 +76,7 @@ export default function Checkouts() {
         checkout_slug: slug,
         redirect_url: form.redirect_url,
         order_bump_product_id: form.order_bump_product_id || null,
+        first_offer_id: form.first_offer_id || null,
       };
 
       if (editingId) {
