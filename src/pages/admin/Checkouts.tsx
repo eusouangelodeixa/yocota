@@ -226,12 +226,12 @@ export default function Checkouts() {
               <div className="space-y-2">
                 <Label>Order Bump (opcional)</Label>
                 <Select
-                  value={form.order_bump_product_id}
-                  onValueChange={(v) => setForm({ ...form, order_bump_product_id: v })}
+                  value={form.order_bump_product_id || "__none__"}
+                  onValueChange={(v) => setForm({ ...form, order_bump_product_id: v === "__none__" ? "" : v })}
                 >
                   <SelectTrigger><SelectValue placeholder="Nenhum" /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">Nenhum</SelectItem>
+                    <SelectItem value="__none__">Nenhum</SelectItem>
                     {products
                       ?.filter((p) => p.id !== form.product_id)
                       .map((p) => (
