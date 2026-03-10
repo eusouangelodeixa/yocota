@@ -135,7 +135,7 @@ export default function Offers() {
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex items-center justify-between mb-4">
         <h2 className="text-2xl font-bold text-foreground">Ofertas</h2>
         <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
           <DialogTrigger asChild>
@@ -241,6 +241,22 @@ export default function Offers() {
           </DialogContent>
         </Dialog>
       </div>
+
+      <Card className="mb-4 border-dashed">
+        <CardContent className="py-4">
+          <h3 className="font-semibold text-sm text-foreground mb-2">📌 Como funciona o funil de upsell</h3>
+          <ol className="text-xs text-muted-foreground space-y-1 list-decimal list-inside">
+            <li>Crie as ofertas abaixo (cada uma vinculada a um produto).</li>
+            <li>Encadeie-as: defina qual oferta aparece se o cliente aceitar ou recusar.</li>
+            <li>No <strong>Checkout</strong>, selecione a <strong>Primeira Oferta</strong> do funil.</li>
+            <li>Após o pagamento no Stripe, o cliente verá as ofertas automaticamente na página de sucesso.</li>
+            <li>O pagamento do upsell é <strong>one-click</strong> (cobrado no mesmo cartão).</li>
+          </ol>
+          <p className="text-xs text-muted-foreground mt-2">
+            Os campos <strong>URL da Página</strong> e <strong>ID do Iframe</strong> são opcionais — use-os caso queira hospedar a oferta em uma página externa com um iframe embutido.
+          </p>
+        </CardContent>
+      </Card>
 
       <Tabs defaultValue="list">
         <TabsList>

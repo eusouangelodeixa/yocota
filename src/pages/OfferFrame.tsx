@@ -81,14 +81,26 @@ export default function OfferFrame() {
       if (fnError) throw new Error(fnError.message);
       if (data?.error) throw new Error(data.error);
 
+      const nextUrl = data?.next_offer_url || undefined;
+      const nextToken = nextUrl ? nextUrl.split("/offer-frame/")[1] : null;
+
       setResult({
         decision,
-        nextUrl: data?.next_offer_url || undefined,
+        nextUrl,
       });
 
-      // If there's a next offer, redirect the iframe
-      if (data?.next_offer_url) {
-        window.location.href = data.next_offer_url;
+      // Notify parent window (SuccessPage) about the decision
+      if (window.parent !== window) {
+        window.parent.postMessage({
+          type: "offer-complete",
+          decision,
+          nextToken,
+        }, "*");
+      }
+
+      // If there's a next offer and we're standalone (not in iframe), redirect
+      if (nextUrl && window.parent === window) {
+        window.location.href = nextUrl;
       }
     } catch (err: any) {
       setError(err.message || "Erro ao processar decisão");

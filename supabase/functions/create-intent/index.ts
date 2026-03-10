@@ -86,14 +86,28 @@ serve(async (req) => {
       customerId = customers.data[0].id;
     }
 
-    // Create Checkout Session
-    const session = await stripe.checkout.sessions.create({
+    // Determine success URL:
+    // If checkout has upsell offers, redirect to our success page first
+    // Otherwise, redirect directly to the external redirect_url
+    const origin = req.headers.get("origin") || "";
+    let successUrl: string;
+
+    if (checkout.first_offer_id) {
+      // Redirect to our intermediate success page that shows offers
+      successUrl = `${origin}/success/${checkout.id}?session_id={CHECKOUT_SESSION_ID}`;
+    } else {
+      // No offers, redirect directly
+      successUrl = `${checkout.redirect_url}?session_id={CHECKOUT_SESSION_ID}`;
+    }
+
+    // Create Checkout Session with setup_future_usage to save card for upsells
+    const sessionConfig: any = {
       customer: customerId,
       customer_email: customerId ? undefined : customer_email,
       line_items: lineItems,
       mode: "payment",
-      success_url: `${checkout.redirect_url}?session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${req.headers.get("origin")}/checkout/${checkout.checkout_slug}`,
+      success_url: successUrl,
+      cancel_url: `${origin}/checkout/${checkout.checkout_slug}`,
       metadata: {
         checkout_id: checkout.id,
         customer_name,
@@ -105,7 +119,16 @@ serve(async (req) => {
         utm_content: utm_data?.utm_content || "",
         utm_term: utm_data?.utm_term || "",
       },
-    });
+    };
+
+    // Save payment method for future upsell one-click charges
+    if (checkout.first_offer_id) {
+      sessionConfig.payment_intent_data = {
+        setup_future_usage: "off_session",
+      };
+    }
+
+    const session = await stripe.checkout.sessions.create(sessionConfig);
 
     return new Response(JSON.stringify({ url: session.url }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
