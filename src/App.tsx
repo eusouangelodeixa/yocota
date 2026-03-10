@@ -29,6 +29,7 @@ const App = () => (
           <Route path="/login" element={<Login />} />
           <Route path="/checkout/:slug" element={<CheckoutPage />} />
           <Route path="/offer-frame/:token" element={<OfferFrame />} />
+          <Route path="/success/:checkoutId" element={<SuccessPage />} />
           <Route
             path="/admin"
             element={
