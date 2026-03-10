@@ -20,6 +20,7 @@ interface CheckoutForm {
   redirect_url: string;
   order_bump_product_id: string;
   checkout_slug: string;
+  first_offer_id: string;
 }
 
 const emptyForm: CheckoutForm = {
@@ -28,7 +29,31 @@ const emptyForm: CheckoutForm = {
   redirect_url: "",
   order_bump_product_id: "",
   checkout_slug: "",
+  first_offer_id: "",
 };
+
+function OfferSelect({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+  const { data: offers } = useQuery({
+    queryKey: ["offers-list"],
+    queryFn: async () => {
+      const { data, error } = await supabase.from("offers").select("id, name").order("name");
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  return (
+    <Select value={value} onValueChange={onChange}>
+      <SelectTrigger><SelectValue placeholder="Nenhuma" /></SelectTrigger>
+      <SelectContent>
+        <SelectItem value="">Nenhuma</SelectItem>
+        {offers?.map((o) => (
+          <SelectItem key={o.id} value={o.id}>{o.name}</SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
+  );
+}
 
 export default function Checkouts() {
   const queryClient = useQueryClient();
@@ -74,6 +99,7 @@ export default function Checkouts() {
         checkout_slug: slug,
         redirect_url: form.redirect_url,
         order_bump_product_id: form.order_bump_product_id || null,
+        first_offer_id: form.first_offer_id || null,
       };
 
       if (editingId) {
@@ -119,6 +145,7 @@ export default function Checkouts() {
       redirect_url: checkout.redirect_url,
       order_bump_product_id: checkout.order_bump_product_id ?? "",
       checkout_slug: checkout.checkout_slug,
+      first_offer_id: checkout.first_offer_id ?? "",
     });
     setDialogOpen(true);
   };
@@ -212,6 +239,10 @@ export default function Checkouts() {
                       ))}
                   </SelectContent>
                 </Select>
+              </div>
+              <div className="space-y-2">
+                <Label>Primeira Oferta (Upsell/Downsell)</Label>
+                <OfferSelect value={form.first_offer_id} onChange={(v) => setForm({ ...form, first_offer_id: v })} />
               </div>
               <Button type="submit" className="w-full" disabled={saveMutation.isPending}>
                 {saveMutation.isPending ? "Salvando..." : "Salvar"}

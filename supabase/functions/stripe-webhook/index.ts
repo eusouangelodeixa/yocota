@@ -58,7 +58,7 @@ serve(async (req) => {
         // Get checkout with products
         const { data: checkout } = await supabase
           .from("checkouts")
-          .select("*, products!checkouts_product_id_fkey(id, name, price)")
+          .select("*, products!checkouts_product_id_fkey(id, name, price), first_offer_id")
           .eq("id", checkoutId)
           .single();
 
@@ -78,6 +78,30 @@ serve(async (req) => {
           .eq("email", customerEmail)
           .maybeSingle();
 
+        // Get Stripe customer's default payment method for one-click upsells
+        let stripePaymentMethodId: string | null = null;
+        if (session.customer) {
+          try {
+            const stripeCustomer = await stripe.customers.retrieve(session.customer as string);
+            if ('invoice_settings' in stripeCustomer && stripeCustomer.invoice_settings?.default_payment_method) {
+              stripePaymentMethodId = stripeCustomer.invoice_settings.default_payment_method as string;
+            }
+            // If no default, try to get from the session's payment intent
+            if (!stripePaymentMethodId && session.payment_intent) {
+              const pi = await stripe.paymentIntents.retrieve(session.payment_intent as string);
+              if (pi.payment_method) {
+                stripePaymentMethodId = pi.payment_method as string;
+                // Set as default for future off-session charges
+                await stripe.customers.update(session.customer as string, {
+                  invoice_settings: { default_payment_method: stripePaymentMethodId },
+                });
+              }
+            }
+          } catch (e) {
+            console.warn("Failed to get payment method:", e);
+          }
+        }
+
         if (!customer) {
           const { data: newCustomer } = await supabase
             .from("customers")
@@ -86,15 +110,23 @@ serve(async (req) => {
               email: customerEmail,
               phone: customerPhone || null,
               stripe_customer_id: typeof session.customer === "string" ? session.customer : null,
+              stripe_payment_method_id: stripePaymentMethodId,
             })
             .select()
             .single();
           customer = newCustomer;
-        } else if (session.customer && !customer.stripe_customer_id) {
-          await supabase
-            .from("customers")
-            .update({ stripe_customer_id: typeof session.customer === "string" ? session.customer : null })
-            .eq("id", customer.id);
+        } else {
+          // Update customer with stripe info
+          const updates: Record<string, any> = {};
+          if (session.customer && !customer.stripe_customer_id) {
+            updates.stripe_customer_id = typeof session.customer === "string" ? session.customer : null;
+          }
+          if (stripePaymentMethodId) {
+            updates.stripe_payment_method_id = stripePaymentMethodId;
+          }
+          if (Object.keys(updates).length > 0) {
+            await supabase.from("customers").update(updates).eq("id", customer.id);
+          }
         }
 
         if (!customer) {
@@ -182,13 +214,31 @@ serve(async (req) => {
           .eq("checkout_id", checkout.id)
           .eq("email", customerEmail);
 
+        // === OFFER ENGINE: Create first offer session if configured ===
+        if (checkout.first_offer_id && customer.id) {
+          const { data: offerSession } = await supabase
+            .from("offer_sessions")
+            .insert({
+              offer_id: checkout.first_offer_id,
+              order_id: order.id,
+              customer_id: customer.id,
+            })
+            .select("token")
+            .single();
+
+          if (offerSession) {
+            console.log("Offer session created:", offerSession.token);
+            // The redirect URL already includes the offer token
+            // The success page will handle showing the offer iframe
+          }
+        }
+
         console.log("Order created successfully:", order.id);
         break;
       }
 
       case "payment_intent.payment_failed": {
         const paymentIntent = event.data.object as Stripe.PaymentIntent;
-        // Update order status if exists
         await supabase
           .from("orders")
           .update({ status: "failed" })
