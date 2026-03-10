@@ -229,6 +229,11 @@ export default function Offers() {
                   </Select>
                 </div>
               </div>
+              {offers && offers.filter((o: any) => o.id !== editingId).length === 0 && (
+                <p className="text-xs text-muted-foreground bg-muted p-2 rounded">
+                  💡 Crie mais ofertas para poder encadear o funil (aceitar/recusar). Salve esta oferta primeiro.
+                </p>
+              )}
               <Button type="submit" className="w-full" disabled={saveMutation.isPending}>
                 {saveMutation.isPending ? "Salvando..." : "Salvar"}
               </Button>
