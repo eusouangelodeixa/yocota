@@ -29,6 +29,7 @@ const emptyForm: CheckoutForm = {
   redirect_url: "",
   order_bump_product_id: "",
   checkout_slug: "",
+  first_offer_id: "",
 };
 
 export default function Checkouts() {
