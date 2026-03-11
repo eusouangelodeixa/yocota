@@ -259,7 +259,7 @@ export default function Products() {
           </Select>
           <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
             <DialogTrigger asChild>
-              <Button onClick={openNew}>
+              <Button onClick={openNew} className="bg-primary text-primary-foreground font-bold hover:brightness-110 transition-all duration-150">
                 <Plus className="mr-2 h-4 w-4" /> Novo Produto
               </Button>
             </DialogTrigger>
