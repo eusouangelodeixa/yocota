@@ -294,7 +294,7 @@ export default function Checkouts() {
                       </div>
                     )}
                     {availableBumpProducts.length > 0 && (
-                      <Select value="__none__" onValueChange={(v) => addBump(v)}><SelectTrigger><SelectValue placeholder="+ Adicionar order bump" /></SelectTrigger><SelectContent><SelectItem value="__none__" disabled>Selecione um produto</SelectItem>{availableBumpProducts.map((p: any) => (<SelectItem key={p.id} value={p.id}>{p.name} — {formatCents(p.price, p.currency || "brl")}</SelectItem>))}</SelectContent></Select>
+                      <Select value="" onValueChange={(v) => addBump(v)}><SelectTrigger><SelectValue placeholder="+ Adicionar order bump" /></SelectTrigger><SelectContent>{availableBumpProducts.map((p: any) => (<SelectItem key={p.id} value={p.id}>{p.name} — {formatCents(p.price, p.currency || "brl")}</SelectItem>))}</SelectContent></Select>
                     )}
                     {form.order_bump_product_ids.length === 0 && <p className="text-[11px] text-muted-foreground italic">Nenhum order bump adicionado.</p>}
                   </div>

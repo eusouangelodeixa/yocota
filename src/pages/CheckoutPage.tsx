@@ -9,9 +9,13 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
 import { formatCents } from "@/lib/formatters";
-import { Loader2, Lock } from "lucide-react";
+import { Loader2, Lock, CheckCircle2 } from "lucide-react";
 
 const stripePromise = loadStripe("pk_live_51SqaDe4tVPtm5YNwa58VQ0RR9WVz3P74IcqGrWTtSpmwyiO1e3kMQDhje36XacNAnGMfxvNtibgDWIhZicY73pg700Fw5mltxV");
+
+function useDocTitle(title: string) {
+  useEffect(() => { document.title = title; return () => { document.title = "Yocota"; }; }, [title]);
+}
 
 const COUNTRY_CODES = [
   { code: "+55", flag: "🇧🇷", country: "BR", label: "Brasil" },
