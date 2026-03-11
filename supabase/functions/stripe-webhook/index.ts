@@ -3,21 +3,33 @@ import Stripe from "https://esm.sh/stripe@18.5.0";
 import { createClient } from "npm:@supabase/supabase-js@2.57.2";
 
 serve(async (req) => {
-  const stripe = new Stripe(Deno.env.get("STRIPE_SECRET_KEY") || "", {
-    apiVersion: "2025-08-27.basil",
-  });
-
   const supabase = createClient(
     Deno.env.get("SUPABASE_URL") ?? "",
     Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
   );
+
+  // Get Stripe keys: env var first, then api_keys table
+  let stripeKey = Deno.env.get("STRIPE_SECRET_KEY") || "";
+  let webhookSecret = Deno.env.get("STRIPE_WEBHOOK_SECRET") || "";
+  if (!stripeKey || !webhookSecret) {
+    const { data: keys } = await supabase.from("api_keys").select("key_name, key_value").in("key_name", ["STRIPE_SECRET_KEY", "STRIPE_WEBHOOK_SECRET"]);
+    if (keys) {
+      for (const k of keys) {
+        if (k.key_name === "STRIPE_SECRET_KEY" && !stripeKey) stripeKey = k.key_value;
+        if (k.key_name === "STRIPE_WEBHOOK_SECRET" && !webhookSecret) webhookSecret = k.key_value;
+      }
+    }
+  }
+
+  const stripe = new Stripe(stripeKey, {
+    apiVersion: "2025-08-27.basil",
+  });
 
   const signature = req.headers.get("stripe-signature");
   const body = await req.text();
 
   let event: Stripe.Event;
   try {
-    const webhookSecret = Deno.env.get("STRIPE_WEBHOOK_SECRET");
     if (!webhookSecret) {
       console.error("STRIPE_WEBHOOK_SECRET not configured");
       return new Response("Webhook secret not configured", { status: 500 });
