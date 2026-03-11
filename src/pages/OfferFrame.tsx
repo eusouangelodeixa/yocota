@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useParams, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { formatCentsToBRL } from "@/lib/formatters";
+import { formatCents } from "@/lib/formatters";
 import { Loader2 } from "lucide-react";
 
 interface SessionData {
