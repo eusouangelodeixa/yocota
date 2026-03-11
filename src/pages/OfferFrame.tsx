@@ -120,7 +120,7 @@ export default function OfferFrame() {
           {product.description && <p className="text-sm text-muted-foreground mt-1 line-clamp-3">{product.description}</p>}
         </div>
         <div className="border-t border-border" />
-        <div className="text-[32px] font-bold text-foreground tabular-nums">{formatCentsToBRL(product.price)}</div>
+        <div className="text-[32px] font-bold text-foreground tabular-nums">{formatCents(product.price)}</div>
         <p className="text-[11px] text-muted-foreground">Cobrança automática no mesmo cartão</p>
         <div className="space-y-3 pt-2">
           <button
