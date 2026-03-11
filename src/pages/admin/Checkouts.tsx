@@ -11,6 +11,7 @@ import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { toast } from "sonner";
 import { slugify, formatCents } from "@/lib/formatters";
 import { Plus, Copy, Pencil, Trash2, Eye, Palette, X, GripVertical, Upload, ImageIcon, Loader2 } from "lucide-react";
