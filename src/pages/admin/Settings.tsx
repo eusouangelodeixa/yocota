@@ -123,6 +123,22 @@ export default function Settings() {
     uazapi_url: "", uazapi_token: "", utmify_api_key: "",
   });
 
+  // Check which API keys are configured
+  const { data: configuredKeys } = useQuery({
+    queryKey: ["configured_api_keys"],
+    queryFn: async () => {
+      const { data, error } = await supabase.from("api_keys").select("key_name");
+      if (error) throw error;
+      const names = new Set(data?.map((k: any) => k.key_name) || []);
+      return {
+        stripe: names.has("STRIPE_SECRET_KEY"),
+        stripe_webhook: names.has("STRIPE_WEBHOOK_SECRET"),
+        uazapi: names.has("UAZAPI_URL") && names.has("UAZAPI_TOKEN"),
+        utmify: names.has("UTMIFY_API_KEY"),
+      };
+    },
+  });
+
   const saveApiKeysMutation = useMutation({
     mutationFn: async () => {
       const { data, error } = await supabase.functions.invoke("update-secrets", { body: apiKeys });
@@ -131,8 +147,8 @@ export default function Settings() {
     },
     onSuccess: () => {
       toast.success("Chaves de API salvas com sucesso!");
-      // Clear fields after save for security
       setApiKeys({ stripe_secret: "", stripe_webhook_secret: "", uazapi_url: "", uazapi_token: "", utmify_api_key: "" });
+      queryClient.invalidateQueries({ queryKey: ["configured_api_keys"] });
     },
     onError: (e: any) => toast.error("Erro ao salvar chaves: " + e.message),
   });
