@@ -523,6 +523,42 @@ export type Database = {
         }
         Relationships: []
       }
+      site_settings: {
+        Row: {
+          business_name: string
+          default_accent_color: string | null
+          default_bg_color: string | null
+          default_cta_text: string | null
+          default_primary_color: string | null
+          default_redirect_url: string | null
+          id: string
+          logo_url: string | null
+          updated_at: string
+        }
+        Insert: {
+          business_name?: string
+          default_accent_color?: string | null
+          default_bg_color?: string | null
+          default_cta_text?: string | null
+          default_primary_color?: string | null
+          default_redirect_url?: string | null
+          id?: string
+          logo_url?: string | null
+          updated_at?: string
+        }
+        Update: {
+          business_name?: string
+          default_accent_color?: string | null
+          default_bg_color?: string | null
+          default_cta_text?: string | null
+          default_primary_color?: string | null
+          default_redirect_url?: string | null
+          id?: string
+          logo_url?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       stripe_webhook_events: {
         Row: {
           id: string
