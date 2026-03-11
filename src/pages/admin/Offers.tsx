@@ -392,9 +392,8 @@ export default function Offers() {
         </Dialog>
       </div>
 
-      <Card className="mb-4 border-dashed">
-        <CardContent className="py-4">
-          <h3 className="font-semibold text-sm text-foreground mb-2">📌 Como configurar o funil</h3>
+      <div className="card-glass rounded-xl p-5">
+          <h3 className="font-semibold text-sm text-foreground mb-3">📌 Como configurar o funil</h3>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs text-muted-foreground">
             <div>
               <p className="font-semibold text-foreground mb-1">Modo 1: Página Externa (recomendado)</p>
@@ -416,8 +415,7 @@ export default function Offers() {
               </ol>
             </div>
           </div>
-        </CardContent>
-      </Card>
+      </div>
 
       <Tabs defaultValue="list">
         <TabsList>
