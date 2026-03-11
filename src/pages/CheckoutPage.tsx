@@ -403,7 +403,9 @@ export default function CheckoutPage() {
       if (!slug) return;
       const { data, error } = await supabase.from("checkouts").select("*, products!checkouts_product_id_fkey(id, name, description, price, currency, image_url)").eq("checkout_slug", slug).eq("active", true).maybeSingle();
       if (error || !data) { setNotFound(true); setLoading(false); return; }
-      const { data: bumpsData } = await supabase.from("checkout_order_bumps" as any).select("product_id, sort_order, products(id, name, price, currency)").eq("checkout_id", data.id).order("sort_order");
+      // Load order bumps
+      const { data: bumpsData, error: bumpsError } = await supabase.from("checkout_order_bumps").select("product_id, sort_order, products(id, name, price, currency)").eq("checkout_id", data.id).order("sort_order");
+      console.log("Bumps query result:", { bumpsData, bumpsError });
       const bumpProducts: BumpProduct[] = ((bumpsData as any[]) || []).filter((b: any) => b.products).map((b: any) => ({ id: b.products.id, name: b.products.name, price: b.products.price, currency: b.products.currency || "brl" }));
       setCheckout({ ...data, primary_color: data.primary_color || "#28d56a", accent_color: data.accent_color || "#1e40af", bg_color: data.bg_color || "#09090b", cta_text: data.cta_text || "Finalizar compra", show_product_image: data.show_product_image ?? true, first_offer_id: data.first_offer_id, product: data.products as any, bump_products: bumpProducts });
       setLoading(false);
