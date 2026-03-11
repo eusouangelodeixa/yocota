@@ -300,7 +300,7 @@ function CheckoutForm({ checkout: c }: { checkout: CheckoutData }) {
                     onClick={() => toggleBump(bp.id)}
                   >
                     <div className="flex items-center gap-3">
-                      <Checkbox checked={selectedBumps.has(bp.id)} onCheckedChange={() => toggleBump(bp.id)} className="border-[#27272a] data-[state=checked]:bg-[#28d56a] data-[state=checked]:border-[#28d56a]" />
+                      <Checkbox checked={selectedBumps.has(bp.id)} className="border-[#27272a] data-[state=checked]:bg-[#28d56a] data-[state=checked]:border-[#28d56a] pointer-events-none" />
                       <div className="flex-1">
                         <p className="text-[13px] font-medium text-[#fafafa]">{bp.name}</p>
                       </div>
