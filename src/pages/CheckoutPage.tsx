@@ -71,6 +71,7 @@ function CheckoutForm({ checkout: c }: { checkout: CheckoutData }) {
   const [processing, setProcessing] = useState(false);
   const [success, setSuccess] = useState(false);
   const [abandonedSaved, setAbandonedSaved] = useState(false);
+  const abandonedSavingRef = useRef(false);
   const [cardError, setCardError] = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
 
