@@ -462,10 +462,9 @@ export default function Products() {
                   </TableRow>
                 ))
               )}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
+          </TableBody>
+        </Table>
+      </div>
 
       {totalPages > 1 && (
         <div className="flex items-center justify-center gap-2 mt-4">
