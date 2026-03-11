@@ -146,7 +146,7 @@ serve(async (req) => {
 
         const paymentIntent = await stripe.paymentIntents.create({
           amount: product.price,
-          currency: product.currency || "brl",
+          currency: product.currency || "eur",
           customer: customer.stripe_customer_id,
           payment_method: customer.stripe_payment_method_id,
           off_session: true,

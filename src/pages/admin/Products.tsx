@@ -23,7 +23,7 @@ interface ProductForm {
 }
 
 const emptyForm: ProductForm = {
-  name: "", description: "", price: "", currency: "brl",
+  name: "", description: "", price: "", currency: "eur",
   type: "digital", delivery_type: "none",
   delivery_message: "", delivery_attachment: "", image_url: "",
 };
@@ -130,7 +130,7 @@ export default function Products() {
 
   const openEdit = (product: any) => {
     setEditingId(product.id);
-    const currency = product.currency || "brl";
+    const currency = product.currency || "eur";
     const decimals = isZeroDecimalCurrency(currency) ? 0 : 2;
     setForm({ name: product.name, description: product.description ?? "", price: (product.price / Math.pow(10, decimals)).toFixed(decimals).replace(".", ","), currency, type: product.type, delivery_type: product.delivery_type, delivery_message: product.delivery_message ?? "", delivery_attachment: product.delivery_attachment ?? "", image_url: product.image_url ?? "" });
     setDialogOpen(true);
@@ -252,7 +252,7 @@ export default function Products() {
                   <TableCell>
                     <span className="text-[11px] font-medium px-2 py-0.5 rounded-full bg-secondary text-muted-foreground uppercase">{product.type}</span>
                   </TableCell>
-                  <TableCell className="text-[13px] tabular-nums text-foreground">{formatCents(product.price, product.currency || "brl")}</TableCell>
+                  <TableCell className="text-[13px] tabular-nums text-foreground">{formatCents(product.price, product.currency || "eur")}</TableCell>
                   <TableCell><Switch checked={product.active} onCheckedChange={(active) => toggleActive.mutate({ id: product.id, active })} /></TableCell>
                   <TableCell>
                     {product.stripe_product_id ? (

@@ -95,7 +95,7 @@ function CheckoutForm({ checkout: c }: { checkout: CheckoutData }) {
     } catch {}
   }, []);
 
-  const currency = c.product.currency || "brl";
+  const currency = c.product.currency || "eur";
 
   // Auto-detect country via geolocation API
   useEffect(() => {
@@ -405,7 +405,7 @@ export default function CheckoutPage() {
       if (error || !data) { setNotFound(true); setLoading(false); return; }
       const { data: bumpsData, error: bumpsError } = await supabase.from("checkout_order_bumps").select("product_id, sort_order, products(id, name, price, currency)").eq("checkout_id", data.id).order("sort_order");
       console.log("Bumps query result:", { bumpsData, bumpsError });
-      const bumpProducts: BumpProduct[] = ((bumpsData as any[]) || []).filter((b: any) => b.products).map((b: any) => ({ id: b.products.id, name: b.products.name, price: b.products.price, currency: b.products.currency || "brl" }));
+      const bumpProducts: BumpProduct[] = ((bumpsData as any[]) || []).filter((b: any) => b.products).map((b: any) => ({ id: b.products.id, name: b.products.name, price: b.products.price, currency: b.products.currency || "eur" }));
       setCheckout({ ...data, primary_color: data.primary_color || "#28d56a", accent_color: data.accent_color || "#1e40af", bg_color: data.bg_color || "#09090b", cta_text: data.cta_text || "Finalizar compra", show_product_image: data.show_product_image ?? true, first_offer_id: data.first_offer_id, product: data.products as any, bump_products: bumpProducts });
       setLoading(false);
     }
