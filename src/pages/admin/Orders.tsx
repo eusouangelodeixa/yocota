@@ -26,7 +26,7 @@ export default function Orders() {
   return (
     <div className="space-y-6">
       <h2 className="text-lg font-bold text-foreground">Pedidos</h2>
-      <div className="card-surface rounded-[10px] overflow-hidden">
+      <div className="card-surface rounded-[10px] overflow-x-auto">
         <Table>
           <TableHeader>
             <TableRow className="border-border hover:bg-transparent bg-input">

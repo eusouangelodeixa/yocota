@@ -53,7 +53,7 @@ export default function Remarketing() {
         ))}
       </div>
 
-      <div className="card-surface rounded-[10px] overflow-hidden">
+      <div className="card-surface rounded-[10px] overflow-x-auto">
         <Table>
           <TableHeader>
             <TableRow className="border-border hover:bg-transparent bg-input">
