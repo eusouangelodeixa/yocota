@@ -69,8 +69,34 @@ function CheckoutForm({ checkout: c }: { checkout: CheckoutData }) {
   const [phone, setPhone] = useState("");
   const [selectedBumps, setSelectedBumps] = useState<Set<string>>(new Set());
   const [processing, setProcessing] = useState(false);
+  const [success, setSuccess] = useState(false);
   const [abandonedSaved, setAbandonedSaved] = useState(false);
   const [cardError, setCardError] = useState<string | null>(null);
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
+
+  useDocTitle(c.product.name ? `${c.product.name} — Checkout` : "Checkout");
+
+  const validateField = (field: string, value: string) => {
+    const errors = { ...fieldErrors };
+    switch (field) {
+      case "name":
+        if (!value.trim()) errors.name = "Nome é obrigatório";
+        else if (value.trim().length < 3) errors.name = "Nome deve ter pelo menos 3 caracteres";
+        else delete errors.name;
+        break;
+      case "email":
+        if (!value.trim()) errors.email = "Email é obrigatório";
+        else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) errors.email = "Email inválido";
+        else delete errors.email;
+        break;
+      case "phone":
+        if (!value.trim()) errors.phone = "WhatsApp é obrigatório";
+        else if (value.replace(/\D/g, "").length < 8) errors.phone = "Número muito curto";
+        else delete errors.phone;
+        break;
+    }
+    setFieldErrors(errors);
+  };
 
   useEffect(() => {
     try {
