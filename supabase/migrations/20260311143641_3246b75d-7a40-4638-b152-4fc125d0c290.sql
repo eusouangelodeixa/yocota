@@ -1,0 +1,1 @@
+ALTER TABLE public.api_keys ADD CONSTRAINT api_keys_key_name_unique UNIQUE (key_name);

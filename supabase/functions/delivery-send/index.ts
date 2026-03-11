@@ -16,18 +16,20 @@ serve(async (req) => {
     Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
   );
 
-  // Get UazAPI keys: env var first, then api_keys table
-  let UAZAPI_URL = Deno.env.get("UAZAPI_URL") || "";
-  let UAZAPI_TOKEN = Deno.env.get("UAZAPI_TOKEN") || "";
-  if (!UAZAPI_URL || !UAZAPI_TOKEN) {
+  // Get UazAPI keys: api_keys table FIRST (user-configured), then env var fallback
+  let UAZAPI_URL = "";
+  let UAZAPI_TOKEN = "";
+  {
     const { data: keys } = await supabase.from("api_keys").select("key_name, key_value").in("key_name", ["UAZAPI_URL", "UAZAPI_TOKEN"]);
     if (keys) {
       for (const k of keys) {
-        if (k.key_name === "UAZAPI_URL" && !UAZAPI_URL) UAZAPI_URL = k.key_value;
-        if (k.key_name === "UAZAPI_TOKEN" && !UAZAPI_TOKEN) UAZAPI_TOKEN = k.key_value;
+        if (k.key_name === "UAZAPI_URL") UAZAPI_URL = k.key_value;
+        if (k.key_name === "UAZAPI_TOKEN") UAZAPI_TOKEN = k.key_value;
       }
     }
   }
+  if (!UAZAPI_URL) UAZAPI_URL = Deno.env.get("UAZAPI_URL") || "";
+  if (!UAZAPI_TOKEN) UAZAPI_TOKEN = Deno.env.get("UAZAPI_TOKEN") || "";
 
   if (!UAZAPI_URL || !UAZAPI_TOKEN) {
     console.error("UazAPI not configured");

@@ -71,12 +71,13 @@ serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
     );
 
-    // Get Stripe key: env var first, then api_keys table
-    let stripeKey = Deno.env.get("STRIPE_SECRET_KEY") || "";
-    if (!stripeKey) {
+    // Get Stripe key: api_keys table first (user-configured), then env var fallback
+    let stripeKey = "";
+    {
       const { data: keyRow } = await supabase.from("api_keys").select("key_value").eq("key_name", "STRIPE_SECRET_KEY").maybeSingle();
       if (keyRow?.key_value) stripeKey = keyRow.key_value;
     }
+    if (!stripeKey) stripeKey = Deno.env.get("STRIPE_SECRET_KEY") || "";
 
     const stripe = new Stripe(stripeKey, {
       apiVersion: "2025-08-27.basil",

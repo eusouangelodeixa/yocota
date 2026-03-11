@@ -134,19 +134,13 @@ export default function Settings() {
     uazapi_url: "", uazapi_token: "", utmify_api_key: "",
   });
 
-  // Check which API keys are configured
+  // Check which integrations are configured (checks both env vars and api_keys)
   const { data: configuredKeys } = useQuery({
     queryKey: ["configured_api_keys"],
     queryFn: async () => {
-      const { data, error } = await supabase.from("api_keys").select("key_name");
+      const { data, error } = await supabase.functions.invoke("check-integrations");
       if (error) throw error;
-      const names = new Set(data?.map((k: any) => k.key_name) || []);
-      return {
-        stripe: names.has("STRIPE_SECRET_KEY"),
-        stripe_webhook: names.has("STRIPE_WEBHOOK_SECRET"),
-        uazapi: names.has("UAZAPI_URL") && names.has("UAZAPI_TOKEN"),
-        utmify: names.has("UTMIFY_API_KEY"),
-      };
+      return data as { stripe: boolean; stripe_webhook: boolean; uazapi: boolean; utmify: boolean };
     },
   });
 
