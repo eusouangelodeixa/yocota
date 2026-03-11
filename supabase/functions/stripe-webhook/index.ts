@@ -54,6 +54,17 @@ serve(async (req) => {
           break;
         }
 
+        // Audit log
+        await supabase.from("audit_logs").insert({
+          event_type: "payment_succeeded",
+          payload: {
+            payment_intent_id: paymentIntent.id,
+            checkout_id: checkoutId,
+            amount: paymentIntent.amount,
+            customer_email: metadata.customer_email,
+          },
+        });
+
         await processSuccessfulPayment(supabase, stripe, {
           checkoutId,
           paymentIntentId: paymentIntent.id,
@@ -130,6 +141,16 @@ serve(async (req) => {
           .from("orders")
           .update({ status: "failed" })
           .eq("stripe_payment_intent_id", paymentIntent.id);
+
+        // Audit log
+        await supabase.from("audit_logs").insert({
+          event_type: "payment_failed",
+          payload: {
+            payment_intent_id: paymentIntent.id,
+            error: paymentIntent.last_payment_error?.message || "unknown",
+          },
+        });
+
         console.log("Payment failed for:", paymentIntent.id);
         break;
       }

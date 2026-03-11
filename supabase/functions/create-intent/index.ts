@@ -7,32 +7,77 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
+// --- Input Sanitization Helpers ---
+function sanitizeString(val: unknown, maxLen = 255): string {
+  if (typeof val !== "string") return "";
+  return val.trim().replace(/[<>"'`;]/g, "").substring(0, maxLen);
+}
+
+function sanitizeEmail(val: unknown): string {
+  const s = sanitizeString(val, 320);
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  return emailRegex.test(s) ? s.toLowerCase() : "";
+}
+
+function sanitizePhone(val: unknown): string {
+  if (typeof val !== "string") return "";
+  return val.replace(/[^0-9+\-() ]/g, "").substring(0, 30);
+}
+
+function sanitizeUuidArray(val: unknown): string[] {
+  if (!Array.isArray(val)) return [];
+  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  return val.filter((v) => typeof v === "string" && uuidRegex.test(v));
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
+
+  const supabase = createClient(
+    Deno.env.get("SUPABASE_URL") ?? "",
+    Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
+  );
 
   try {
     const stripe = new Stripe(Deno.env.get("STRIPE_SECRET_KEY") || "", {
       apiVersion: "2025-08-27.basil",
     });
 
-    const supabase = createClient(
-      Deno.env.get("SUPABASE_URL") ?? "",
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
-    );
+    const rawBody = await req.json();
 
-    const { checkout_id, customer_name, customer_email, customer_phone, selected_bump_ids, utm_data } = await req.json();
+    // --- Sanitize all inputs server-side ---
+    const checkout_id = sanitizeString(rawBody.checkout_id);
+    const customer_name = sanitizeString(rawBody.customer_name, 100);
+    const customer_email = sanitizeEmail(rawBody.customer_email);
+    const customer_phone = sanitizePhone(rawBody.customer_phone);
+    const selected_bump_ids = sanitizeUuidArray(rawBody.selected_bump_ids);
+    const utm_data = rawBody.utm_data && typeof rawBody.utm_data === "object" ? {
+      utm_source: sanitizeString(rawBody.utm_data?.utm_source, 100),
+      utm_medium: sanitizeString(rawBody.utm_data?.utm_medium, 100),
+      utm_campaign: sanitizeString(rawBody.utm_data?.utm_campaign, 100),
+      utm_content: sanitizeString(rawBody.utm_data?.utm_content, 100),
+      utm_term: sanitizeString(rawBody.utm_data?.utm_term, 100),
+    } : {};
 
-    console.log("[CREATE-INTENT] Input received:", {
+    // Validate required fields
+    if (!checkout_id || !customer_name || !customer_email) {
+      return new Response(JSON.stringify({ error: "Campos obrigatórios: checkout_id, nome e email" }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 400,
+      });
+    }
+
+    console.log("[CREATE-INTENT] Sanitized input:", {
       checkout_id,
       customer_name,
       customer_email,
       selected_bump_ids,
-      bump_count: selected_bump_ids?.length || 0,
+      bump_count: selected_bump_ids.length,
     });
 
-    // Get checkout with product
+    // Get checkout with product (price comes from DB, never from frontend)
     const { data: checkout, error: checkoutError } = await supabase
       .from("checkouts")
       .select("*, products!checkouts_product_id_fkey(id, name, price, currency, stripe_price_id)")
@@ -48,75 +93,43 @@ serve(async (req) => {
       });
     }
 
-    console.log("[CREATE-INTENT] Checkout loaded:", {
-      checkout_id: checkout.id,
-      product_name: checkout.products.name,
-      product_price: checkout.products.price,
-      currency: checkout.products.currency,
-      order_bump_product_id_legacy: checkout.order_bump_product_id,
-      first_offer_id: checkout.first_offer_id,
-    });
-
     const currency = checkout.products.currency || "brl";
 
-    // Calculate total amount
+    // Calculate total amount from DB prices only
     let totalAmount = checkout.products.price;
-    const bumpIds: string[] = selected_bump_ids || [];
+    const bumpIds: string[] = selected_bump_ids;
     let validBumpProducts: any[] = [];
 
-    console.log("[CREATE-INTENT] Processing bumps:", { bumpIds, bumpCount: bumpIds.length });
-
     if (bumpIds.length > 0) {
-      // Verify bumps belong to this checkout
-      const { data: validBumps, error: bumpsQueryError } = await supabase
+      const { data: validBumps } = await supabase
         .from("checkout_order_bumps")
         .select("product_id")
         .eq("checkout_id", checkout_id);
 
-      console.log("[CREATE-INTENT] checkout_order_bumps query:", {
-        validBumps,
-        bumpsQueryError,
-        checkout_id,
-      });
-
       const validBumpIdSet = new Set((validBumps || []).map((b: any) => b.product_id));
-      
-      // Also allow legacy single bump
       if (checkout.order_bump_product_id) {
         validBumpIdSet.add(checkout.order_bump_product_id);
       }
 
-      console.log("[CREATE-INTENT] Valid bump product IDs:", Array.from(validBumpIdSet));
-
       const filteredBumpIds = bumpIds.filter((id: string) => validBumpIdSet.has(id));
 
-      console.log("[CREATE-INTENT] Filtered bump IDs (after validation):", {
-        requested: bumpIds,
-        filtered: filteredBumpIds,
-        rejected: bumpIds.filter((id: string) => !validBumpIdSet.has(id)),
-      });
-
       if (filteredBumpIds.length > 0) {
-        const { data: bumpProducts, error: bumpProductsError } = await supabase
+        const { data: bumpProducts } = await supabase
           .from("products")
           .select("id, name, price, currency")
           .in("id", filteredBumpIds);
 
-        console.log("[CREATE-INTENT] Bump products loaded:", { bumpProducts, bumpProductsError });
-
         validBumpProducts = bumpProducts || [];
         for (const bp of validBumpProducts) {
-          console.log(`[CREATE-INTENT] Adding bump: ${bp.name} = ${bp.price}`);
           totalAmount += bp.price;
         }
       }
     }
 
-    console.log("[CREATE-INTENT] Final total:", {
+    console.log("[CREATE-INTENT] Final total (from DB):", {
       mainProduct: checkout.products.price,
       bumpsTotal: totalAmount - checkout.products.price,
       totalAmount,
-      validBumpCount: validBumpProducts.length,
     });
 
     // Find or create Stripe customer
@@ -125,7 +138,6 @@ serve(async (req) => {
 
     if (customers.data.length > 0) {
       customerId = customers.data[0].id;
-      // Update name if needed
       await stripe.customers.update(customerId, {
         name: customer_name,
         phone: customer_phone || undefined,
@@ -139,13 +151,15 @@ serve(async (req) => {
       customerId = newCustomer.id;
     }
 
-    // Build description for the payment
+    // Build description
     let description = checkout.products.name;
     if (validBumpProducts.length > 0) {
       description += " + " + validBumpProducts.map((bp: any) => bp.name).join(" + ");
     }
 
-    // Create PaymentIntent
+    // --- Idempotency key: prevents double charges on double-click/reload ---
+    const idempotencyKey = `ci_${checkout_id}_${customer_email}_${totalAmount}_${bumpIds.sort().join(",")}`;
+
     const piConfig: any = {
       amount: totalAmount,
       currency: currency,
@@ -169,19 +183,31 @@ serve(async (req) => {
       },
     };
 
-    // Save payment method for future upsell one-click charges
     if (checkout.first_offer_id) {
       piConfig.setup_future_usage = "off_session";
     }
 
-    const paymentIntent = await stripe.paymentIntents.create(piConfig);
+    const paymentIntent = await stripe.paymentIntents.create(piConfig, {
+      idempotencyKey,
+    });
 
     console.log("[CREATE-INTENT] PaymentIntent created:", {
       pi_id: paymentIntent.id,
       amount: paymentIntent.amount,
-      currency: paymentIntent.currency,
-      description: paymentIntent.description,
-      metadata: paymentIntent.metadata,
+      idempotency_key: idempotencyKey,
+    });
+
+    // --- Audit log: payment_created ---
+    await supabase.from("audit_logs").insert({
+      event_type: "payment_created",
+      payload: {
+        payment_intent_id: paymentIntent.id,
+        checkout_id: checkout.id,
+        customer_email,
+        amount: totalAmount,
+        currency,
+        bump_count: validBumpProducts.length,
+      },
     });
 
     return new Response(JSON.stringify({
@@ -193,6 +219,15 @@ serve(async (req) => {
     });
   } catch (error) {
     console.error("create-intent error:", error);
+
+    // Audit log: payment error
+    try {
+      await supabase.from("audit_logs").insert({
+        event_type: "payment_error",
+        payload: { error: error.message },
+      });
+    } catch {}
+
     return new Response(JSON.stringify({ error: error.message }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
       status: 500,
