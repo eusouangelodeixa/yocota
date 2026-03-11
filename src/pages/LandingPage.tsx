@@ -538,14 +538,35 @@ const LandingPage = () => {
    CSS — exact copy from the original HTML, scoped under .lp
    ───────────────────────────────────────────────────────── */
 const LANDING_CSS = `
-/* ─── RESET & BASE (scoped) ─────────────────────── */
-.lp, .lp *, .lp *::before, .lp *::after { box-sizing: border-box; margin: 0; padding: 0; }
+/* ─── RESET & BASE (scoped) — override Tailwind Preflight ── */
+.lp, .lp *, .lp *::before, .lp *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  border-width: 0;
+  border-style: solid;
+  border-color: currentColor;
+}
 .lp {
   font-family: 'Outfit', sans-serif;
   background: #111111;
   color: #0A0A0A;
   overflow-x: hidden;
 }
+/* Override Tailwind Preflight on headings, links, buttons, SVGs */
+.lp h1, .lp h2, .lp h3, .lp h4, .lp h5, .lp h6 {
+  font-size: inherit;
+  font-weight: inherit;
+}
+.lp a { color: inherit; text-decoration: inherit; }
+.lp button {
+  cursor: pointer;
+  background: transparent;
+  font-family: 'Outfit', sans-serif;
+}
+.lp img, .lp svg { display: inline; max-width: none; }
+.lp svg { display: inline-block; }
+.lp input { font-family: 'Outfit', sans-serif; }
 
 /* ─── CSS VARIABLES ────────────────────────────── */
 .lp {
