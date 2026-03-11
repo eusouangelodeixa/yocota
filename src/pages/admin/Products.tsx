@@ -467,16 +467,34 @@ export default function Products() {
       </div>
 
       {totalPages > 1 && (
-        <div className="flex items-center justify-center gap-2 mt-4">
-          <Button variant="outline" size="sm" disabled={page === 0} onClick={() => setPage(page - 1)}>
+        <div className="flex items-center justify-center gap-1.5 mt-4">
+          <button
+            disabled={page === 0}
+            onClick={() => setPage(page - 1)}
+            className="px-3 py-1.5 rounded-lg text-xs font-medium bg-[rgba(255,255,255,0.04)] text-muted-foreground hover:text-foreground hover:bg-[rgba(255,255,255,0.08)] disabled:opacity-40 disabled:cursor-not-allowed transition-all duration-150"
+          >
             Anterior
-          </Button>
-          <span className="text-sm text-muted-foreground">
-            Página {page + 1} de {totalPages}
-          </span>
-          <Button variant="outline" size="sm" disabled={page >= totalPages - 1} onClick={() => setPage(page + 1)}>
+          </button>
+          {Array.from({ length: totalPages }).map((_, i) => (
+            <button
+              key={i}
+              onClick={() => setPage(i)}
+              className={`w-8 h-8 rounded-lg text-xs font-medium transition-all duration-150 ${
+                page === i
+                  ? "bg-primary text-primary-foreground"
+                  : "bg-[rgba(255,255,255,0.04)] text-muted-foreground hover:text-foreground hover:bg-[rgba(255,255,255,0.08)]"
+              }`}
+            >
+              {i + 1}
+            </button>
+          ))}
+          <button
+            disabled={page >= totalPages - 1}
+            onClick={() => setPage(page + 1)}
+            className="px-3 py-1.5 rounded-lg text-xs font-medium bg-[rgba(255,255,255,0.04)] text-muted-foreground hover:text-foreground hover:bg-[rgba(255,255,255,0.08)] disabled:opacity-40 disabled:cursor-not-allowed transition-all duration-150"
+          >
             Próxima
-          </Button>
+          </button>
         </div>
       )}
     </div>

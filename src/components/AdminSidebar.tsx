@@ -51,7 +51,7 @@ export function AdminSidebar() {
     <Sidebar collapsible="icon" className="border-r-0">
       <div className="px-4 py-5 flex items-center gap-2.5 border-b border-[rgba(255,255,255,0.06)]">
         <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center shrink-0">
-          <span className="text-primary-foreground font-bold text-sm">C</span>
+          <span className="text-primary-foreground font-bold text-sm">Y</span>
         </div>
         {!collapsed && (
           <span className="text-sm font-bold tracking-tight text-foreground">Yocota</span>
