@@ -14,7 +14,7 @@ serve(async (req) => {
   const UAZAPI_TOKEN = Deno.env.get("UAZAPI_TOKEN");
 
   if (!UAZAPI_URL || !UAZAPI_TOKEN) {
-    return new Response(JSON.stringify({ error: "UazAPI not configured", url: !!UAZAPI_URL, token: !!UAZAPI_TOKEN }), {
+    return new Response(JSON.stringify({ error: "UazAPI not configured" }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
       status: 500,
     });
@@ -22,64 +22,41 @@ serve(async (req) => {
 
   try {
     const { phone, message } = await req.json();
-
-    if (!phone || !message) {
-      return new Response(JSON.stringify({ error: "phone and message required" }), {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-        status: 400,
-      });
-    }
-
     const cleanPhone = phone.replace(/\D/g, "").replace(/^\+/, "");
 
-    // Try multiple endpoint patterns to find the right one
-    const endpoints = [
-      { path: "/message/send-text", body: { number: cleanPhone, text: message }, authHeader: "apitoken" },
-      { path: "/message/send-text", body: { number: cleanPhone, text: message }, authHeader: "Authorization" },
-      { path: "/send-text", body: { number: cleanPhone, text: message }, authHeader: "apitoken" },
-      { path: "/send-text", body: { phone: cleanPhone, message }, authHeader: "Authorization" },
+    // Try all possible path + body combos with "token" header
+    const attempts = [
+      { path: "/message/send-text", body: { number: cleanPhone, text: message } },
+      { path: "/message/send-text", body: { number: cleanPhone, text: message, delay: 0 } },
+      { path: "/chat/send", body: { number: cleanPhone, text: message } },
+      { path: "/send/text", body: { number: cleanPhone, text: message } },
+      { path: "/message/text", body: { number: cleanPhone, text: message } },
+      { path: "/messages/text", body: { number: cleanPhone, text: message } },
     ];
 
     const results: any[] = [];
 
-    for (const ep of endpoints) {
-      const url = `${UAZAPI_URL}${ep.path}`;
-      const headers: Record<string, string> = { "Content-Type": "application/json" };
-      
-      if (ep.authHeader === "apitoken") {
-        headers["apitoken"] = UAZAPI_TOKEN;
-      } else {
-        headers["Authorization"] = `Bearer ${UAZAPI_TOKEN}`;
-      }
-
+    for (const a of attempts) {
+      const url = `${UAZAPI_URL}${a.path}`;
       try {
         const res = await fetch(url, {
           method: "POST",
-          headers,
-          body: JSON.stringify(ep.body),
+          headers: {
+            "Content-Type": "application/json",
+            "token": UAZAPI_TOKEN,
+          },
+          body: JSON.stringify(a.body),
         });
         const resBody = await res.text();
-        results.push({
-          url,
-          authHeader: ep.authHeader,
-          status: res.status,
-          response: resBody,
-          success: res.ok,
-        });
-
-        if (res.ok) break; // Stop on first success
+        results.push({ url, status: res.status, response: resBody.substring(0, 300), success: res.ok });
+        if (res.ok) break;
       } catch (e: any) {
-        results.push({
-          url,
-          authHeader: ep.authHeader,
-          error: e.message,
-        });
+        results.push({ url, error: e.message });
       }
     }
 
     return new Response(JSON.stringify({ results }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
-      status: 200,
     });
   } catch (error: any) {
     return new Response(JSON.stringify({ error: error.message }), {
