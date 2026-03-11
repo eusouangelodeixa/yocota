@@ -140,11 +140,12 @@ function CheckoutForm({ checkout: c }: { checkout: CheckoutData }) {
   }, []);
 
   useEffect(() => {
-    if (email && email.includes("@") && !abandonedSaved && c) {
+    if (email && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) && !abandonedSaved && !abandonedSavingRef.current && c) {
+      abandonedSavingRef.current = true;
       const utms = JSON.parse(sessionStorage.getItem("checkout_utms") || "{}");
-      supabase.from("abandoned_checkouts").insert({ checkout_id: c.id, name: customerName || null, email, phone: phone ? `${ddi}${phone}` : null, utm_data: Object.keys(utms).length > 0 ? utms : null } as any).then(() => setAbandonedSaved(true));
+      supabase.from("abandoned_checkouts").insert({ checkout_id: c.id, name: customerName || null, email, phone: phone ? `${ddi}${phone}` : null, utm_data: Object.keys(utms).length > 0 ? utms : null } as any).then(() => setAbandonedSaved(true)).catch(() => { abandonedSavingRef.current = false; });
     }
-  }, [email, abandonedSaved, c, customerName, phone, ddi]);
+  }, [email]);
 
   const toggleBump = (productId: string) => { setSelectedBumps((prev) => { const next = new Set(prev); next.has(productId) ? next.delete(productId) : next.add(productId); return next; }); };
 
