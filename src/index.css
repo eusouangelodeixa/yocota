@@ -61,7 +61,7 @@
 }
 
 @layer base {
-  * {
+  *:not(.lp *) {
     @apply border-border;
   }
 
