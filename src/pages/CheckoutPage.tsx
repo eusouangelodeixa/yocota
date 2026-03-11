@@ -139,13 +139,7 @@ function CheckoutForm({ checkout: c }: { checkout: CheckoutData }) {
     if (Object.keys(utms).length > 0) sessionStorage.setItem("checkout_utms", JSON.stringify(utms));
   }, []);
 
-  useEffect(() => {
-    if (email && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) && !abandonedSaved && !abandonedSavingRef.current && c) {
-      abandonedSavingRef.current = true;
-      const utms = JSON.parse(sessionStorage.getItem("checkout_utms") || "{}");
-      supabase.from("abandoned_checkouts").insert({ checkout_id: c.id, name: customerName || null, email, phone: phone ? `${ddi}${phone}` : null, utm_data: Object.keys(utms).length > 0 ? utms : null } as any).then(() => { setAbandonedSaved(true); }, () => { abandonedSavingRef.current = false; });
-    }
-  }, [email]);
+  // Abandoned checkout is now saved only when user clicks Pay (inside handleSubmit)
 
   const toggleBump = (productId: string) => { setSelectedBumps((prev) => { const next = new Set(prev); next.has(productId) ? next.delete(productId) : next.add(productId); return next; }); };
 
