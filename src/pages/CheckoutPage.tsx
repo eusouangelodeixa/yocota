@@ -156,7 +156,16 @@ function CheckoutForm({ checkout: c }: { checkout: CheckoutData }) {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!stripe || !elements) return;
-    if (!customerName.trim() || !email.trim() || !phone.trim()) { toast.error("Preencha todos os campos obrigatórios"); return; }
+
+    // Validate all fields
+    validateField("name", customerName);
+    validateField("email", email);
+    validateField("phone", phone);
+    if (!customerName.trim() || !email.trim() || !phone.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || phone.replace(/\D/g, "").length < 8) {
+      toast.error("Preencha todos os campos corretamente");
+      return;
+    }
+
     const cardNumber = elements.getElement(CardNumberElement);
     if (!cardNumber) { toast.error("Erro ao carregar campo de cartão"); return; }
     setProcessing(true); setCardError(null);
@@ -173,12 +182,47 @@ function CheckoutForm({ checkout: c }: { checkout: CheckoutData }) {
         payment_method: { card: cardNumber, billing_details: { name: customerName, email, phone: fullPhone } },
       });
       if (stripeError) {
+        // Handle 3D Secure authentication required
+        if (stripeError.type === "card_error" && stripeError.code === "authentication_required") {
+          const { error: authError, paymentIntent: authedPI } = await stripe.confirmCardPayment(intentData.client_secret);
+          if (authError) {
+            setCardError(authError.message || "Falha na autenticação 3D Secure");
+            setProcessing(false); return;
+          }
+          if (authedPI?.status === "succeeded") {
+            setSuccess(true);
+            setTimeout(() => {
+              if (c.first_offer_id) window.location.href = `/success/${c.id}?payment_intent_id=${authedPI.id}`;
+              else window.location.href = `${c.redirect_url}${c.redirect_url.includes("?") ? "&" : "?"}payment_intent_id=${authedPI.id}`;
+            }, 800);
+            return;
+          }
+        }
         setCardError(stripeError.type === "card_error" || stripeError.type === "validation_error" ? stripeError.message || "Erro no cartão" : "Erro inesperado. Tente novamente.");
         setProcessing(false); return;
       }
+      if (paymentIntent?.status === "requires_action") {
+        // Handle 3DS popup automatically triggered by Stripe
+        const { error: actionError, paymentIntent: actionPI } = await stripe.confirmCardPayment(intentData.client_secret);
+        if (actionError) {
+          setCardError(actionError.message || "Falha na autenticação");
+          setProcessing(false); return;
+        }
+        if (actionPI?.status === "succeeded") {
+          setSuccess(true);
+          setTimeout(() => {
+            if (c.first_offer_id) window.location.href = `/success/${c.id}?payment_intent_id=${actionPI.id}`;
+            else window.location.href = `${c.redirect_url}${c.redirect_url.includes("?") ? "&" : "?"}payment_intent_id=${actionPI.id}`;
+          }, 800);
+          return;
+        }
+      }
       if (paymentIntent?.status === "succeeded") {
-        if (c.first_offer_id) window.location.href = `/success/${c.id}?payment_intent_id=${paymentIntent.id}`;
-        else window.location.href = `${c.redirect_url}${c.redirect_url.includes("?") ? "&" : "?"}payment_intent_id=${paymentIntent.id}`;
+        setSuccess(true);
+        setTimeout(() => {
+          if (c.first_offer_id) window.location.href = `/success/${c.id}?payment_intent_id=${paymentIntent.id}`;
+          else window.location.href = `${c.redirect_url}${c.redirect_url.includes("?") ? "&" : "?"}payment_intent_id=${paymentIntent.id}`;
+        }, 800);
       }
     } catch (error: any) { toast.error(error.message || "Erro ao processar pagamento."); setProcessing(false); }
   };
