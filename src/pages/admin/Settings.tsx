@@ -465,6 +465,50 @@ export default function Settings() {
             </SectionCard>
           </div>
         </TabsContent>
+        {isSuperAdmin && (
+          <TabsContent value="team" className="space-y-6">
+            <div className="max-w-lg space-y-6">
+              <SectionCard title="Convidar Administrador" description="Crie um novo usuário com acesso admin">
+                <div className="space-y-1.5">
+                  <Label className="text-xs text-muted-foreground">Email</Label>
+                  <Input type="email" value={inviteForm.email} onChange={(e) => setInviteForm((f) => ({ ...f, email: e.target.value }))} placeholder="novo@admin.com" />
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs text-muted-foreground">Senha inicial</Label>
+                  <Input type="password" value={inviteForm.password} onChange={(e) => setInviteForm((f) => ({ ...f, password: e.target.value }))} placeholder="Mínimo 6 caracteres" />
+                </div>
+                <Button onClick={handleInvite} disabled={inviting} className="h-9 bg-primary text-primary-foreground font-bold text-xs hover:brightness-110 active:scale-[0.98]">
+                  {inviting ? <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" /> : <UserPlus className="mr-1.5 h-3.5 w-3.5" strokeWidth={1.5} />} Convidar
+                </Button>
+              </SectionCard>
+
+              <SectionCard title="Administradores" description="Usuários com acesso ao painel">
+                {teamLoading ? (
+                  <div className="flex justify-center py-4"><Loader2 className="h-5 w-5 animate-spin text-muted-foreground" /></div>
+                ) : (
+                  <div className="space-y-3">
+                    {teamMembers?.map((member: any) => (
+                      <div key={member.user_id} className="flex items-center justify-between py-2">
+                        <div className="flex items-center gap-3">
+                          <Avatar className="w-8 h-8">
+                            {member.avatar_url && <AvatarImage src={member.avatar_url} />}
+                            <AvatarFallback className="bg-primary text-primary-foreground text-xs font-bold">
+                              {(member.display_name || "?")[0]?.toUpperCase()}
+                            </AvatarFallback>
+                          </Avatar>
+                          <span className="text-sm text-foreground">{member.display_name}</span>
+                        </div>
+                      </div>
+                    ))}
+                    {(!teamMembers || teamMembers.length === 0) && (
+                      <p className="text-xs text-muted-foreground">Nenhum administrador encontrado.</p>
+                    )}
+                  </div>
+                )}
+              </SectionCard>
+            </div>
+          </TabsContent>
+        )}
       </Tabs>
     </div>
   );
