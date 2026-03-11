@@ -85,9 +85,9 @@ function ImageUpload({ value, onChange }: { value: string; onChange: (url: strin
 
   return (
     <div className="space-y-2">
-      <Label className="text-xs font-semibold">Imagem do Produto</Label>
+      <Label className="text-xs font-medium text-muted-foreground">Imagem do Produto</Label>
       {value ? (
-        <div className="relative w-full h-32 rounded-lg overflow-hidden border border-border bg-muted">
+        <div className="relative w-full h-32 rounded-xl overflow-hidden border border-[rgba(255,255,255,0.06)] bg-[rgba(255,255,255,0.02)]">
           <img src={value} alt="Produto" className="w-full h-full object-cover" />
           <Button
             type="button"
@@ -101,7 +101,7 @@ function ImageUpload({ value, onChange }: { value: string; onChange: (url: strin
         </div>
       ) : (
         <div
-          className="w-full h-32 rounded-lg border-2 border-dashed border-border bg-muted/40 flex flex-col items-center justify-center cursor-pointer hover:border-primary/40 transition-colors"
+          className="w-full h-32 rounded-xl border border-dashed border-[rgba(255,255,255,0.15)] bg-[rgba(255,255,255,0.02)] flex flex-col items-center justify-center cursor-pointer hover:border-primary/40 transition-colors duration-150"
           onClick={() => fileRef.current?.click()}
         >
           {uploading ? (
@@ -110,7 +110,7 @@ function ImageUpload({ value, onChange }: { value: string; onChange: (url: strin
             <>
               <Upload className="h-6 w-6 text-muted-foreground mb-1" />
               <p className="text-xs text-muted-foreground">Clique para enviar imagem</p>
-              <p className="text-[10px] text-muted-foreground/60">PNG, JPG até 5MB</p>
+              <p className="text-[10px] text-[#555555]">PNG, JPG até 5MB</p>
             </>
           )}
         </div>
