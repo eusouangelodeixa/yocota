@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
+import { YocotaLogo } from "@/components/YocotaLogo";
 
 export default function Login() {
   const [email, setEmail] = useState("");
@@ -28,11 +29,11 @@ export default function Login() {
     <div className="flex min-h-screen items-center justify-center bg-background px-4">
       <div className="w-full max-w-sm space-y-8">
         <div className="text-center space-y-3">
-          <div className="w-10 h-10 rounded-lg bg-primary flex items-center justify-center mx-auto">
-            <span className="text-primary-foreground font-bold text-base">Y</span>
+          <div className="flex justify-center">
+            <YocotaLogo size={36} />
           </div>
           <div>
-            <h1 className="text-lg font-bold text-foreground">Yocota</h1>
+            <h1 className="text-lg font-bold text-foreground tracking-tight">yocota</h1>
             <p className="text-[13px] text-muted-foreground mt-1">Entre com suas credenciais</p>
           </div>
         </div>
