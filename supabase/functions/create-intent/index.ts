@@ -22,7 +22,7 @@ serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
     );
 
-    const { checkout_id, customer_name, customer_email, customer_phone, selected_bump_ids, include_bump, utm_data } = await req.json();
+    const { checkout_id, customer_name, customer_email, customer_phone, selected_bump_ids, utm_data } = await req.json();
 
     // Get checkout with product
     const { data: checkout, error: checkoutError } = await supabase
@@ -39,30 +39,12 @@ serve(async (req) => {
       });
     }
 
-    const lineItems: any[] = [];
     const currency = checkout.products.currency || "brl";
 
-    // Main product
-    if (checkout.products.stripe_price_id) {
-      lineItems.push({ price: checkout.products.stripe_price_id, quantity: 1 });
-    } else {
-      lineItems.push({
-        price_data: {
-          currency,
-          product_data: { name: checkout.products.name },
-          unit_amount: checkout.products.price,
-        },
-        quantity: 1,
-      });
-    }
-
-    // Multi order bumps - new system
+    // Calculate total amount
+    let totalAmount = checkout.products.price;
     const bumpIds: string[] = selected_bump_ids || [];
-    
-    // Backward compat: if old include_bump flag is used with legacy single bump
-    if (bumpIds.length === 0 && include_bump && checkout.order_bump_product_id) {
-      bumpIds.push(checkout.order_bump_product_id);
-    }
+    let validBumpProducts: any[] = [];
 
     if (bumpIds.length > 0) {
       // Verify bumps belong to this checkout
@@ -71,65 +53,64 @@ serve(async (req) => {
         .select("product_id")
         .eq("checkout_id", checkout_id);
 
-      const validBumpIds = new Set((validBumps || []).map((b: any) => b.product_id));
+      const validBumpIdSet = new Set((validBumps || []).map((b: any) => b.product_id));
       
       // Also allow legacy single bump
       if (checkout.order_bump_product_id) {
-        validBumpIds.add(checkout.order_bump_product_id);
+        validBumpIdSet.add(checkout.order_bump_product_id);
       }
 
-      const filteredBumpIds = bumpIds.filter((id: string) => validBumpIds.has(id));
+      const filteredBumpIds = bumpIds.filter((id: string) => validBumpIdSet.has(id));
 
       if (filteredBumpIds.length > 0) {
         const { data: bumpProducts } = await supabase
           .from("products")
-          .select("id, name, price, currency, stripe_price_id")
+          .select("id, name, price, currency")
           .in("id", filteredBumpIds);
 
-        for (const bp of (bumpProducts || [])) {
-          const bumpCurrency = bp.currency || currency;
-          if (bp.stripe_price_id) {
-            lineItems.push({ price: bp.stripe_price_id, quantity: 1 });
-          } else {
-            lineItems.push({
-              price_data: {
-                currency: bumpCurrency,
-                product_data: { name: bp.name },
-                unit_amount: bp.price,
-              },
-              quantity: 1,
-            });
-          }
+        validBumpProducts = bumpProducts || [];
+        for (const bp of validBumpProducts) {
+          totalAmount += bp.price;
         }
       }
     }
 
-    // Check existing Stripe customer
+    // Find or create Stripe customer
     const customers = await stripe.customers.list({ email: customer_email, limit: 1 });
-    let customerId: string | undefined;
+    let customerId: string;
+
     if (customers.data.length > 0) {
       customerId = customers.data[0].id;
-    }
-
-    const origin = req.headers.get("origin") || "";
-    let successUrl: string;
-
-    if (checkout.first_offer_id) {
-      successUrl = `${origin}/success/${checkout.id}?session_id={CHECKOUT_SESSION_ID}`;
+      // Update name if needed
+      await stripe.customers.update(customerId, {
+        name: customer_name,
+        phone: customer_phone || undefined,
+      });
     } else {
-      successUrl = `${checkout.redirect_url}?session_id={CHECKOUT_SESSION_ID}`;
+      const newCustomer = await stripe.customers.create({
+        email: customer_email,
+        name: customer_name,
+        phone: customer_phone || undefined,
+      });
+      customerId = newCustomer.id;
     }
 
-    const sessionConfig: any = {
+    // Build description for the payment
+    let description = checkout.products.name;
+    if (validBumpProducts.length > 0) {
+      description += " + " + validBumpProducts.map((bp: any) => bp.name).join(" + ");
+    }
+
+    // Create PaymentIntent
+    const piConfig: any = {
+      amount: totalAmount,
+      currency: currency,
       customer: customerId,
-      customer_email: customerId ? undefined : customer_email,
-      line_items: lineItems,
-      mode: "payment",
-      success_url: successUrl,
-      cancel_url: `${origin}/checkout/${checkout.checkout_slug}`,
+      description,
       metadata: {
         checkout_id: checkout.id,
         customer_name,
+        customer_email,
         customer_phone: customer_phone || "",
         selected_bump_ids: JSON.stringify(bumpIds),
         utm_source: utm_data?.utm_source || "",
@@ -138,17 +119,23 @@ serve(async (req) => {
         utm_content: utm_data?.utm_content || "",
         utm_term: utm_data?.utm_term || "",
       },
+      automatic_payment_methods: {
+        enabled: true,
+        allow_redirects: "never",
+      },
     };
 
+    // Save payment method for future upsell one-click charges
     if (checkout.first_offer_id) {
-      sessionConfig.payment_intent_data = {
-        setup_future_usage: "off_session",
-      };
+      piConfig.setup_future_usage = "off_session";
     }
 
-    const session = await stripe.checkout.sessions.create(sessionConfig);
+    const paymentIntent = await stripe.paymentIntents.create(piConfig);
 
-    return new Response(JSON.stringify({ url: session.url }), {
+    return new Response(JSON.stringify({
+      client_secret: paymentIntent.client_secret,
+      payment_intent_id: paymentIntent.id,
+    }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
       status: 200,
     });
