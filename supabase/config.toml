@@ -23,3 +23,9 @@ verify_jwt = false
 
 [functions.recovery-send]
 verify_jwt = false
+
+[functions.check-integrations]
+verify_jwt = false
+
+[functions.test-uazapi]
+verify_jwt = false
