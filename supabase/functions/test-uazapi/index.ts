@@ -14,7 +14,7 @@ serve(async (req) => {
   const UAZAPI_TOKEN = Deno.env.get("UAZAPI_TOKEN");
 
   if (!UAZAPI_URL || !UAZAPI_TOKEN) {
-    return new Response(JSON.stringify({ error: "UazAPI not configured" }), {
+    return new Response(JSON.stringify({ error: "UazAPI not configured", url: !!UAZAPI_URL, token: !!UAZAPI_TOKEN }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
       status: 500,
     });
@@ -32,32 +32,56 @@ serve(async (req) => {
 
     const cleanPhone = phone.replace(/\D/g, "").replace(/^\+/, "");
 
-    console.log("Sending test message to:", cleanPhone);
-    console.log("UazAPI URL:", UAZAPI_URL);
+    // Try multiple endpoint patterns to find the right one
+    const endpoints = [
+      { path: "/message/send-text", body: { number: cleanPhone, text: message }, authHeader: "apitoken" },
+      { path: "/message/send-text", body: { number: cleanPhone, text: message }, authHeader: "Authorization" },
+      { path: "/send-text", body: { number: cleanPhone, text: message }, authHeader: "apitoken" },
+      { path: "/send-text", body: { phone: cleanPhone, message }, authHeader: "Authorization" },
+    ];
 
-    const uazRes = await fetch(`${UAZAPI_URL}/send-text`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "Authorization": `Bearer ${UAZAPI_TOKEN}`,
-      },
-      body: JSON.stringify({ phone: cleanPhone, message }),
-    });
+    const results: any[] = [];
 
-    const responseBody = await uazRes.text();
-    console.log("UazAPI response status:", uazRes.status);
-    console.log("UazAPI response body:", responseBody);
+    for (const ep of endpoints) {
+      const url = `${UAZAPI_URL}${ep.path}`;
+      const headers: Record<string, string> = { "Content-Type": "application/json" };
+      
+      if (ep.authHeader === "apitoken") {
+        headers["apitoken"] = UAZAPI_TOKEN;
+      } else {
+        headers["Authorization"] = `Bearer ${UAZAPI_TOKEN}`;
+      }
 
-    return new Response(JSON.stringify({
-      success: uazRes.ok,
-      status: uazRes.status,
-      response: responseBody,
-    }), {
+      try {
+        const res = await fetch(url, {
+          method: "POST",
+          headers,
+          body: JSON.stringify(ep.body),
+        });
+        const resBody = await res.text();
+        results.push({
+          url,
+          authHeader: ep.authHeader,
+          status: res.status,
+          response: resBody,
+          success: res.ok,
+        });
+
+        if (res.ok) break; // Stop on first success
+      } catch (e: any) {
+        results.push({
+          url,
+          authHeader: ep.authHeader,
+          error: e.message,
+        });
+      }
+    }
+
+    return new Response(JSON.stringify({ results }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
       status: 200,
     });
   } catch (error: any) {
-    console.error("test-uazapi error:", error);
     return new Response(JSON.stringify({ error: error.message }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
       status: 500,
