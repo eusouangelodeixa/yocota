@@ -93,7 +93,7 @@ function BannerUpload({ value, onChange }: { value: string; onChange: (url: stri
 
 /* ── Checkout Live Preview (faithful recreation) ── */
 function CheckoutLivePreview({ form, product, bumpProducts }: { form: CheckoutForm; product: any; bumpProducts: any[] }) {
-  const currency = product?.currency || "brl";
+  const currency = product?.currency || "eur";
 
   return (
     <div className="w-full bg-[#09090b] rounded-[10px] border border-border overflow-hidden">

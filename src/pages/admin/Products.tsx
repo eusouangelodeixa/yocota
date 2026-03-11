@@ -252,7 +252,7 @@ export default function Products() {
                   <TableCell>
                     <span className="text-[11px] font-medium px-2 py-0.5 rounded-full bg-secondary text-muted-foreground uppercase">{product.type}</span>
                   </TableCell>
-                  <TableCell className="text-[13px] tabular-nums text-foreground">{formatCents(product.price, product.currency || "brl")}</TableCell>
+                  <TableCell className="text-[13px] tabular-nums text-foreground">{formatCents(product.price, product.currency || "eur")}</TableCell>
                   <TableCell><Switch checked={product.active} onCheckedChange={(active) => toggleActive.mutate({ id: product.id, active })} /></TableCell>
                   <TableCell>
                     {product.stripe_product_id ? (
