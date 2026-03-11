@@ -113,15 +113,15 @@ serve(async (req) => {
 
       // Send via UazAPI
       try {
-        const uazRes = await fetch(`${UAZAPI_URL}/send-text`, {
+        const uazRes = await fetch(`${UAZAPI_URL}/send/text`, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
-            "Authorization": `Bearer ${UAZAPI_TOKEN}`,
+            "token": UAZAPI_TOKEN,
           },
           body: JSON.stringify({
-            phone: cleanPhone,
-            message,
+            number: cleanPhone,
+            text: message,
           }),
         });
 
