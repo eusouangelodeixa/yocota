@@ -361,15 +361,15 @@ export default function Settings() {
           </SectionCard>
 
           <div className="grid gap-6 md:grid-cols-2">
-            <SectionCard title="Stripe" description="Chaves para processar pagamentos">
+            <SectionCard title="Stripe" description="Chaves para processar pagamentos" status={configuredKeys?.stripe ? "active" : "inactive"}>
               <SecretInput label="Secret Key" value={apiKeys.stripe_secret} onChange={(v) => setApiKeys((f) => ({ ...f, stripe_secret: v }))} placeholder="sk_live_..." helpUrl="https://dashboard.stripe.com/apikeys" helpLabel="Dashboard Stripe" />
               <SecretInput label="Webhook Secret" value={apiKeys.stripe_webhook_secret} onChange={(v) => setApiKeys((f) => ({ ...f, stripe_webhook_secret: v }))} placeholder="whsec_..." helpUrl="https://dashboard.stripe.com/webhooks" helpLabel="Stripe Webhooks" />
             </SectionCard>
-            <SectionCard title="UazAPI (WhatsApp)" description="Integração para entregas via WhatsApp">
+            <SectionCard title="UazAPI (WhatsApp)" description="Integração para entregas via WhatsApp" status={configuredKeys?.uazapi ? "active" : "inactive"}>
               <SecretInput label="URL da API" value={apiKeys.uazapi_url} onChange={(v) => setApiKeys((f) => ({ ...f, uazapi_url: v }))} placeholder="https://api.uazapi.com/..." />
               <SecretInput label="Token" value={apiKeys.uazapi_token} onChange={(v) => setApiKeys((f) => ({ ...f, uazapi_token: v }))} placeholder="seu-token-uazapi" />
             </SectionCard>
-            <SectionCard title="Utmify" description="Tracking e atribuição de UTMs">
+            <SectionCard title="Utmify" description="Tracking e atribuição de UTMs" status={configuredKeys?.utmify ? "active" : "inactive"}>
               <SecretInput label="API Key" value={apiKeys.utmify_api_key} onChange={(v) => setApiKeys((f) => ({ ...f, utmify_api_key: v }))} placeholder="utmify_key_..." helpUrl="https://app.utmify.com.br" helpLabel="Painel Utmify" />
             </SectionCard>
           </div>
