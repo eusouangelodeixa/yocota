@@ -108,7 +108,7 @@ const AppMockupFrame = ({ frame }: { frame: number }) => (
           <div>
             <p style={{ color: "#888", fontSize: 11, marginBottom: 4 }}>Conversão</p>
             <div style={{ color: "#F5F5F0", fontSize: 40, fontWeight: 700, letterSpacing: "-0.03em", lineHeight: 1 }}>
-              <AnimatedCounter target={87.3} suffix="%" prefix="" decimals={1} />%
+              <AnimatedCounter target={87.3} prefix="" decimals={1} />%
             </div>
             <p style={{ color: "#2ECC71", fontSize: 12, marginTop: 4 }}>↑ 5.2% vs. semana passada</p>
           </div>
