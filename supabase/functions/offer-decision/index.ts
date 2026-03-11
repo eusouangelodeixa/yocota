@@ -104,12 +104,29 @@ serve(async (req) => {
         stripePaymentIntentId = paymentIntent.id;
 
         // 6. Create order item for the upsell
-        await supabase.from("order_items").insert({
+        const { data: upsellItem } = await supabase.from("order_items").insert({
           order_id: session.order_id,
           product_id: product.id,
           amount: product.price,
           type: "upsell",
-        });
+        }).select("id").single();
+
+        // Trigger delivery for upsell product
+        if (upsellItem) {
+          try {
+            const deliveryUrl = `${Deno.env.get("SUPABASE_URL")}/functions/v1/delivery-send`;
+            await fetch(deliveryUrl, {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                "Authorization": `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}`,
+              },
+              body: JSON.stringify({ order_id: session.order_id, order_item_id: upsellItem.id }),
+            });
+          } catch (e) {
+            console.warn("Failed to trigger upsell delivery:", e);
+          }
+        }
 
         // 7. Update order total
         const { data: order } = await supabase
