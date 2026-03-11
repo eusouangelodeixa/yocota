@@ -235,6 +235,44 @@ export default function Settings() {
     finally { setUploading(false); }
   };
 
+  // Team members (super admin only)
+  const { data: teamMembers, isLoading: teamLoading } = useQuery({
+    queryKey: ["team_members"],
+    enabled: isSuperAdmin,
+    queryFn: async () => {
+      const { data, error } = await supabase.from("user_roles").select("user_id, role").eq("role", "admin");
+      if (error) throw error;
+      // Get profiles for each
+      const userIds = data.map((r: any) => r.user_id);
+      const { data: profiles, error: pErr } = await supabase.from("profiles").select("user_id, display_name, avatar_url").in("user_id", userIds);
+      if (pErr) throw pErr;
+      return data.map((r: any) => {
+        const p = profiles?.find((p: any) => p.user_id === r.user_id);
+        return { user_id: r.user_id, display_name: p?.display_name || "—", avatar_url: p?.avatar_url };
+      });
+    },
+  });
+
+  const [inviteForm, setInviteForm] = useState({ email: "", password: "" });
+  const [inviting, setInviting] = useState(false);
+
+  const handleInvite = async () => {
+    if (!inviteForm.email || !inviteForm.password) { toast.error("Preencha email e senha"); return; }
+    setInviting(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("invite-user", { body: inviteForm });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      toast.success("Usuário convidado com sucesso!");
+      setInviteForm({ email: "", password: "" });
+      queryClient.invalidateQueries({ queryKey: ["team_members"] });
+    } catch (err: any) {
+      toast.error(err.message);
+    } finally {
+      setInviting(false);
+    }
+  };
+
   if (isLoading) {
     return <div className="flex items-center justify-center h-64"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>;
   }
