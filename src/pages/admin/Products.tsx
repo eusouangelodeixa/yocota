@@ -85,9 +85,9 @@ function ImageUpload({ value, onChange }: { value: string; onChange: (url: strin
 
   return (
     <div className="space-y-2">
-      <Label className="text-xs font-semibold">Imagem do Produto</Label>
+      <Label className="text-xs font-medium text-muted-foreground">Imagem do Produto</Label>
       {value ? (
-        <div className="relative w-full h-32 rounded-lg overflow-hidden border border-border bg-muted">
+        <div className="relative w-full h-32 rounded-xl overflow-hidden border border-[rgba(255,255,255,0.06)] bg-[rgba(255,255,255,0.02)]">
           <img src={value} alt="Produto" className="w-full h-full object-cover" />
           <Button
             type="button"
@@ -101,7 +101,7 @@ function ImageUpload({ value, onChange }: { value: string; onChange: (url: strin
         </div>
       ) : (
         <div
-          className="w-full h-32 rounded-lg border-2 border-dashed border-border bg-muted/40 flex flex-col items-center justify-center cursor-pointer hover:border-primary/40 transition-colors"
+          className="w-full h-32 rounded-xl border border-dashed border-[rgba(255,255,255,0.15)] bg-[rgba(255,255,255,0.02)] flex flex-col items-center justify-center cursor-pointer hover:border-primary/40 transition-colors duration-150"
           onClick={() => fileRef.current?.click()}
         >
           {uploading ? (
@@ -110,7 +110,7 @@ function ImageUpload({ value, onChange }: { value: string; onChange: (url: strin
             <>
               <Upload className="h-6 w-6 text-muted-foreground mb-1" />
               <p className="text-xs text-muted-foreground">Clique para enviar imagem</p>
-              <p className="text-[10px] text-muted-foreground/60">PNG, JPG até 5MB</p>
+              <p className="text-[10px] text-[#555555]">PNG, JPG até 5MB</p>
             </>
           )}
         </div>
@@ -242,8 +242,8 @@ export default function Products() {
   const totalPages = Math.ceil((data?.total ?? 0) / pageSize);
 
   return (
-    <div>
-      <div className="flex items-center justify-between mb-6">
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
         <h2 className="text-2xl font-bold text-foreground">Produtos</h2>
         <div className="flex items-center gap-3">
           <Select value={filterType} onValueChange={(v) => { setFilterType(v); setPage(0); }}>
@@ -259,7 +259,7 @@ export default function Products() {
           </Select>
           <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
             <DialogTrigger asChild>
-              <Button onClick={openNew}>
+              <Button onClick={openNew} className="bg-primary text-primary-foreground font-bold hover:brightness-110 transition-all duration-150">
                 <Plus className="mr-2 h-4 w-4" /> Novo Produto
               </Button>
             </DialogTrigger>
@@ -384,25 +384,32 @@ export default function Products() {
         </div>
       </div>
 
-      <Card>
-        <CardContent className="p-0">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead className="w-12"></TableHead>
-                <TableHead>Nome</TableHead>
-                <TableHead>Tipo</TableHead>
-                <TableHead>Preço</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Stripe</TableHead>
-                <TableHead className="w-24">Ações</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
+      <div className="card-glass rounded-xl overflow-hidden">
+        <Table>
+          <TableHeader>
+            <TableRow className="border-[rgba(255,255,255,0.06)] hover:bg-transparent">
+              <TableHead className="w-12"></TableHead>
+              <TableHead className="text-muted-foreground text-xs font-medium">Nome</TableHead>
+              <TableHead className="text-muted-foreground text-xs font-medium">Tipo</TableHead>
+              <TableHead className="text-muted-foreground text-xs font-medium">Preço</TableHead>
+              <TableHead className="text-muted-foreground text-xs font-medium">Status</TableHead>
+              <TableHead className="text-muted-foreground text-xs font-medium">Stripe</TableHead>
+              <TableHead className="w-24 text-muted-foreground text-xs font-medium">Ações</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
               {isLoading ? (
                 <TableRow>
-                  <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
-                    Carregando...
+                  <TableCell colSpan={7} className="text-center py-12 text-muted-foreground">
+                    <div className="space-y-2">
+                      {Array.from({ length: 3 }).map((_, i) => (
+                        <div key={i} className="flex items-center gap-4 justify-center">
+                          <div className="h-10 w-10 shimmer rounded-lg" />
+                          <div className="h-4 w-40 shimmer rounded" />
+                          <div className="h-4 w-16 shimmer rounded" />
+                        </div>
+                      ))}
+                    </div>
                   </TableCell>
                 </TableRow>
               ) : data?.products?.length === 0 ? (
@@ -413,19 +420,19 @@ export default function Products() {
                 </TableRow>
               ) : (
                 data?.products?.map((product: any) => (
-                  <TableRow key={product.id}>
+                  <TableRow key={product.id} className="border-[rgba(255,255,255,0.04)] hover:bg-[rgba(255,255,255,0.03)] transition-colors duration-150">
                     <TableCell>
                       {product.image_url ? (
                         <img src={product.image_url} alt="" className="w-10 h-10 rounded-md object-cover" />
                       ) : (
-                        <div className="w-10 h-10 rounded-md bg-muted flex items-center justify-center">
+                        <div className="w-10 h-10 rounded-lg bg-[rgba(255,255,255,0.04)] flex items-center justify-center">
                           <ImageIcon className="h-4 w-4 text-muted-foreground" />
                         </div>
                       )}
                     </TableCell>
-                    <TableCell className="font-medium">{product.name}</TableCell>
+                    <TableCell className="font-medium text-foreground">{product.name}</TableCell>
                     <TableCell>
-                      <Badge variant="secondary">{product.type}</Badge>
+                      <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-[rgba(255,255,255,0.06)] text-muted-foreground">{product.type}</span>
                     </TableCell>
                     <TableCell>{formatCents(product.price, product.currency || "brl")}</TableCell>
                     <TableCell>
@@ -438,13 +445,13 @@ export default function Products() {
                     </TableCell>
                     <TableCell>
                       {product.stripe_product_id ? (
-                        <Badge variant="outline" className="text-emerald-600 border-emerald-300">
+                        <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-[#28d56a18] text-[#28d56a]">
                           Sincronizado
-                        </Badge>
+                        </span>
                       ) : (
-                        <Badge variant="outline" className="text-muted-foreground">
+                        <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-[#78350f22] text-[#fbbf24]">
                           Pendente
-                        </Badge>
+                        </span>
                       )}
                     </TableCell>
                     <TableCell>
@@ -455,10 +462,9 @@ export default function Products() {
                   </TableRow>
                 ))
               )}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
+          </TableBody>
+        </Table>
+      </div>
 
       {totalPages > 1 && (
         <div className="flex items-center justify-center gap-2 mt-4">

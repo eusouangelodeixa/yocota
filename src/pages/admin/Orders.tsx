@@ -1,15 +1,13 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { Card, CardContent } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Badge } from "@/components/ui/badge";
 import { formatCentsToBRL } from "@/lib/formatters";
 
-const statusLabels: Record<string, { label: string; variant: "default" | "secondary" | "destructive" | "outline" }> = {
-  pending: { label: "Pendente", variant: "secondary" },
-  paid: { label: "Pago", variant: "default" },
-  failed: { label: "Falhou", variant: "destructive" },
-  refunded: { label: "Reembolsado", variant: "outline" },
+const statusBadge: Record<string, { label: string; className: string }> = {
+  pending: { label: "Pendente", className: "bg-[#78350f22] text-[#fbbf24]" },
+  paid: { label: "Pago", className: "bg-[#28d56a18] text-[#28d56a]" },
+  failed: { label: "Falhou", className: "bg-[#ef444418] text-[#ef4444]" },
+  refunded: { label: "Reembolso", className: "bg-[#3b82f618] text-[#60a5fa]" },
 };
 
 export default function Orders() {
@@ -26,60 +24,62 @@ export default function Orders() {
   });
 
   return (
-    <div>
-      <h2 className="text-2xl font-bold mb-6 text-foreground">Pedidos</h2>
-      <Card>
-        <CardContent className="p-0">
-          <Table>
-            <TableHeader>
+    <div className="space-y-6">
+      <h2 className="text-2xl font-bold text-foreground">Pedidos</h2>
+      <div className="card-glass rounded-xl overflow-hidden">
+        <Table>
+          <TableHeader>
+            <TableRow className="border-[rgba(255,255,255,0.06)] hover:bg-transparent">
+              <TableHead className="text-muted-foreground text-xs font-medium">Cliente</TableHead>
+              <TableHead className="text-muted-foreground text-xs font-medium">Checkout</TableHead>
+              <TableHead className="text-muted-foreground text-xs font-medium">Total</TableHead>
+              <TableHead className="text-muted-foreground text-xs font-medium">Status</TableHead>
+              <TableHead className="text-muted-foreground text-xs font-medium">Data</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {isLoading ? (
+              Array.from({ length: 5 }).map((_, i) => (
+                <TableRow key={i} className="border-[rgba(255,255,255,0.04)]">
+                  <TableCell><div className="h-4 w-32 shimmer rounded" /></TableCell>
+                  <TableCell><div className="h-4 w-24 shimmer rounded" /></TableCell>
+                  <TableCell><div className="h-4 w-16 shimmer rounded" /></TableCell>
+                  <TableCell><div className="h-4 w-16 shimmer rounded" /></TableCell>
+                  <TableCell><div className="h-4 w-20 shimmer rounded" /></TableCell>
+                </TableRow>
+              ))
+            ) : orders?.length === 0 ? (
               <TableRow>
-                <TableHead>Cliente</TableHead>
-                <TableHead>Checkout</TableHead>
-                <TableHead>Total</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Data</TableHead>
+                <TableCell colSpan={5} className="text-center py-12 text-muted-foreground">
+                  Nenhum pedido encontrado
+                </TableCell>
               </TableRow>
-            </TableHeader>
-            <TableBody>
-              {isLoading ? (
-                <TableRow>
-                  <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
-                    Carregando...
-                  </TableCell>
-                </TableRow>
-              ) : orders?.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
-                    Nenhum pedido encontrado
-                  </TableCell>
-                </TableRow>
-              ) : (
-                orders?.map((order: any) => {
-                  const status = statusLabels[order.status] || statusLabels.pending;
-                  return (
-                    <TableRow key={order.id}>
-                      <TableCell>
-                        <div>
-                          <div className="font-medium">{order.customers?.name}</div>
-                          <div className="text-xs text-muted-foreground">{order.customers?.email}</div>
-                        </div>
-                      </TableCell>
-                      <TableCell>{order.checkouts?.name}</TableCell>
-                      <TableCell>{formatCentsToBRL(order.total_amount)}</TableCell>
-                      <TableCell>
-                        <Badge variant={status.variant}>{status.label}</Badge>
-                      </TableCell>
-                      <TableCell className="text-muted-foreground">
-                        {new Date(order.created_at).toLocaleDateString("pt-BR")}
-                      </TableCell>
-                    </TableRow>
-                  );
-                })
-              )}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
+            ) : (
+              orders?.map((order: any) => {
+                const sb = statusBadge[order.status] || statusBadge.pending;
+                return (
+                  <TableRow key={order.id} className="border-[rgba(255,255,255,0.04)] hover:bg-[rgba(255,255,255,0.03)] transition-colors duration-150">
+                    <TableCell>
+                      <div className="font-medium text-foreground">{order.customers?.name}</div>
+                      <div className="text-xs text-muted-foreground">{order.customers?.email}</div>
+                    </TableCell>
+                    <TableCell className="text-sm text-muted-foreground">{order.checkouts?.name}</TableCell>
+                    <TableCell className="font-medium text-foreground">{formatCentsToBRL(order.total_amount)}</TableCell>
+                    <TableCell>
+                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border-0 ${sb.className}`}>
+                        {sb.label}
+                      </span>
+                    </TableCell>
+                    <TableCell className="text-sm text-muted-foreground">
+                      {new Date(order.created_at).toLocaleDateString("pt-BR")}
+                    </TableCell>
+                  </TableRow>
+                );
+              })
+            )}
+          </TableBody>
+        </Table>
+      </div>
     </div>
   );
 }
