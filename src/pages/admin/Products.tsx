@@ -445,9 +445,9 @@ export default function Products() {
                     </TableCell>
                     <TableCell>
                       {product.stripe_product_id ? (
-                        <Badge variant="outline" className="text-emerald-600 border-emerald-300">
+                        <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-[#28d56a18] text-[#28d56a]">
                           Sincronizado
-                        </Badge>
+                        </span>
                       ) : (
                         <Badge variant="outline" className="text-muted-foreground">
                           Pendente
