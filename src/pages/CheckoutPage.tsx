@@ -309,11 +309,13 @@ function CheckoutForm({ checkout: c }: { checkout: CheckoutData }) {
             <div className="space-y-4">
               <div className="space-y-1.5">
                 <label className="text-xs font-medium text-[#a1a1aa]">Nome completo</label>
-                <input value={customerName} onChange={(e) => setCustomerName(e.target.value)} placeholder="Digite seu nome" required className="flex h-10 w-full rounded-lg border border-[#27272a] bg-[#111113] px-3 text-sm text-[#fafafa] placeholder:text-[#3f3f46] focus:outline-none focus:border-[#28d56a] focus:ring-[3px] focus:ring-[rgba(40,213,106,0.15)] transition-all duration-150" />
+                <input value={customerName} onChange={(e) => setCustomerName(e.target.value)} onBlur={() => validateField("name", customerName)} placeholder="Digite seu nome" required className={`flex h-10 w-full rounded-lg border bg-[#111113] px-3 text-sm text-[#fafafa] placeholder:text-[#3f3f46] focus:outline-none focus:ring-[3px] transition-all duration-150 ${fieldErrors.name ? "border-[#ef4444] focus:border-[#ef4444] focus:ring-[rgba(239,68,68,0.12)]" : "border-[#27272a] focus:border-[#28d56a] focus:ring-[rgba(40,213,106,0.15)]"}`} />
+                {fieldErrors.name && <p className="text-[11px] text-[#ef4444] animate-in slide-in-from-top-1 duration-150">{fieldErrors.name}</p>}
               </div>
               <div className="space-y-1.5">
                 <label className="text-xs font-medium text-[#a1a1aa]">Email</label>
-                <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="seu@email.com" required className="flex h-10 w-full rounded-lg border border-[#27272a] bg-[#111113] px-3 text-sm text-[#fafafa] placeholder:text-[#3f3f46] focus:outline-none focus:border-[#28d56a] focus:ring-[3px] focus:ring-[rgba(40,213,106,0.15)] transition-all duration-150" />
+                <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} onBlur={() => validateField("email", email)} placeholder="seu@email.com" required className={`flex h-10 w-full rounded-lg border bg-[#111113] px-3 text-sm text-[#fafafa] placeholder:text-[#3f3f46] focus:outline-none focus:ring-[3px] transition-all duration-150 ${fieldErrors.email ? "border-[#ef4444] focus:border-[#ef4444] focus:ring-[rgba(239,68,68,0.12)]" : "border-[#27272a] focus:border-[#28d56a] focus:ring-[rgba(40,213,106,0.15)]"}`} />
+                {fieldErrors.email && <p className="text-[11px] text-[#ef4444] animate-in slide-in-from-top-1 duration-150">{fieldErrors.email}</p>}
               </div>
               <div className="space-y-1.5">
                 <label className="text-xs font-medium text-[#a1a1aa]">WhatsApp</label>
@@ -324,8 +326,9 @@ function CheckoutForm({ checkout: c }: { checkout: CheckoutData }) {
                     </SelectTrigger>
                     <SelectContent className="max-h-[280px]">{COUNTRY_CODES.map((cc) => (<SelectItem key={cc.code} value={cc.code}>{cc.flag} {cc.code} ({cc.label})</SelectItem>))}</SelectContent>
                   </Select>
-                  <input type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="(11) 99999-9999" required className="flex h-10 w-full rounded-lg border border-[#27272a] bg-[#111113] px-3 text-sm text-[#fafafa] placeholder:text-[#3f3f46] focus:outline-none focus:border-[#28d56a] focus:ring-[3px] focus:ring-[rgba(40,213,106,0.15)] transition-all duration-150 flex-1" />
+                  <input type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} onBlur={() => validateField("phone", phone)} placeholder="(11) 99999-9999" required className={`flex h-10 w-full rounded-lg border bg-[#111113] px-3 text-sm text-[#fafafa] placeholder:text-[#3f3f46] focus:outline-none focus:ring-[3px] transition-all duration-150 flex-1 ${fieldErrors.phone ? "border-[#ef4444] focus:border-[#ef4444] focus:ring-[rgba(239,68,68,0.12)]" : "border-[#27272a] focus:border-[#28d56a] focus:ring-[rgba(40,213,106,0.15)]"}`} />
                 </div>
+                {fieldErrors.phone && <p className="text-[11px] text-[#ef4444] animate-in slide-in-from-top-1 duration-150">{fieldErrors.phone}</p>}
               </div>
             </div>
 
