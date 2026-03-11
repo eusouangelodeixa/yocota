@@ -278,7 +278,7 @@ export default function Offers() {
         <h2 className="text-2xl font-bold text-foreground">Ofertas</h2>
         <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
           <DialogTrigger asChild>
-            <Button onClick={openNew}>
+            <Button onClick={openNew} className="bg-primary text-primary-foreground font-bold hover:brightness-110 transition-all duration-150">
               <Plus className="mr-2 h-4 w-4" /> Nova Oferta
             </Button>
           </DialogTrigger>
