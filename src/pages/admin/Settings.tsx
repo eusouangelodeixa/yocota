@@ -7,10 +7,11 @@ import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
-import { Loader2, Save, Upload, X, Eye, EyeOff, ExternalLink, Camera } from "lucide-react";
+import { Loader2, Save, Upload, X, Eye, EyeOff, ExternalLink, Camera, UserPlus, Trash2 } from "lucide-react";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 
 const SETTINGS_ID = "00000000-0000-0000-0000-000000000001";
+const SUPER_ADMIN_EMAIL = "eusouangelodeixa@gmail.com";
 
 function SectionCard({ title, description, children }: { title: string; description?: string; children: React.ReactNode }) {
   return (
@@ -57,6 +58,7 @@ function SecretInput({ label, value, onChange, placeholder, helpUrl, helpLabel }
 export default function Settings() {
   const queryClient = useQueryClient();
   const { user } = useAuth();
+  const isSuperAdmin = user?.email === SUPER_ADMIN_EMAIL;
 
   const { data: settings, isLoading } = useQuery({
     queryKey: ["site_settings"],
@@ -233,6 +235,44 @@ export default function Settings() {
     finally { setUploading(false); }
   };
 
+  // Team members (super admin only)
+  const { data: teamMembers, isLoading: teamLoading } = useQuery({
+    queryKey: ["team_members"],
+    enabled: isSuperAdmin,
+    queryFn: async () => {
+      const { data, error } = await supabase.from("user_roles").select("user_id, role").eq("role", "admin");
+      if (error) throw error;
+      // Get profiles for each
+      const userIds = data.map((r: any) => r.user_id);
+      const { data: profiles, error: pErr } = await supabase.from("profiles").select("user_id, display_name, avatar_url").in("user_id", userIds);
+      if (pErr) throw pErr;
+      return data.map((r: any) => {
+        const p = profiles?.find((p: any) => p.user_id === r.user_id);
+        return { user_id: r.user_id, display_name: p?.display_name || "—", avatar_url: p?.avatar_url };
+      });
+    },
+  });
+
+  const [inviteForm, setInviteForm] = useState({ email: "", password: "" });
+  const [inviting, setInviting] = useState(false);
+
+  const handleInvite = async () => {
+    if (!inviteForm.email || !inviteForm.password) { toast.error("Preencha email e senha"); return; }
+    setInviting(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("invite-user", { body: inviteForm });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      toast.success("Usuário convidado com sucesso!");
+      setInviteForm({ email: "", password: "" });
+      queryClient.invalidateQueries({ queryKey: ["team_members"] });
+    } catch (err: any) {
+      toast.error(err.message);
+    } finally {
+      setInviting(false);
+    }
+  };
+
   if (isLoading) {
     return <div className="flex items-center justify-center h-64"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>;
   }
@@ -249,6 +289,7 @@ export default function Settings() {
           <TabsTrigger value="integrations" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground rounded-md text-xs font-medium px-4 py-1.5">Integrações</TabsTrigger>
           <TabsTrigger value="checkout" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground rounded-md text-xs font-medium px-4 py-1.5">Checkout</TabsTrigger>
           <TabsTrigger value="profile" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground rounded-md text-xs font-medium px-4 py-1.5">Minha Conta</TabsTrigger>
+          {isSuperAdmin && <TabsTrigger value="team" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground rounded-md text-xs font-medium px-4 py-1.5">Equipe</TabsTrigger>}
         </TabsList>
 
         <TabsContent value="integrations" className="space-y-6">
@@ -424,6 +465,50 @@ export default function Settings() {
             </SectionCard>
           </div>
         </TabsContent>
+        {isSuperAdmin && (
+          <TabsContent value="team" className="space-y-6">
+            <div className="max-w-lg space-y-6">
+              <SectionCard title="Convidar Administrador" description="Crie um novo usuário com acesso admin">
+                <div className="space-y-1.5">
+                  <Label className="text-xs text-muted-foreground">Email</Label>
+                  <Input type="email" value={inviteForm.email} onChange={(e) => setInviteForm((f) => ({ ...f, email: e.target.value }))} placeholder="novo@admin.com" />
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs text-muted-foreground">Senha inicial</Label>
+                  <Input type="password" value={inviteForm.password} onChange={(e) => setInviteForm((f) => ({ ...f, password: e.target.value }))} placeholder="Mínimo 6 caracteres" />
+                </div>
+                <Button onClick={handleInvite} disabled={inviting} className="h-9 bg-primary text-primary-foreground font-bold text-xs hover:brightness-110 active:scale-[0.98]">
+                  {inviting ? <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" /> : <UserPlus className="mr-1.5 h-3.5 w-3.5" strokeWidth={1.5} />} Convidar
+                </Button>
+              </SectionCard>
+
+              <SectionCard title="Administradores" description="Usuários com acesso ao painel">
+                {teamLoading ? (
+                  <div className="flex justify-center py-4"><Loader2 className="h-5 w-5 animate-spin text-muted-foreground" /></div>
+                ) : (
+                  <div className="space-y-3">
+                    {teamMembers?.map((member: any) => (
+                      <div key={member.user_id} className="flex items-center justify-between py-2">
+                        <div className="flex items-center gap-3">
+                          <Avatar className="w-8 h-8">
+                            {member.avatar_url && <AvatarImage src={member.avatar_url} />}
+                            <AvatarFallback className="bg-primary text-primary-foreground text-xs font-bold">
+                              {(member.display_name || "?")[0]?.toUpperCase()}
+                            </AvatarFallback>
+                          </Avatar>
+                          <span className="text-sm text-foreground">{member.display_name}</span>
+                        </div>
+                      </div>
+                    ))}
+                    {(!teamMembers || teamMembers.length === 0) && (
+                      <p className="text-xs text-muted-foreground">Nenhum administrador encontrado.</p>
+                    )}
+                  </div>
+                )}
+              </SectionCard>
+            </div>
+          </TabsContent>
+        )}
       </Tabs>
     </div>
   );
