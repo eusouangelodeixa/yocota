@@ -1,7 +1,6 @@
 import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
@@ -30,9 +29,9 @@ export default function Settings() {
     business_name: "",
     logo_url: "",
     default_redirect_url: "",
-    default_primary_color: "#2563eb",
+    default_primary_color: "#28d56a",
     default_accent_color: "#1e40af",
-    default_bg_color: "#f8fafc",
+    default_bg_color: "#0d0d0d",
     default_cta_text: "Finalizar compra",
   });
 
@@ -42,9 +41,9 @@ export default function Settings() {
         business_name: settings.business_name || "",
         logo_url: settings.logo_url || "",
         default_redirect_url: settings.default_redirect_url || "",
-        default_primary_color: settings.default_primary_color || "#2563eb",
+        default_primary_color: settings.default_primary_color || "#28d56a",
         default_accent_color: settings.default_accent_color || "#1e40af",
-        default_bg_color: settings.default_bg_color || "#f8fafc",
+        default_bg_color: settings.default_bg_color || "#0d0d0d",
         default_cta_text: settings.default_cta_text || "Finalizar compra",
       });
     }
@@ -102,10 +101,14 @@ export default function Settings() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Configurações</h1>
-          <p className="text-muted-foreground">Personalização geral do seu negócio</p>
+          <h1 className="text-2xl font-bold text-foreground">Configurações</h1>
+          <p className="text-sm text-muted-foreground">Personalização geral do seu negócio</p>
         </div>
-        <Button onClick={() => saveMutation.mutate()} disabled={saveMutation.isPending}>
+        <Button
+          onClick={() => saveMutation.mutate()}
+          disabled={saveMutation.isPending}
+          className="bg-primary text-primary-foreground font-bold hover:brightness-110 transition-all duration-150"
+        >
           {saveMutation.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
           Salvar
         </Button>
@@ -113,104 +116,89 @@ export default function Settings() {
 
       <div className="grid gap-6 md:grid-cols-2">
         {/* Identidade */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Identidade</CardTitle>
-            <CardDescription>Nome e logo do seu negócio</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
+        <div className="card-glass rounded-xl overflow-hidden">
+          <div className="px-5 py-4 border-b border-[rgba(255,255,255,0.06)]">
+            <h3 className="text-sm font-semibold text-foreground">Identidade</h3>
+            <p className="text-xs text-muted-foreground mt-0.5">Nome e logo do seu negócio</p>
+          </div>
+          <div className="p-5 space-y-4">
             <div className="space-y-2">
-              <Label>Nome do negócio</Label>
+              <Label className="text-xs font-medium text-muted-foreground">Nome do negócio</Label>
               <Input
                 value={form.business_name}
                 onChange={(e) => setForm((f) => ({ ...f, business_name: e.target.value }))}
                 placeholder="Meu Negócio"
+                className="h-10 bg-input border-[rgba(255,255,255,0.1)] rounded-lg focus:border-primary"
               />
             </div>
             <div className="space-y-2">
-              <Label>Logo</Label>
+              <Label className="text-xs font-medium text-muted-foreground">Logo</Label>
               {form.logo_url ? (
-                <div className="relative w-32 h-32 border rounded-lg overflow-hidden">
+                <div className="relative w-28 h-28 border border-[rgba(255,255,255,0.06)] rounded-xl overflow-hidden bg-[rgba(255,255,255,0.02)]">
                   <img src={form.logo_url} alt="Logo" className="w-full h-full object-contain" />
                   <button
                     onClick={() => setForm((f) => ({ ...f, logo_url: "" }))}
-                    className="absolute top-1 right-1 bg-destructive text-destructive-foreground rounded-full p-1"
+                    className="absolute top-1.5 right-1.5 bg-destructive text-destructive-foreground rounded-full p-1 hover:brightness-110 transition-all"
                   >
                     <X className="h-3 w-3" />
                   </button>
                 </div>
               ) : (
-                <label className="flex items-center justify-center w-32 h-32 border-2 border-dashed rounded-lg cursor-pointer hover:border-primary transition-colors">
+                <label className="flex items-center justify-center w-28 h-28 border border-dashed border-[rgba(255,255,255,0.15)] rounded-xl cursor-pointer hover:border-primary/40 transition-colors duration-150">
                   <input type="file" accept="image/*" className="hidden" onChange={handleLogoUpload} disabled={uploading} />
-                  {uploading ? <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /> : <Upload className="h-6 w-6 text-muted-foreground" />}
+                  {uploading ? <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" /> : <Upload className="h-5 w-5 text-muted-foreground" />}
                 </label>
               )}
             </div>
-          </CardContent>
-        </Card>
+          </div>
+        </div>
 
         {/* Padrões de Checkout */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Padrões de Checkout</CardTitle>
-            <CardDescription>Valores padrão para novos checkouts</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
+        <div className="card-glass rounded-xl overflow-hidden">
+          <div className="px-5 py-4 border-b border-[rgba(255,255,255,0.06)]">
+            <h3 className="text-sm font-semibold text-foreground">Padrões de Checkout</h3>
+            <p className="text-xs text-muted-foreground mt-0.5">Valores padrão para novos checkouts</p>
+          </div>
+          <div className="p-5 space-y-4">
             <div className="space-y-2">
-              <Label>URL de redirecionamento padrão</Label>
+              <Label className="text-xs font-medium text-muted-foreground">URL de redirecionamento padrão</Label>
               <Input
                 value={form.default_redirect_url}
                 onChange={(e) => setForm((f) => ({ ...f, default_redirect_url: e.target.value }))}
                 placeholder="https://suapagina.com/obrigado"
+                className="h-10 bg-input border-[rgba(255,255,255,0.1)] rounded-lg focus:border-primary"
               />
             </div>
             <div className="space-y-2">
-              <Label>Texto do botão (CTA)</Label>
+              <Label className="text-xs font-medium text-muted-foreground">Texto do botão (CTA)</Label>
               <Input
                 value={form.default_cta_text}
                 onChange={(e) => setForm((f) => ({ ...f, default_cta_text: e.target.value }))}
+                className="h-10 bg-input border-[rgba(255,255,255,0.1)] rounded-lg focus:border-primary"
               />
             </div>
             <div className="grid grid-cols-3 gap-3">
-              <div className="space-y-2">
-                <Label className="text-xs">Cor primária</Label>
-                <div className="flex items-center gap-2">
-                  <input
-                    type="color"
-                    value={form.default_primary_color}
-                    onChange={(e) => setForm((f) => ({ ...f, default_primary_color: e.target.value }))}
-                    className="w-8 h-8 rounded cursor-pointer border-0"
-                  />
-                  <span className="text-xs text-muted-foreground">{form.default_primary_color}</span>
+              {[
+                { label: "Cor primária", key: "default_primary_color" as const },
+                { label: "Cor destaque", key: "default_accent_color" as const },
+                { label: "Cor fundo", key: "default_bg_color" as const },
+              ].map((c) => (
+                <div key={c.key} className="space-y-1.5">
+                  <Label className="text-[10px] font-medium text-muted-foreground">{c.label}</Label>
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="color"
+                      value={form[c.key]}
+                      onChange={(e) => setForm((f) => ({ ...f, [c.key]: e.target.value }))}
+                      className="w-7 h-7 rounded cursor-pointer border-0 bg-transparent"
+                    />
+                    <span className="text-[10px] text-muted-foreground font-mono">{form[c.key]}</span>
+                  </div>
                 </div>
-              </div>
-              <div className="space-y-2">
-                <Label className="text-xs">Cor de destaque</Label>
-                <div className="flex items-center gap-2">
-                  <input
-                    type="color"
-                    value={form.default_accent_color}
-                    onChange={(e) => setForm((f) => ({ ...f, default_accent_color: e.target.value }))}
-                    className="w-8 h-8 rounded cursor-pointer border-0"
-                  />
-                  <span className="text-xs text-muted-foreground">{form.default_accent_color}</span>
-                </div>
-              </div>
-              <div className="space-y-2">
-                <Label className="text-xs">Cor de fundo</Label>
-                <div className="flex items-center gap-2">
-                  <input
-                    type="color"
-                    value={form.default_bg_color}
-                    onChange={(e) => setForm((f) => ({ ...f, default_bg_color: e.target.value }))}
-                    className="w-8 h-8 rounded cursor-pointer border-0"
-                  />
-                  <span className="text-xs text-muted-foreground">{form.default_bg_color}</span>
-                </div>
-              </div>
+              ))}
             </div>
-          </CardContent>
-        </Card>
+          </div>
+        </div>
       </div>
     </div>
   );
