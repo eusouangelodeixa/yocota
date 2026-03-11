@@ -603,7 +603,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      cleanup_old_audit_logs: { Args: never; Returns: undefined }
     }
     Enums: {
       delivery_status: "pending" | "sent" | "failed"
