@@ -18,6 +18,7 @@ import CheckoutPage from "@/pages/CheckoutPage";
 import OfferFrame from "@/pages/OfferFrame";
 import SuccessPage from "@/pages/SuccessPage";
 import RecoverPage from "@/pages/RecoverPage";
+import LandingPage from "@/pages/LandingPage";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -51,7 +52,7 @@ const App = () => (
             <Route path="remarketing" element={<Remarketing />} />
             <Route path="configuracoes" element={<Settings />} />
           </Route>
-          <Route path="/" element={<Login />} />
+          <Route path="/" element={<LandingPage />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>
