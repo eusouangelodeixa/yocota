@@ -58,6 +58,7 @@ function SecretInput({ label, value, onChange, placeholder, helpUrl, helpLabel }
 export default function Settings() {
   const queryClient = useQueryClient();
   const { user } = useAuth();
+  const isSuperAdmin = user?.email === SUPER_ADMIN_EMAIL;
 
   const { data: settings, isLoading } = useQuery({
     queryKey: ["site_settings"],
