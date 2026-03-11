@@ -52,7 +52,7 @@ const App = () => (
             <Route path="remarketing" element={<Remarketing />} />
             <Route path="configuracoes" element={<Settings />} />
           </Route>
-          <Route path="/" element={<Login />} />
+          <Route path="/" element={<LandingPage />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>
