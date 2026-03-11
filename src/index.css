@@ -6,53 +6,55 @@
 
 @layer base {
   :root {
-    --background: 0 0% 4%;
-    --foreground: 0 0% 100%;
+    --background: 240 6% 4%;
+    --foreground: 0 0% 98%;
 
-    --card: 0 0% 9%;
-    --card-foreground: 0 0% 100%;
+    --card: 240 6% 10%;
+    --card-foreground: 0 0% 98%;
 
-    --popover: 0 0% 9%;
-    --popover-foreground: 0 0% 100%;
+    --popover: 240 6% 10%;
+    --popover-foreground: 0 0% 98%;
 
-    --primary: 145 67% 50%;
-    --primary-foreground: 0 0% 4%;
+    --primary: 145 70% 50%;
+    --primary-foreground: 240 6% 4%;
 
-    --secondary: 0 0% 12%;
-    --secondary-foreground: 0 0% 100%;
+    --secondary: 240 4% 14%;
+    --secondary-foreground: 0 0% 98%;
 
-    --muted: 0 0% 12%;
-    --muted-foreground: 0 0% 53%;
+    --muted: 240 4% 14%;
+    --muted-foreground: 240 5% 65%;
 
-    --accent: 0 0% 12%;
-    --accent-foreground: 0 0% 100%;
+    --accent: 240 4% 14%;
+    --accent-foreground: 0 0% 98%;
 
     --destructive: 0 84% 60%;
-    --destructive-foreground: 0 0% 100%;
+    --destructive-foreground: 0 0% 98%;
 
-    --border: 0 0% 100% / 0.06;
-    --input: 0 0% 17%;
-    --ring: 145 67% 50%;
+    --border: 240 4% 16%;
+    --input: 240 5% 8%;
+    --ring: 145 70% 50%;
 
-    --radius: 0.75rem;
+    --radius: 0.625rem;
 
-    --success: 145 67% 50%;
-    --success-foreground: 0 0% 4%;
-    --warning: 45 93% 47%;
-    --warning-foreground: 0 0% 4%;
+    --success: 145 70% 50%;
+    --success-foreground: 240 6% 4%;
+    --warning: 38 92% 50%;
+    --warning-foreground: 240 6% 4%;
+    --info: 217 91% 60%;
+    --info-foreground: 0 0% 98%;
 
-    --sidebar-background: 0 0% 6%;
-    --sidebar-foreground: 0 0% 100%;
-    --sidebar-primary: 145 67% 50%;
-    --sidebar-primary-foreground: 0 0% 4%;
-    --sidebar-accent: 0 0% 10%;
-    --sidebar-accent-foreground: 0 0% 100%;
-    --sidebar-border: 0 0% 100% / 0.06;
-    --sidebar-ring: 145 67% 50%;
+    --sidebar-background: 240 6% 4%;
+    --sidebar-foreground: 0 0% 98%;
+    --sidebar-primary: 145 70% 50%;
+    --sidebar-primary-foreground: 240 6% 4%;
+    --sidebar-accent: 240 4% 14%;
+    --sidebar-accent-foreground: 0 0% 98%;
+    --sidebar-border: 240 4% 16%;
+    --sidebar-ring: 145 70% 50%;
 
-    --chart-1: 145 67% 50%;
+    --chart-1: 145 70% 50%;
     --chart-2: 217 91% 60%;
-    --chart-3: 45 93% 47%;
+    --chart-3: 38 92% 50%;
     --chart-4: 0 84% 60%;
     --chart-5: 280 65% 60%;
   }
@@ -70,18 +72,24 @@
 }
 
 @layer utilities {
-  .card-glass {
-    background: hsl(0 0% 9%);
-    border: 1px solid rgba(255, 255, 255, 0.06);
-    box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.05), 0 4px 24px rgba(0, 0, 0, 0.4);
+  .card-surface {
+    background: hsl(240 6% 10%);
+    border: 1px solid hsl(240 4% 16%);
+    box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.04), 0 2px 8px rgba(0, 0, 0, 0.5);
+  }
+
+  .card-elevated {
+    background: hsl(240 5% 8%);
+    border: 1px solid hsl(240 4% 16%);
+    box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.06), 0 8px 32px rgba(0, 0, 0, 0.6);
   }
 
   .shimmer {
     background: linear-gradient(
       90deg,
-      hsl(0 0% 12%) 0%,
-      hsl(0 0% 16%) 50%,
-      hsl(0 0% 12%) 100%
+      hsl(240 6% 10%) 25%,
+      hsl(240 5% 14%) 50%,
+      hsl(240 6% 10%) 75%
     );
     background-size: 200% 100%;
     animation: shimmer 1.5s ease-in-out infinite;
@@ -99,5 +107,46 @@
 
   .animate-count-up {
     animation: count-up 0.5s ease-out forwards;
+  }
+
+  @keyframes shake {
+    0%, 100% { transform: translateX(0); }
+    25% { transform: translateX(-4px); }
+    75% { transform: translateX(4px); }
+  }
+
+  .animate-shake {
+    animation: shake 0.2s ease-in-out;
+  }
+
+  .tabular-nums {
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* Status pills */
+  .pill-paid {
+    background: rgba(40, 213, 106, 0.07);
+    color: #28d56a;
+    border: 1px solid rgba(40, 213, 106, 0.19);
+  }
+  .pill-pending {
+    background: rgba(245, 158, 11, 0.07);
+    color: #f59e0b;
+    border: 1px solid rgba(245, 158, 11, 0.19);
+  }
+  .pill-failed {
+    background: rgba(239, 68, 68, 0.07);
+    color: #ef4444;
+    border: 1px solid rgba(239, 68, 68, 0.19);
+  }
+  .pill-sent {
+    background: rgba(59, 130, 246, 0.07);
+    color: #60a5fa;
+    border: 1px solid rgba(59, 130, 246, 0.19);
+  }
+  .pill-refunded {
+    background: rgba(59, 130, 246, 0.07);
+    color: #60a5fa;
+    border: 1px solid rgba(59, 130, 246, 0.19);
   }
 }

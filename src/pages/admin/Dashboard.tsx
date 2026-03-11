@@ -1,16 +1,11 @@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
-import {
-  Package, ShoppingCart, ClipboardList, DollarSign,
-  TrendingUp, Users, Percent, ArrowUpRight,
-  CalendarIcon, ChevronDown,
-} from "lucide-react";
+import { CalendarIcon } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { formatCents } from "@/lib/formatters";
-import { useEffect, useRef, useState, useMemo } from "react";
+import { useEffect, useState, useMemo } from "react";
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
   ResponsiveContainer, AreaChart, Area,
@@ -18,15 +13,12 @@ import {
 import { format, subDays, startOfDay, endOfDay, startOfMonth, startOfYear, isWithinInterval } from "date-fns";
 import { ptBR } from "date-fns/locale";
 
-/* ── Skeletons ── */
+/* ── Skeleton ── */
 function SkeletonCard() {
   return (
-    <div className="card-glass rounded-xl p-5 space-y-3">
-      <div className="flex items-center justify-between">
-        <div className="h-3 w-24 shimmer rounded" />
-        <div className="h-8 w-8 shimmer rounded-lg" />
-      </div>
-      <div className="h-8 w-32 shimmer rounded" />
+    <div className="card-surface rounded-[10px] p-5 space-y-3">
+      <div className="h-3 w-24 shimmer rounded" />
+      <div className="h-7 w-32 shimmer rounded" />
       <div className="h-3 w-16 shimmer rounded" />
     </div>
   );
@@ -52,15 +44,15 @@ function AnimatedNumber({ value, prefix = "" }: { value: number | string; prefix
   return <span>{prefix}{displayed.toLocaleString("pt-BR")}</span>;
 }
 
-/* ── Status badges ── */
-const statusBadge: Record<string, { label: string; className: string }> = {
-  pending: { label: "Pendente", className: "bg-[#78350f22] text-[#fbbf24] border-0" },
-  paid: { label: "Pago", className: "bg-[#28d56a18] text-[#28d56a] border-0" },
-  failed: { label: "Falhou", className: "bg-[#ef444418] text-[#ef4444] border-0" },
-  refunded: { label: "Reembolso", className: "bg-[#3b82f618] text-[#60a5fa] border-0" },
+/* ── Status pills ── */
+const statusPill: Record<string, { label: string; cls: string }> = {
+  pending: { label: "PENDENTE", cls: "pill-pending" },
+  paid: { label: "PAGO", cls: "pill-paid" },
+  failed: { label: "FALHOU", cls: "pill-failed" },
+  refunded: { label: "REEMBOLSO", cls: "pill-refunded" },
 };
 
-/* ── Date filter presets ── */
+/* ── Date filter ── */
 type FilterPreset = "today" | "7d" | "30d" | "year" | "custom";
 
 const PRESET_LABELS: Record<FilterPreset, string> = {
@@ -82,14 +74,14 @@ function getDateRange(preset: FilterPreset, customFrom?: Date, customTo?: Date):
   }
 }
 
-/* ── Custom Tooltip ── */
+/* ── Tooltip ── */
 function ChartTooltip({ active, payload, label }: any) {
   if (!active || !payload?.length) return null;
   return (
-    <div className="bg-[#1a1a1a] border border-[rgba(255,255,255,0.1)] rounded-lg px-3 py-2 shadow-lg">
-      <p className="text-[10px] text-muted-foreground mb-1">{label}</p>
+    <div className="card-elevated rounded-lg px-3.5 py-2.5">
+      <p className="text-xs text-muted-foreground mb-1">{label}</p>
       {payload.map((entry: any, i: number) => (
-        <p key={i} className="text-sm font-semibold" style={{ color: entry.color }}>
+        <p key={i} className="text-sm font-semibold text-foreground">
           {formatCents(entry.value, "brl")}
         </p>
       ))}
@@ -128,7 +120,6 @@ export default function Dashboard() {
     },
   });
 
-  /* ── Filtered stats ── */
   const stats = useMemo(() => {
     if (!allData) return null;
     const { orders, orderItems, abandoned } = allData;
@@ -139,7 +130,6 @@ export default function Dashboard() {
     const paidOrders = filteredOrders.filter((o: any) => o.status === "paid");
     const revenue = paidOrders.reduce((sum: number, o: any) => sum + o.total_amount, 0);
 
-    // All-time items for product ranking
     const upsellRevenue = orderItems.filter((i: any) => i.type === "upsell").reduce((s: number, i: any) => s + i.amount, 0);
     const bumpRevenue = orderItems.filter((i: any) => i.type === "bump").reduce((s: number, i: any) => s + i.amount, 0);
 
@@ -160,20 +150,12 @@ export default function Dashboard() {
     const recoveredCount = filteredAbandoned.filter((a: any) => a.recovered).length;
     const recoveryRate = totalAbandoned > 0 ? (recoveredCount / totalAbandoned) * 100 : 0;
 
-    // Chart data: group by day
     const dayMap: Record<string, number> = {};
     for (const o of paidOrders) {
       const day = format(new Date((o as any).created_at), "dd/MM", { locale: ptBR });
       dayMap[day] = (dayMap[day] || 0) + (o as any).total_amount;
     }
     const chartData = Object.entries(dayMap).map(([day, value]) => ({ day, value }));
-
-    // Orders by status chart
-    const statusCounts = { paid: 0, pending: 0, failed: 0, refunded: 0 };
-    for (const o of filteredOrders) {
-      const s = (o as any).status as keyof typeof statusCounts;
-      if (s in statusCounts) statusCounts[s]++;
-    }
 
     return {
       productsCount: allData.productsCount,
@@ -188,14 +170,13 @@ export default function Dashboard() {
       recoveredCount,
       recentOrders: filteredOrders.slice(0, 10),
       chartData,
-      statusCounts,
     };
   }, [allData, dateRange]);
 
   if (isLoading) {
     return (
       <div className="space-y-6">
-        <div className="h-8 w-48 shimmer rounded" />
+        <div className="h-6 w-32 shimmer rounded" />
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           {Array.from({ length: 8 }).map((_, i) => <SkeletonCard key={i} />)}
         </div>
@@ -203,27 +184,23 @@ export default function Dashboard() {
     );
   }
 
-  const mainCards = [
-    { title: "Receita Total", value: formatCents(stats?.revenue ?? 0, "brl"), icon: DollarSign, color: "text-primary" },
-    { title: "Pedidos Pagos", value: stats?.totalOrders ?? 0, icon: ClipboardList, color: "text-primary" },
-    { title: "Produtos Ativos", value: stats?.productsCount ?? 0, icon: Package, color: "text-[#60a5fa]" },
-    { title: "Checkouts Ativos", value: stats?.checkoutsCount ?? 0, icon: ShoppingCart, color: "text-[#fbbf24]" },
-  ];
-
-  const secondaryCards = [
-    { title: "Receita Upsells", value: formatCents(stats?.upsellRevenue ?? 0, "brl"), icon: ArrowUpRight, color: "text-primary" },
-    { title: "Receita Bumps", value: formatCents(stats?.bumpRevenue ?? 0, "brl"), icon: TrendingUp, color: "text-[#60a5fa]" },
-    { title: "Taxa Recuperação", value: `${(stats?.recoveryRate ?? 0).toFixed(1)}%`, icon: Percent, color: "text-[#fbbf24]" },
-    { title: "Abandonos", value: `${stats?.recoveredCount ?? 0}/${stats?.totalAbandoned ?? 0}`, icon: Users, color: "text-muted-foreground" },
+  const kpis = [
+    { label: "RECEITA TOTAL", value: formatCents(stats?.revenue ?? 0, "brl"), change: null },
+    { label: "PEDIDOS PAGOS", value: stats?.totalOrders ?? 0, change: null },
+    { label: "PRODUTOS ATIVOS", value: stats?.productsCount ?? 0, change: null },
+    { label: "CHECKOUTS ATIVOS", value: stats?.checkoutsCount ?? 0, change: null },
+    { label: "RECEITA UPSELLS", value: formatCents(stats?.upsellRevenue ?? 0, "brl"), change: null },
+    { label: "RECEITA BUMPS", value: formatCents(stats?.bumpRevenue ?? 0, "brl"), change: null },
+    { label: "TAXA RECUPERAÇÃO", value: `${(stats?.recoveryRate ?? 0).toFixed(1)}%`, change: null },
+    { label: "ABANDONOS", value: `${stats?.recoveredCount ?? 0}/${stats?.totalAbandoned ?? 0}`, change: null },
   ];
 
   return (
     <div className="space-y-6">
       {/* Header + Filter */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-        <h2 className="text-2xl font-bold text-foreground">Dashboard</h2>
-
-        <div className="flex items-center gap-2">
+        <h2 className="text-lg font-bold text-foreground">Dashboard</h2>
+        <div className="flex items-center gap-1">
           {(["today", "7d", "30d", "year"] as FilterPreset[]).map((p) => (
             <button
               key={p}
@@ -231,13 +208,12 @@ export default function Dashboard() {
               className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all duration-150 ${
                 preset === p
                   ? "bg-primary text-primary-foreground"
-                  : "bg-[rgba(255,255,255,0.04)] text-muted-foreground hover:text-foreground hover:bg-[rgba(255,255,255,0.08)]"
+                  : "text-muted-foreground hover:text-foreground hover:bg-secondary"
               }`}
             >
               {PRESET_LABELS[p]}
             </button>
           ))}
-
           <Popover open={calendarOpen} onOpenChange={setCalendarOpen}>
             <PopoverTrigger asChild>
               <button
@@ -245,10 +221,10 @@ export default function Dashboard() {
                 className={`px-3 py-1.5 rounded-lg text-xs font-medium flex items-center gap-1.5 transition-all duration-150 ${
                   preset === "custom"
                     ? "bg-primary text-primary-foreground"
-                    : "bg-[rgba(255,255,255,0.04)] text-muted-foreground hover:text-foreground hover:bg-[rgba(255,255,255,0.08)]"
+                    : "text-muted-foreground hover:text-foreground hover:bg-secondary"
                 }`}
               >
-                <CalendarIcon className="h-3.5 w-3.5" />
+                <CalendarIcon className="h-3.5 w-3.5" strokeWidth={1.5} />
                 {preset === "custom" && customFrom && customTo
                   ? `${format(customFrom, "dd/MM")} - ${format(customTo, "dd/MM")}`
                   : "Personalizado"
@@ -274,78 +250,46 @@ export default function Dashboard() {
 
       {/* KPI Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        {mainCards.map((card) => (
-          <div key={card.title} className="card-glass rounded-xl p-5 transition-all duration-150 hover:border-[rgba(255,255,255,0.1)]">
-            <div className="flex items-center justify-between mb-3">
-              <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">{card.title}</span>
-              <div className={`w-9 h-9 rounded-lg bg-[rgba(255,255,255,0.04)] flex items-center justify-center ${card.color}`}>
-                <card.icon className="h-4 w-4" />
-              </div>
-            </div>
-            <div className="text-2xl font-bold text-foreground">
-              {typeof card.value === "number" ? <AnimatedNumber value={card.value} /> : card.value}
-            </div>
+        {kpis.map((kpi) => (
+          <div key={kpi.label} className="card-surface rounded-[10px] p-5">
+            <p className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground mb-2">{kpi.label}</p>
+            <p className="text-[28px] font-bold text-foreground tabular-nums leading-none">
+              {typeof kpi.value === "number" ? <AnimatedNumber value={kpi.value} /> : kpi.value}
+            </p>
           </div>
         ))}
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        {secondaryCards.map((card) => (
-          <div key={card.title} className="card-glass rounded-xl p-5 transition-all duration-150 hover:border-[rgba(255,255,255,0.1)]">
-            <div className="flex items-center justify-between mb-3">
-              <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">{card.title}</span>
-              <div className={`w-9 h-9 rounded-lg bg-[rgba(255,255,255,0.04)] flex items-center justify-center ${card.color}`}>
-                <card.icon className="h-4 w-4" />
-              </div>
-            </div>
-            <div className="text-xl font-bold text-foreground">{card.value}</div>
-          </div>
-        ))}
-      </div>
-
-      {/* Charts Row */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Revenue Chart */}
-        <div className="card-glass rounded-xl overflow-hidden">
-          <div className="px-5 py-4 border-b border-[rgba(255,255,255,0.06)]">
+      {/* Charts */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        {/* Revenue Bar Chart */}
+        <div className="card-surface rounded-[10px] overflow-hidden">
+          <div className="px-5 py-4 border-b border-border">
             <h3 className="text-sm font-semibold text-foreground">Faturamento por Dia</h3>
-            <p className="text-xs text-muted-foreground mt-0.5">Receita dos pedidos pagos no período</p>
+            <p className="text-[11px] text-muted-foreground mt-0.5">Receita dos pedidos pagos no período</p>
           </div>
           <div className="p-5 h-[280px]">
             {stats?.chartData && stats.chartData.length > 0 ? (
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={stats.chartData} barCategoryGap="20%">
-                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.06)" />
-                  <XAxis
-                    dataKey="day"
-                    tick={{ fontSize: 10, fill: "#888" }}
-                    axisLine={{ stroke: "rgba(255,255,255,0.06)" }}
-                    tickLine={false}
-                  />
-                  <YAxis
-                    tick={{ fontSize: 10, fill: "#888" }}
-                    axisLine={false}
-                    tickLine={false}
-                    tickFormatter={(v) => formatCents(v, "brl")}
-                    width={80}
-                  />
-                  <Tooltip content={<ChartTooltip />} cursor={{ fill: "rgba(255,255,255,0.04)" }} />
-                  <Bar dataKey="value" fill="#28d56a" radius={[4, 4, 0, 0]} maxBarSize={40} />
+                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" />
+                  <XAxis dataKey="day" tick={{ fontSize: 11, fill: "#52525b" }} axisLine={false} tickLine={false} />
+                  <YAxis tick={{ fontSize: 11, fill: "#52525b" }} axisLine={false} tickLine={false} tickFormatter={(v) => formatCents(v, "brl")} width={80} />
+                  <Tooltip content={<ChartTooltip />} cursor={{ fill: "rgba(255,255,255,0.02)" }} />
+                  <Bar dataKey="value" fill="#27272a" activeBar={{ fill: "#28d56a" }} radius={0} maxBarSize={40} />
                 </BarChart>
               </ResponsiveContainer>
             ) : (
-              <div className="flex items-center justify-center h-full text-sm text-muted-foreground">
-                Nenhum dado no período
-              </div>
+              <div className="flex items-center justify-center h-full text-sm text-muted-foreground">Nenhum dado no período</div>
             )}
           </div>
         </div>
 
-        {/* Revenue Area Chart (cumulative) */}
-        <div className="card-glass rounded-xl overflow-hidden">
-          <div className="px-5 py-4 border-b border-[rgba(255,255,255,0.06)]">
+        {/* Cumulative Area Chart */}
+        <div className="card-surface rounded-[10px] overflow-hidden">
+          <div className="px-5 py-4 border-b border-border">
             <h3 className="text-sm font-semibold text-foreground">Receita Acumulada</h3>
-            <p className="text-xs text-muted-foreground mt-0.5">Evolução do faturamento no período</p>
+            <p className="text-[11px] text-muted-foreground mt-0.5">Evolução do faturamento no período</p>
           </div>
           <div className="p-5 h-[280px]">
             {stats?.chartData && stats.chartData.length > 0 ? (
@@ -358,50 +302,31 @@ export default function Dashboard() {
                   }, [])}
                 >
                   <defs>
-                    <linearGradient id="greenGradient" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="0%" stopColor="#28d56a" stopOpacity={0.3} />
+                    <linearGradient id="greenGrad" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor="#28d56a" stopOpacity={0.2} />
                       <stop offset="100%" stopColor="#28d56a" stopOpacity={0} />
                     </linearGradient>
                   </defs>
-                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.06)" />
-                  <XAxis
-                    dataKey="day"
-                    tick={{ fontSize: 10, fill: "#888" }}
-                    axisLine={{ stroke: "rgba(255,255,255,0.06)" }}
-                    tickLine={false}
-                  />
-                  <YAxis
-                    tick={{ fontSize: 10, fill: "#888" }}
-                    axisLine={false}
-                    tickLine={false}
-                    tickFormatter={(v) => formatCents(v, "brl")}
-                    width={80}
-                  />
+                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" />
+                  <XAxis dataKey="day" tick={{ fontSize: 11, fill: "#52525b" }} axisLine={false} tickLine={false} />
+                  <YAxis tick={{ fontSize: 11, fill: "#52525b" }} axisLine={false} tickLine={false} tickFormatter={(v) => formatCents(v, "brl")} width={80} />
                   <Tooltip content={<ChartTooltip />} />
-                  <Area
-                    type="monotone"
-                    dataKey="cumulative"
-                    stroke="#28d56a"
-                    strokeWidth={2}
-                    fill="url(#greenGradient)"
-                  />
+                  <Area type="monotone" dataKey="cumulative" stroke="#28d56a" strokeWidth={2} fill="url(#greenGrad)" />
                 </AreaChart>
               </ResponsiveContainer>
             ) : (
-              <div className="flex items-center justify-center h-full text-sm text-muted-foreground">
-                Nenhum dado no período
-              </div>
+              <div className="flex items-center justify-center h-full text-sm text-muted-foreground">Nenhum dado no período</div>
             )}
           </div>
         </div>
       </div>
 
       {/* Tables Row */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         {/* Top Products */}
-        <div className="card-glass rounded-xl overflow-hidden">
-          <div className="px-5 py-4 border-b border-[rgba(255,255,255,0.06)]">
-            <h3 className="text-sm font-semibold text-foreground">Top 5 Produtos (por receita)</h3>
+        <div className="card-surface rounded-[10px] overflow-hidden">
+          <div className="px-5 py-4 border-b border-border">
+            <h3 className="text-sm font-semibold text-foreground">Top 5 Produtos</h3>
           </div>
           <div className="p-5">
             {stats?.topProducts && stats.topProducts.length > 0 ? (
@@ -413,61 +338,58 @@ export default function Dashboard() {
                     <div key={i} className="space-y-1.5">
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-3">
-                          <span className="text-xs font-bold text-muted-foreground w-5">{i + 1}.</span>
+                          <span className="text-[11px] font-bold text-muted-foreground w-4">{i + 1}.</span>
                           <div>
-                            <p className="text-sm font-medium text-foreground">{p.name}</p>
-                            <p className="text-xs text-muted-foreground">{p.count} vendas</p>
+                            <p className="text-[13px] font-medium text-foreground">{p.name}</p>
+                            <p className="text-[11px] text-muted-foreground">{p.count} vendas</p>
                           </div>
                         </div>
-                        <span className="text-sm font-semibold text-primary">{formatCents(p.revenue, "brl")}</span>
+                        <span className="text-[13px] font-semibold text-primary tabular-nums">{formatCents(p.revenue, "brl")}</span>
                       </div>
-                      <div className="h-1.5 bg-[rgba(255,255,255,0.04)] rounded-full overflow-hidden ml-8">
-                        <div
-                          className="h-full bg-primary rounded-full transition-all duration-500"
-                          style={{ width: `${pct}%` }}
-                        />
+                      <div className="h-1 bg-secondary rounded-full overflow-hidden ml-7">
+                        <div className="h-full bg-primary rounded-full transition-all duration-500" style={{ width: `${pct}%` }} />
                       </div>
                     </div>
                   );
                 })}
               </div>
             ) : (
-              <p className="text-sm text-muted-foreground text-center py-6">Nenhum produto vendido ainda</p>
+              <p className="text-[13px] text-muted-foreground text-center py-6">Nenhum produto vendido ainda</p>
             )}
           </div>
         </div>
 
         {/* Recent Orders */}
-        <div className="card-glass rounded-xl overflow-hidden">
-          <div className="px-5 py-4 border-b border-[rgba(255,255,255,0.06)]">
+        <div className="card-surface rounded-[10px] overflow-hidden">
+          <div className="px-5 py-4 border-b border-border">
             <h3 className="text-sm font-semibold text-foreground">Pedidos Recentes</h3>
           </div>
           <Table>
             <TableHeader>
-              <TableRow className="border-[rgba(255,255,255,0.06)] hover:bg-transparent">
-                <TableHead className="text-muted-foreground text-xs font-medium">Cliente</TableHead>
-                <TableHead className="text-muted-foreground text-xs font-medium">Valor</TableHead>
-                <TableHead className="text-muted-foreground text-xs font-medium">Status</TableHead>
-                <TableHead className="text-muted-foreground text-xs font-medium">Data</TableHead>
+              <TableRow className="border-border hover:bg-transparent">
+                <TableHead className="text-[11px] uppercase tracking-wider text-muted-foreground font-medium">Cliente</TableHead>
+                <TableHead className="text-[11px] uppercase tracking-wider text-muted-foreground font-medium">Valor</TableHead>
+                <TableHead className="text-[11px] uppercase tracking-wider text-muted-foreground font-medium">Status</TableHead>
+                <TableHead className="text-[11px] uppercase tracking-wider text-muted-foreground font-medium">Data</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {stats?.recentOrders && stats.recentOrders.length > 0 ? (
                 stats.recentOrders.map((order: any) => {
-                  const sb = statusBadge[order.status] || statusBadge.pending;
+                  const sp = statusPill[order.status] || statusPill.pending;
                   return (
-                    <TableRow key={order.id} className="border-[rgba(255,255,255,0.04)] hover:bg-[rgba(255,255,255,0.03)] transition-colors duration-150">
+                    <TableRow key={order.id} className="border-border hover:bg-[rgba(255,255,255,0.02)] h-12">
                       <TableCell>
-                        <div className="text-sm font-medium text-foreground">{order.customers?.name || "—"}</div>
-                        <div className="text-xs text-muted-foreground">{order.customers?.email}</div>
+                        <div className="text-[13px] font-medium text-foreground">{order.customers?.name || "—"}</div>
+                        <div className="text-[11px] text-muted-foreground">{order.customers?.email}</div>
                       </TableCell>
-                      <TableCell className="font-medium text-foreground">{formatCents(order.total_amount, "brl")}</TableCell>
+                      <TableCell className="text-[13px] font-medium text-foreground tabular-nums">{formatCents(order.total_amount, "brl")}</TableCell>
                       <TableCell>
-                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${sb.className}`}>
-                          {sb.label}
+                        <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium uppercase tracking-wide ${sp.cls}`}>
+                          {sp.label}
                         </span>
                       </TableCell>
-                      <TableCell className="text-xs text-muted-foreground">
+                      <TableCell className="text-[12px] text-muted-foreground">
                         {new Date(order.created_at).toLocaleString("pt-BR")}
                       </TableCell>
                     </TableRow>
@@ -475,9 +397,7 @@ export default function Dashboard() {
                 })
               ) : (
                 <TableRow>
-                  <TableCell colSpan={4} className="text-center text-muted-foreground py-6">
-                    Nenhum pedido no período
-                  </TableCell>
+                  <TableCell colSpan={4} className="text-center text-muted-foreground py-6 text-[13px]">Nenhum pedido no período</TableCell>
                 </TableRow>
               )}
             </TableBody>

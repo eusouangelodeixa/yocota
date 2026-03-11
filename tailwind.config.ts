@@ -60,9 +60,6 @@ export default {
           border: "hsl(var(--sidebar-border))",
           ring: "hsl(var(--sidebar-ring))",
         },
-        emerald: {
-          DEFAULT: "#28d56a",
-        },
       },
       borderRadius: {
         lg: "var(--radius)",
