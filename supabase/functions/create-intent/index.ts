@@ -176,6 +176,14 @@ serve(async (req) => {
 
     const paymentIntent = await stripe.paymentIntents.create(piConfig);
 
+    console.log("[CREATE-INTENT] PaymentIntent created:", {
+      pi_id: paymentIntent.id,
+      amount: paymentIntent.amount,
+      currency: paymentIntent.currency,
+      description: paymentIntent.description,
+      metadata: paymentIntent.metadata,
+    });
+
     return new Response(JSON.stringify({
       client_secret: paymentIntent.client_secret,
       payment_intent_id: paymentIntent.id,
