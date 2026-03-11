@@ -126,7 +126,7 @@ export default function Offers() {
               <div className="space-y-1.5"><Label className="text-xs text-muted-foreground">Nome</Label><Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="Ex: Upsell Premium" required /></div>
               <div className="space-y-1.5">
                 <Label className="text-xs text-muted-foreground">Produto</Label>
-                <Select value={form.product_id} onValueChange={(v) => setForm({ ...form, product_id: v })}><SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger><SelectContent>{products?.map((p) => (<SelectItem key={p.id} value={p.id}>{p.name} — {formatCentsToBRL(p.price)}</SelectItem>))}</SelectContent></Select>
+                <Select value={form.product_id} onValueChange={(v) => setForm({ ...form, product_id: v })}><SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger><SelectContent>{products?.map((p) => (<SelectItem key={p.id} value={p.id}>{p.name} — {formatCents(p.price)}</SelectItem>))}</SelectContent></Select>
               </div>
               <div className="bg-input p-3 rounded-lg space-y-3 border border-border">
                 <p className="text-[11px] font-medium text-foreground uppercase tracking-wider">Página Externa (opcional)</p>
