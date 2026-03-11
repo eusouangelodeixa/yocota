@@ -14,12 +14,23 @@ import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 const SETTINGS_ID = "00000000-0000-0000-0000-000000000001";
 const SUPER_ADMIN_EMAIL = "eusouangelodeixa@gmail.com";
 
-function SectionCard({ title, description, children }: { title: string; description?: string; children: React.ReactNode }) {
+function SectionCard({ title, description, children, status }: { title: string; description?: string; children: React.ReactNode; status?: "active" | "inactive" }) {
   return (
     <div className="card-surface rounded-[10px] overflow-hidden">
-      <div className="px-5 py-4 border-b border-border">
-        <h3 className="text-sm font-semibold text-foreground">{title}</h3>
-        {description && <p className="text-[11px] text-muted-foreground mt-0.5">{description}</p>}
+      <div className="px-5 py-4 border-b border-border flex items-center justify-between">
+        <div>
+          <h3 className="text-sm font-semibold text-foreground">{title}</h3>
+          {description && <p className="text-[11px] text-muted-foreground mt-0.5">{description}</p>}
+        </div>
+        {status && (
+          <Badge className={status === "active"
+            ? "bg-emerald-500/15 text-emerald-400 border-emerald-500/30 hover:bg-emerald-500/20 gap-1"
+            : "bg-muted text-muted-foreground border-border hover:bg-muted gap-1"
+          }>
+            {status === "active" ? <CheckCircle2 className="h-3 w-3" /> : <XCircle className="h-3 w-3" />}
+            {status === "active" ? "Ativo" : "Não configurado"}
+          </Badge>
+        )}
       </div>
       <div className="p-5 space-y-4">{children}</div>
     </div>
