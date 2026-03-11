@@ -130,7 +130,7 @@ export default function Products() {
 
   const openEdit = (product: any) => {
     setEditingId(product.id);
-    const currency = product.currency || "brl";
+    const currency = product.currency || "eur";
     const decimals = isZeroDecimalCurrency(currency) ? 0 : 2;
     setForm({ name: product.name, description: product.description ?? "", price: (product.price / Math.pow(10, decimals)).toFixed(decimals).replace(".", ","), currency, type: product.type, delivery_type: product.delivery_type, delivery_message: product.delivery_message ?? "", delivery_attachment: product.delivery_attachment ?? "", image_url: product.image_url ?? "" });
     setDialogOpen(true);
