@@ -90,6 +90,34 @@ function CheckoutForm({ checkout: c }: { checkout: CheckoutData }) {
   const [abandonedSaved, setAbandonedSaved] = useState(false);
   const [cardError, setCardError] = useState<string | null>(null);
 
+  // Recover prefill data from abandoned checkout
+  useEffect(() => {
+    try {
+      const recovery = sessionStorage.getItem("checkout_recovery");
+      if (recovery) {
+        const data = JSON.parse(recovery);
+        if (data.name) setCustomerName(data.name);
+        if (data.email) {
+          setEmail(data.email);
+          setAbandonedSaved(true); // Don't re-create abandoned checkout
+        }
+        if (data.phone) {
+          // Try to split DDI from phone
+          const fullPhone = data.phone.replace(/\D/g, "");
+          // Check if starts with known DDI
+          const match = COUNTRY_CODES.find((cc) => fullPhone.startsWith(cc.code.replace("+", "")));
+          if (match) {
+            setDdi(match.code);
+            setPhone(fullPhone.substring(match.code.replace("+", "").length));
+          } else {
+            setPhone(fullPhone);
+          }
+        }
+        sessionStorage.removeItem("checkout_recovery");
+      }
+    } catch {}
+  }, []);
+
   const currency = c.product.currency || "brl";
 
   // Auto-detect country code

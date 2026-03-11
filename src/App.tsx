@@ -11,10 +11,13 @@ import Products from "@/pages/admin/Products";
 import Checkouts from "@/pages/admin/Checkouts";
 import Orders from "@/pages/admin/Orders";
 import Offers from "@/pages/admin/Offers";
+import Deliveries from "@/pages/admin/Deliveries";
+import Remarketing from "@/pages/admin/Remarketing";
 import Placeholder from "@/pages/admin/Placeholder";
 import CheckoutPage from "@/pages/CheckoutPage";
 import OfferFrame from "@/pages/OfferFrame";
 import SuccessPage from "@/pages/SuccessPage";
+import RecoverPage from "@/pages/RecoverPage";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -30,6 +33,7 @@ const App = () => (
           <Route path="/checkout/:slug" element={<CheckoutPage />} />
           <Route path="/offer-frame/:token" element={<OfferFrame />} />
           <Route path="/success/:checkoutId" element={<SuccessPage />} />
+          <Route path="/recover/:token" element={<RecoverPage />} />
           <Route
             path="/admin"
             element={
@@ -43,8 +47,8 @@ const App = () => (
             <Route path="checkouts" element={<Checkouts />} />
             <Route path="pedidos" element={<Orders />} />
             <Route path="ofertas" element={<Offers />} />
-            <Route path="entregas" element={<Placeholder title="Entregas" />} />
-            <Route path="remarketing" element={<Placeholder title="Remarketing" />} />
+            <Route path="entregas" element={<Deliveries />} />
+            <Route path="remarketing" element={<Remarketing />} />
             <Route path="configuracoes" element={<Placeholder title="Configurações" />} />
           </Route>
           <Route path="/" element={<Login />} />
