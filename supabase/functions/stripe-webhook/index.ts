@@ -44,7 +44,6 @@ serve(async (req) => {
 
   try {
     switch (event.type) {
-      // Handle direct PaymentIntent (embedded card checkout)
       case "payment_intent.succeeded": {
         const paymentIntent = event.data.object as Stripe.PaymentIntent;
         const metadata = paymentIntent.metadata || {};
@@ -73,7 +72,6 @@ serve(async (req) => {
         break;
       }
 
-      // Keep backward compat for old Checkout Session flow
       case "checkout.session.completed": {
         const session = event.data.object as Stripe.Checkout.Session;
         const metadata = session.metadata || {};
@@ -84,7 +82,6 @@ serve(async (req) => {
           break;
         }
 
-        // Get payment method from the session's payment intent
         let paymentMethodId: string | null = null;
         let paymentIntentId: string | null = null;
         if (session.payment_intent) {
@@ -99,7 +96,6 @@ serve(async (req) => {
 
         const stripeCustomerId = typeof session.customer === "string" ? session.customer : null;
 
-        // Set default payment method on customer
         if (stripeCustomerId && paymentMethodId) {
           try {
             await stripe.customers.update(stripeCustomerId, {
@@ -151,7 +147,6 @@ serve(async (req) => {
   });
 });
 
-// Shared logic for processing a successful payment
 async function processSuccessfulPayment(
   supabase: any,
   stripe: any,
@@ -177,7 +172,6 @@ async function processSuccessfulPayment(
     utmSource, utmMedium, utmCampaign, utmContent, utmTerm,
   } = params;
 
-  // Get checkout with products
   const { data: checkout } = await supabase
     .from("checkouts")
     .select("*, products!checkouts_product_id_fkey(id, name, price), first_offer_id")
@@ -189,7 +183,6 @@ async function processSuccessfulPayment(
     return;
   }
 
-  // Create or find customer
   let { data: customer } = await supabase
     .from("customers")
     .select("*")
@@ -211,12 +204,8 @@ async function processSuccessfulPayment(
     customer = newCustomer;
   } else {
     const updates: Record<string, any> = {};
-    if (customerId && !customer.stripe_customer_id) {
-      updates.stripe_customer_id = customerId;
-    }
-    if (paymentMethodId) {
-      updates.stripe_payment_method_id = paymentMethodId;
-    }
+    if (customerId && !customer.stripe_customer_id) updates.stripe_customer_id = customerId;
+    if (paymentMethodId) updates.stripe_payment_method_id = paymentMethodId;
     if (Object.keys(updates).length > 0) {
       await supabase.from("customers").update(updates).eq("id", customer.id);
     }
@@ -227,7 +216,6 @@ async function processSuccessfulPayment(
     return;
   }
 
-  // Check for duplicate order
   if (paymentIntentId) {
     const { data: existingOrder } = await supabase
       .from("orders")
@@ -241,15 +229,9 @@ async function processSuccessfulPayment(
     }
   }
 
-  // Calculate total with multi-bump support
   let totalAmount = checkout.products.price;
   let bumpProductIds: string[] = [];
-
-  try {
-    bumpProductIds = JSON.parse(selectedBumpIds);
-  } catch {
-    bumpProductIds = [];
-  }
+  try { bumpProductIds = JSON.parse(selectedBumpIds); } catch { bumpProductIds = []; }
 
   let bumpProducts: any[] = [];
   if (bumpProductIds.length > 0) {
@@ -258,12 +240,9 @@ async function processSuccessfulPayment(
       .select("id, price")
       .in("id", bumpProductIds);
     bumpProducts = bps || [];
-    for (const bp of bumpProducts) {
-      totalAmount += bp.price;
-    }
+    for (const bp of bumpProducts) totalAmount += bp.price;
   }
 
-  // Create order
   const { data: order, error: orderError } = await supabase
     .from("orders")
     .insert({
@@ -286,26 +265,14 @@ async function processSuccessfulPayment(
     return;
   }
 
-  // Create order items
   const items: any[] = [
-    {
-      order_id: order.id,
-      product_id: checkout.products.id,
-      amount: checkout.products.price,
-      type: "main",
-    },
+    { order_id: order.id, product_id: checkout.products.id, amount: checkout.products.price, type: "main" },
   ];
-
   for (const bp of bumpProducts) {
-    items.push({
-      order_id: order.id,
-      product_id: bp.id,
-      amount: bp.price,
-      type: "bump",
-    });
+    items.push({ order_id: order.id, product_id: bp.id, amount: bp.price, type: "bump" });
   }
 
-  await supabase.from("order_items").insert(items);
+  const { data: insertedItems } = await supabase.from("order_items").insert(items).select("id, product_id");
 
   // Mark abandoned checkout as recovered
   await supabase
@@ -331,7 +298,7 @@ async function processSuccessfulPayment(
     }
   }
 
-  // Set default payment method on Stripe customer for future upsells
+  // Set default payment method on Stripe customer
   if (customerId && paymentMethodId) {
     try {
       await stripe.customers.update(customerId, {
@@ -339,6 +306,25 @@ async function processSuccessfulPayment(
       });
     } catch (e) {
       console.warn("Failed to set default payment method:", e);
+    }
+  }
+
+  // Trigger deliveries for all order items
+  if (insertedItems && insertedItems.length > 0) {
+    for (const item of insertedItems) {
+      try {
+        const deliveryUrl = `${Deno.env.get("SUPABASE_URL")}/functions/v1/delivery-send`;
+        await fetch(deliveryUrl, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}`,
+          },
+          body: JSON.stringify({ order_id: order.id, order_item_id: item.id }),
+        });
+      } catch (e) {
+        console.warn("Failed to trigger delivery for item:", item.id, e);
+      }
     }
   }
 
