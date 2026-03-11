@@ -420,7 +420,7 @@ export default function Products() {
                 </TableRow>
               ) : (
                 data?.products?.map((product: any) => (
-                  <TableRow key={product.id}>
+                  <TableRow key={product.id} className="border-[rgba(255,255,255,0.04)] hover:bg-[rgba(255,255,255,0.03)] transition-colors duration-150">
                     <TableCell>
                       {product.image_url ? (
                         <img src={product.image_url} alt="" className="w-10 h-10 rounded-md object-cover" />
