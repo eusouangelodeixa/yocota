@@ -1,13 +1,6 @@
 import {
-  LayoutDashboard,
-  Package,
-  ShoppingCart,
-  Gift,
-  ClipboardList,
-  Truck,
-  MessageSquare,
-  Settings,
-  LogOut,
+  LayoutDashboard, Package, ShoppingCart, Gift, ClipboardList,
+  Truck, MessageSquare, Settings, LogOut,
 } from "lucide-react";
 import { NavLink } from "react-router-dom";
 import { useLocation } from "react-router-dom";
@@ -25,7 +18,7 @@ const menuItems = [
   { title: "Configurações", url: "/admin/configuracoes", icon: Settings },
 ];
 
-export function AdminSidebar() {
+export function AdminSidebar({ onNavigate }: { onNavigate?: () => void }) {
   const location = useLocation();
   const { signOut } = useAuth();
 
@@ -35,7 +28,7 @@ export function AdminSidebar() {
   };
 
   return (
-    <aside className="w-14 shrink-0 h-screen sticky top-0 flex flex-col bg-background border-r border-border">
+    <aside className="w-14 shrink-0 h-screen flex flex-col bg-background border-r border-border">
       {/* Logo */}
       <div className="h-14 flex items-center justify-center">
         <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center">
@@ -53,6 +46,7 @@ export function AdminSidebar() {
                 <NavLink
                   to={item.url}
                   end={item.url === "/admin"}
+                  onClick={onNavigate}
                   className={`relative w-10 h-10 flex items-center justify-center transition-colors duration-150 ${
                     active
                       ? "text-foreground"
