@@ -7,18 +7,30 @@ import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
-import { Loader2, Save, Upload, X, Eye, EyeOff, ExternalLink, Camera, UserPlus, Trash2 } from "lucide-react";
+import { Loader2, Save, Upload, X, Eye, EyeOff, ExternalLink, Camera, UserPlus, Trash2, CheckCircle2, XCircle, Send } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 
 const SETTINGS_ID = "00000000-0000-0000-0000-000000000001";
 const SUPER_ADMIN_EMAIL = "eusouangelodeixa@gmail.com";
 
-function SectionCard({ title, description, children }: { title: string; description?: string; children: React.ReactNode }) {
+function SectionCard({ title, description, children, status }: { title: string; description?: string; children: React.ReactNode; status?: "active" | "inactive" }) {
   return (
     <div className="card-surface rounded-[10px] overflow-hidden">
-      <div className="px-5 py-4 border-b border-border">
-        <h3 className="text-sm font-semibold text-foreground">{title}</h3>
-        {description && <p className="text-[11px] text-muted-foreground mt-0.5">{description}</p>}
+      <div className="px-5 py-4 border-b border-border flex items-center justify-between">
+        <div>
+          <h3 className="text-sm font-semibold text-foreground">{title}</h3>
+          {description && <p className="text-[11px] text-muted-foreground mt-0.5">{description}</p>}
+        </div>
+        {status && (
+          <Badge className={status === "active"
+            ? "bg-emerald-500/15 text-emerald-400 border-emerald-500/30 hover:bg-emerald-500/20 gap-1"
+            : "bg-muted text-muted-foreground border-border hover:bg-muted gap-1"
+          }>
+            {status === "active" ? <CheckCircle2 className="h-3 w-3" /> : <XCircle className="h-3 w-3" />}
+            {status === "active" ? "Ativo" : "Não configurado"}
+          </Badge>
+        )}
       </div>
       <div className="p-5 space-y-4">{children}</div>
     </div>
@@ -122,6 +134,22 @@ export default function Settings() {
     uazapi_url: "", uazapi_token: "", utmify_api_key: "",
   });
 
+  // Check which API keys are configured
+  const { data: configuredKeys } = useQuery({
+    queryKey: ["configured_api_keys"],
+    queryFn: async () => {
+      const { data, error } = await supabase.from("api_keys").select("key_name");
+      if (error) throw error;
+      const names = new Set(data?.map((k: any) => k.key_name) || []);
+      return {
+        stripe: names.has("STRIPE_SECRET_KEY"),
+        stripe_webhook: names.has("STRIPE_WEBHOOK_SECRET"),
+        uazapi: names.has("UAZAPI_URL") && names.has("UAZAPI_TOKEN"),
+        utmify: names.has("UTMIFY_API_KEY"),
+      };
+    },
+  });
+
   const saveApiKeysMutation = useMutation({
     mutationFn: async () => {
       const { data, error } = await supabase.functions.invoke("update-secrets", { body: apiKeys });
@@ -130,8 +158,8 @@ export default function Settings() {
     },
     onSuccess: () => {
       toast.success("Chaves de API salvas com sucesso!");
-      // Clear fields after save for security
       setApiKeys({ stripe_secret: "", stripe_webhook_secret: "", uazapi_url: "", uazapi_token: "", utmify_api_key: "" });
+      queryClient.invalidateQueries({ queryKey: ["configured_api_keys"] });
     },
     onError: (e: any) => toast.error("Erro ao salvar chaves: " + e.message),
   });
@@ -333,15 +361,15 @@ export default function Settings() {
           </SectionCard>
 
           <div className="grid gap-6 md:grid-cols-2">
-            <SectionCard title="Stripe" description="Chaves para processar pagamentos">
+            <SectionCard title="Stripe" description="Chaves para processar pagamentos" status={configuredKeys?.stripe ? "active" : "inactive"}>
               <SecretInput label="Secret Key" value={apiKeys.stripe_secret} onChange={(v) => setApiKeys((f) => ({ ...f, stripe_secret: v }))} placeholder="sk_live_..." helpUrl="https://dashboard.stripe.com/apikeys" helpLabel="Dashboard Stripe" />
               <SecretInput label="Webhook Secret" value={apiKeys.stripe_webhook_secret} onChange={(v) => setApiKeys((f) => ({ ...f, stripe_webhook_secret: v }))} placeholder="whsec_..." helpUrl="https://dashboard.stripe.com/webhooks" helpLabel="Stripe Webhooks" />
             </SectionCard>
-            <SectionCard title="UazAPI (WhatsApp)" description="Integração para entregas via WhatsApp">
+            <SectionCard title="UazAPI (WhatsApp)" description="Integração para entregas via WhatsApp" status={configuredKeys?.uazapi ? "active" : "inactive"}>
               <SecretInput label="URL da API" value={apiKeys.uazapi_url} onChange={(v) => setApiKeys((f) => ({ ...f, uazapi_url: v }))} placeholder="https://api.uazapi.com/..." />
               <SecretInput label="Token" value={apiKeys.uazapi_token} onChange={(v) => setApiKeys((f) => ({ ...f, uazapi_token: v }))} placeholder="seu-token-uazapi" />
             </SectionCard>
-            <SectionCard title="Utmify" description="Tracking e atribuição de UTMs">
+            <SectionCard title="Utmify" description="Tracking e atribuição de UTMs" status={configuredKeys?.utmify ? "active" : "inactive"}>
               <SecretInput label="API Key" value={apiKeys.utmify_api_key} onChange={(v) => setApiKeys((f) => ({ ...f, utmify_api_key: v }))} placeholder="utmify_key_..." helpUrl="https://app.utmify.com.br" helpLabel="Painel Utmify" />
             </SectionCard>
           </div>
