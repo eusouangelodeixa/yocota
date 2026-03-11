@@ -87,9 +87,9 @@
   .shimmer {
     background: linear-gradient(
       90deg,
-      hsl(240 6% 10%) 25%,
-      hsl(240 5% 14%) 50%,
-      hsl(240 6% 10%) 75%
+      hsl(200 8% 11%) 25%,
+      hsl(200 6% 15%) 50%,
+      hsl(200 8% 11%) 75%
     );
     background-size: 200% 100%;
     animation: shimmer 1.5s ease-in-out infinite;
