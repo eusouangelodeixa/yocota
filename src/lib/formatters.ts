@@ -37,7 +37,7 @@ export function getCurrencyLabel(code: string): string {
   return labels[code] || code.toUpperCase();
 }
 
-export function formatCents(cents: number, currency = "brl"): string {
+export function formatCents(cents: number, currency = "eur"): string {
   const config = CURRENCY_CONFIG[currency] || CURRENCY_CONFIG.brl;
   const value = cents / Math.pow(10, config.decimals);
   return new Intl.NumberFormat(config.locale, {
