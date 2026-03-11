@@ -9,6 +9,11 @@ const LandingPage = () => {
   const counterStartedRef = useRef(false);
 
   useEffect(() => {
+    document.documentElement.classList.add('lp-active');
+    return () => { document.documentElement.classList.remove('lp-active'); };
+  }, []);
+
+  useEffect(() => {
     const revealEls = document.querySelectorAll('.reveal');
     const ro = new IntersectionObserver((entries) => {
       entries.forEach(e => {
@@ -241,7 +246,12 @@ const LandingPage = () => {
 };
 
 const CSS = `
+html.lp-active{scroll-behavior:smooth}
+html.lp-active::-webkit-scrollbar{width:6px}
+html.lp-active::-webkit-scrollbar-track{background:#111}
+html.lp-active::-webkit-scrollbar-thumb{background:#333;border-radius:3px}
 .landing-page{--nav-h:60px;font-family:'Outfit',sans-serif;background:#111;color:#0A0A0A;overflow-x:hidden}
+.landing-page *,.landing-page *::before,.landing-page *::after{animation-duration:revert;animation-fill-mode:revert;animation-timing-function:revert;animation-delay:revert}
 .lp-nav{position:fixed;top:0;left:0;right:0;height:var(--nav-h);background:#0D0D0D;display:flex;align-items:center;justify-content:space-between;padding:0 32px;z-index:100;border-bottom:1px solid #1E1E1E}
 .landing-page .nav-logo{display:flex;align-items:center;gap:10px;text-decoration:none}
 .landing-page .nav-logo-icon{width:28px;height:28px;display:flex;align-items:center;justify-content:center}
