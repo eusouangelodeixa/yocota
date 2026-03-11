@@ -1,6 +1,6 @@
 import * as React from "react";
 import { Badge } from "@/components/ui/badge";
-import { formatCentsToBRL } from "@/lib/formatters";
+import { formatCents } from "@/lib/formatters";
 
 interface Offer {
   id: string; name: string; product_id: string;
@@ -24,7 +24,7 @@ function OfferNode({ offer, offers, depth = 0, visited = new Set<string>() }: { 
       <div className="card-surface rounded-[10px] w-56 p-4 text-center">
         <span className="text-[13px] font-medium text-foreground">{offer.name}</span>
         <p className="text-[11px] text-muted-foreground mt-0.5">{offer.products?.name}</p>
-        <Badge variant="secondary" className="mt-1.5 text-[10px]">{formatCentsToBRL(offer.products?.price ?? 0)}</Badge>
+        <Badge variant="secondary" className="mt-1.5 text-[10px]">{formatCents(offer.products?.price ?? 0)}</Badge>
       </div>
       {(acceptOffer || rejectOffer) && (
         <div className="flex gap-12 mt-4">

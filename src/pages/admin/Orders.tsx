@@ -1,7 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { formatCentsToBRL } from "@/lib/formatters";
+import { formatCents } from "@/lib/formatters";
 
 const statusPill: Record<string, { label: string; cls: string }> = {
   pending: { label: "PENDENTE", cls: "pill-pending" },
@@ -62,7 +62,7 @@ export default function Orders() {
                       <div className="text-[11px] text-muted-foreground">{order.customers?.email}</div>
                     </TableCell>
                     <TableCell className="text-[13px] text-muted-foreground">{order.checkouts?.name}</TableCell>
-                    <TableCell className="text-[13px] font-medium text-foreground tabular-nums">{formatCentsToBRL(order.total_amount)}</TableCell>
+                    <TableCell className="text-[13px] font-medium text-foreground tabular-nums">{formatCents(order.total_amount)}</TableCell>
                     <TableCell>
                       <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium uppercase tracking-wide ${sp.cls}`}>
                         {sp.label}
