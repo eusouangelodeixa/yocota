@@ -242,8 +242,8 @@ export default function Products() {
   const totalPages = Math.ceil((data?.total ?? 0) / pageSize);
 
   return (
-    <div>
-      <div className="flex items-center justify-between mb-6">
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
         <h2 className="text-2xl font-bold text-foreground">Produtos</h2>
         <div className="flex items-center gap-3">
           <Select value={filterType} onValueChange={(v) => { setFilterType(v); setPage(0); }}>
