@@ -162,6 +162,14 @@ function CheckoutForm({ checkout: c }: { checkout: CheckoutData }) {
       return;
     }
 
+    // Save abandoned checkout data only on Pay click
+    if (!abandonedSaved && !abandonedSavingRef.current) {
+      abandonedSavingRef.current = true;
+      const utms = JSON.parse(sessionStorage.getItem("checkout_utms") || "{}");
+      const fullPhoneForAbandoned = `${ddi}${phone.replace(/\D/g, "")}`;
+      await supabase.from("abandoned_checkouts").insert({ checkout_id: c.id, name: customerName || null, email, phone: fullPhoneForAbandoned, utm_data: Object.keys(utms).length > 0 ? utms : null } as any).then(() => { setAbandonedSaved(true); }, () => { abandonedSavingRef.current = false; });
+    }
+
     const cardNumber = elements.getElement(CardNumberElement);
     if (!cardNumber) { toast.error("Erro ao carregar campo de cartão"); return; }
     setProcessing(true); setCardError(null);
