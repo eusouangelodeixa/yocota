@@ -143,7 +143,7 @@ function CheckoutForm({ checkout: c }: { checkout: CheckoutData }) {
     if (email && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) && !abandonedSaved && !abandonedSavingRef.current && c) {
       abandonedSavingRef.current = true;
       const utms = JSON.parse(sessionStorage.getItem("checkout_utms") || "{}");
-      supabase.from("abandoned_checkouts").insert({ checkout_id: c.id, name: customerName || null, email, phone: phone ? `${ddi}${phone}` : null, utm_data: Object.keys(utms).length > 0 ? utms : null } as any).then(() => setAbandonedSaved(true)).catch(() => { abandonedSavingRef.current = false; });
+      supabase.from("abandoned_checkouts").insert({ checkout_id: c.id, name: customerName || null, email, phone: phone ? `${ddi}${phone}` : null, utm_data: Object.keys(utms).length > 0 ? utms : null } as any).then(() => { setAbandonedSaved(true); }, () => { abandonedSavingRef.current = false; });
     }
   }, [email]);
 
