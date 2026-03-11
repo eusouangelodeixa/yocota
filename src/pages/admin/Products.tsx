@@ -449,9 +449,9 @@ export default function Products() {
                           Sincronizado
                         </span>
                       ) : (
-                        <Badge variant="outline" className="text-muted-foreground">
+                        <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-[#78350f22] text-[#fbbf24]">
                           Pendente
-                        </Badge>
+                        </span>
                       )}
                     </TableCell>
                     <TableCell>
