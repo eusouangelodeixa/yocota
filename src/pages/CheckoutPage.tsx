@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState, useMemo, useRef } from "react";
 import { useParams } from "react-router-dom";
 import { loadStripe } from "@stripe/stripe-js";
 import { Elements, CardNumberElement, CardExpiryElement, CardCvcElement, useStripe, useElements } from "@stripe/react-stripe-js";
@@ -71,6 +71,7 @@ function CheckoutForm({ checkout: c }: { checkout: CheckoutData }) {
   const [processing, setProcessing] = useState(false);
   const [success, setSuccess] = useState(false);
   const [abandonedSaved, setAbandonedSaved] = useState(false);
+  const abandonedSavingRef = useRef(false);
   const [cardError, setCardError] = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
 
@@ -139,11 +140,12 @@ function CheckoutForm({ checkout: c }: { checkout: CheckoutData }) {
   }, []);
 
   useEffect(() => {
-    if (email && email.includes("@") && !abandonedSaved && c) {
+    if (email && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) && !abandonedSaved && !abandonedSavingRef.current && c) {
+      abandonedSavingRef.current = true;
       const utms = JSON.parse(sessionStorage.getItem("checkout_utms") || "{}");
-      supabase.from("abandoned_checkouts").insert({ checkout_id: c.id, name: customerName || null, email, phone: phone ? `${ddi}${phone}` : null, utm_data: Object.keys(utms).length > 0 ? utms : null } as any).then(() => setAbandonedSaved(true));
+      supabase.from("abandoned_checkouts").insert({ checkout_id: c.id, name: customerName || null, email, phone: phone ? `${ddi}${phone}` : null, utm_data: Object.keys(utms).length > 0 ? utms : null } as any).then(() => { setAbandonedSaved(true); }, () => { abandonedSavingRef.current = false; });
     }
-  }, [email, abandonedSaved, c, customerName, phone, ddi]);
+  }, [email]);
 
   const toggleBump = (productId: string) => { setSelectedBumps((prev) => { const next = new Set(prev); next.has(productId) ? next.delete(productId) : next.add(productId); return next; }); };
 
@@ -366,7 +368,7 @@ function CheckoutForm({ checkout: c }: { checkout: CheckoutData }) {
             <button
               type="submit"
               className="w-full h-12 bg-[#28d56a] text-[#09090b] font-bold text-sm rounded-lg hover:bg-[#22c55e] active:scale-[0.98] disabled:opacity-40 disabled:cursor-not-allowed transition-all duration-150 flex items-center justify-center"
-              disabled={processing || success || !stripe}
+              disabled={processing || success || !stripe || !customerName.trim() || !email.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || phone.replace(/\D/g, "").length < 8}
             >
               {success ? (
                 <CheckCircle2 className="h-5 w-5 animate-in zoom-in duration-200" strokeWidth={2} />
