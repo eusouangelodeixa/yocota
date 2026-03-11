@@ -192,9 +192,21 @@ function CheckoutForm({ checkout: c }: { checkout: CheckoutData }) {
     try {
       const utms = JSON.parse(sessionStorage.getItem("checkout_utms") || "{}");
       const fullPhone = `${ddi}${phone.replace(/\D/g, "")}`;
-      const { data: intentData, error: intentError } = await supabase.functions.invoke("create-intent", {
-        body: { checkout_id: c.id, customer_name: customerName, customer_email: email, customer_phone: fullPhone, selected_bump_ids: Array.from(selectedBumps), utm_data: utms },
+      const bumpIdsArray = Array.from(selectedBumps);
+      const expectedTotal = totalAmount();
+      console.log("[CREATE-INTENT REQUEST]", {
+        checkout_id: c.id,
+        customer_name: customerName,
+        customer_email: email,
+        selected_bump_ids: bumpIdsArray,
+        bump_count: bumpIdsArray.length,
+        frontend_expected_total: expectedTotal,
+        available_bumps: c.bump_products.map(bp => ({ id: bp.id, name: bp.name, price: bp.price })),
       });
+      const { data: intentData, error: intentError } = await supabase.functions.invoke("create-intent", {
+        body: { checkout_id: c.id, customer_name: customerName, customer_email: email, customer_phone: fullPhone, selected_bump_ids: bumpIdsArray, utm_data: utms },
+      });
+      console.log("[CREATE-INTENT RESPONSE]", { intentData, intentError });
       if (intentError) throw new Error(intentError.message || "Erro ao criar pagamento");
       if (intentData?.error) throw new Error(intentData.error);
       if (!intentData?.client_secret) throw new Error("Erro interno ao processar pagamento");
