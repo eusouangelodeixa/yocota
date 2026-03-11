@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
-import { Loader2, Save, Upload, X, Eye, EyeOff, ExternalLink, Camera } from "lucide-react";
+import { Loader2, Save, Upload, X, Eye, EyeOff, ExternalLink, Camera, UserPlus, Trash2 } from "lucide-react";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 
 const SETTINGS_ID = "00000000-0000-0000-0000-000000000001";
