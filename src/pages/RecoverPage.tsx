@@ -3,6 +3,10 @@ import { useParams, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Loader2 } from "lucide-react";
 
+function useDocTitle(title: string) {
+  useEffect(() => { document.title = title; return () => { document.title = "Yocota"; }; }, [title]);
+}
+
 export default function RecoverPage() {
   const { token } = useParams<{ token: string }>();
   const navigate = useNavigate();
