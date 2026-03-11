@@ -28,6 +28,15 @@ serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
+  // Rate limit check
+  const clientIp = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
+  if (!checkRateLimit(clientIp)) {
+    return new Response(JSON.stringify({ error: "Muitas requisições. Tente novamente em breve." }), {
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+      status: 429,
+    });
+  }
+
   try {
     const stripe = new Stripe(Deno.env.get("STRIPE_SECRET_KEY") || "", {
       apiVersion: "2025-08-27.basil",
