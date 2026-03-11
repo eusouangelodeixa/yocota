@@ -73,14 +73,14 @@
 
 @layer utilities {
   .card-surface {
-    background: hsl(240 6% 10%);
-    border: 1px solid hsl(240 4% 16%);
+    background: hsl(200 8% 11%);
+    border: 1px solid hsl(200 4% 16%);
     box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.04), 0 2px 8px rgba(0, 0, 0, 0.5);
   }
 
   .card-elevated {
-    background: hsl(240 5% 8%);
-    border: 1px solid hsl(240 4% 16%);
+    background: hsl(200 6% 9%);
+    border: 1px solid hsl(200 4% 16%);
     box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.06), 0 8px 32px rgba(0, 0, 0, 0.6);
   }
 
