@@ -1,5 +1,7 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { useParams } from "react-router-dom";
+import { loadStripe } from "@stripe/stripe-js";
+import { Elements, CardNumberElement, CardExpiryElement, CardCvcElement, useStripe, useElements } from "@stripe/react-stripe-js";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -9,6 +11,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { toast } from "sonner";
 import { formatCents } from "@/lib/formatters";
 import { Loader2, ShieldCheck, Lock, CreditCard, CheckCircle2, Sparkles } from "lucide-react";
+
+const stripePromise = loadStripe("pk_live_51SqaDe4tVPtm5YNwa58VQ0RR9WVz3P74IcqGrWTtSpmwyiO1e3kMQDhje36XacNAnGMfxvNtibgDWIhZicY73pg700Fw5mltxV");
 
 const COUNTRY_CODES = [
   { code: "+55", flag: "🇧🇷", country: "BR", label: "Brasil" },
@@ -62,11 +66,20 @@ interface CheckoutData {
   bump_products: BumpProduct[];
 }
 
-export default function CheckoutPage() {
-  const { slug } = useParams<{ slug: string }>();
-  const [checkout, setCheckout] = useState<CheckoutData | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [notFound, setNotFound] = useState(false);
+const CARD_ELEMENT_STYLE = {
+  base: {
+    fontSize: "16px",
+    color: "#1a1a2e",
+    fontFamily: "system-ui, -apple-system, sans-serif",
+    "::placeholder": { color: "#9ca3af" },
+    lineHeight: "44px",
+  },
+  invalid: { color: "#ef4444" },
+};
+
+function CheckoutForm({ checkout: c }: { checkout: CheckoutData }) {
+  const stripe = useStripe();
+  const elements = useElements();
 
   const [customerName, setCustomerName] = useState("");
   const [email, setEmail] = useState("");
@@ -75,8 +88,11 @@ export default function CheckoutPage() {
   const [selectedBumps, setSelectedBumps] = useState<Set<string>>(new Set());
   const [processing, setProcessing] = useState(false);
   const [abandonedSaved, setAbandonedSaved] = useState(false);
+  const [cardError, setCardError] = useState<string | null>(null);
 
-  // Auto-detect country code via geolocation API
+  const currency = c.product.currency || "brl";
+
+  // Auto-detect country code
   useEffect(() => {
     async function detectCountry() {
       try {
@@ -86,21 +102,17 @@ export default function CheckoutPage() {
           setDdi(COUNTRY_TO_DDI[data.country_code]);
         }
       } catch {
-        // Fallback to browser locale
         try {
           const locale = navigator.language || "pt-BR";
           const region = locale.split("-")[1]?.toUpperCase();
-          if (region && COUNTRY_TO_DDI[region]) {
-            setDdi(COUNTRY_TO_DDI[region]);
-          }
-        } catch {
-          // Keep default +55
-        }
+          if (region && COUNTRY_TO_DDI[region]) setDdi(COUNTRY_TO_DDI[region]);
+        } catch {}
       }
     }
     detectCountry();
   }, []);
 
+  // Save UTMs
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const utms: Record<string, string> = {};
@@ -113,63 +125,14 @@ export default function CheckoutPage() {
     }
   }, []);
 
+  // Abandoned checkout
   useEffect(() => {
-    async function load() {
-      if (!slug) return;
-      const { data, error } = await supabase
-        .from("checkouts")
-        .select("*, products!checkouts_product_id_fkey(id, name, description, price, currency, image_url)")
-        .eq("checkout_slug", slug)
-        .eq("active", true)
-        .maybeSingle();
-
-      if (error || !data) {
-        setNotFound(true);
-        setLoading(false);
-        return;
-      }
-
-      // Load bumps from junction table
-      const { data: bumpsData } = await supabase
-        .from("checkout_order_bumps" as any)
-        .select("product_id, sort_order, products(id, name, price, currency)")
-        .eq("checkout_id", data.id)
-        .order("sort_order");
-
-      const bumpProducts: BumpProduct[] = ((bumpsData as any[]) || [])
-        .filter((b: any) => b.products)
-        .map((b: any) => ({
-          id: b.products.id,
-          name: b.products.name,
-          price: b.products.price,
-          currency: b.products.currency || "brl",
-        }));
-
-      const checkoutData: CheckoutData = {
-        ...data,
-        primary_color: data.primary_color || "#2563eb",
-        accent_color: data.accent_color || "#1e40af",
-        bg_color: data.bg_color || "#f8fafc",
-        cta_text: data.cta_text || "Finalizar compra",
-        show_product_image: data.show_product_image ?? true,
-        first_offer_id: data.first_offer_id,
-        product: data.products as any,
-        bump_products: bumpProducts,
-      };
-
-      setCheckout(checkoutData);
-      setLoading(false);
-    }
-    load();
-  }, [slug]);
-
-  useEffect(() => {
-    if (email && email.includes("@") && !abandonedSaved && checkout) {
+    if (email && email.includes("@") && !abandonedSaved && c) {
       const utms = JSON.parse(sessionStorage.getItem("checkout_utms") || "{}");
       supabase
         .from("abandoned_checkouts")
         .insert({
-          checkout_id: checkout.id,
+          checkout_id: c.id,
           name: customerName || null,
           email,
           phone: phone ? `${ddi}${phone}` : null,
@@ -177,48 +140,50 @@ export default function CheckoutPage() {
         } as any)
         .then(() => setAbandonedSaved(true));
     }
-  }, [email, abandonedSaved, checkout, customerName, phone, ddi]);
+  }, [email, abandonedSaved, c, customerName, phone, ddi]);
 
   const toggleBump = (productId: string) => {
     setSelectedBumps((prev) => {
       const next = new Set(prev);
-      if (next.has(productId)) {
-        next.delete(productId);
-      } else {
-        next.add(productId);
-      }
+      next.has(productId) ? next.delete(productId) : next.add(productId);
       return next;
     });
   };
 
   const totalAmount = () => {
-    if (!checkout) return 0;
-    let total = checkout.product.price;
-    checkout.bump_products.forEach((bp) => {
-      if (selectedBumps.has(bp.id)) {
-        total += bp.price;
-      }
+    let total = c.product.price;
+    c.bump_products.forEach((bp) => {
+      if (selectedBumps.has(bp.id)) total += bp.price;
     });
     return total;
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!checkout) return;
+    if (!stripe || !elements) return;
 
     if (!customerName.trim() || !email.trim() || !phone.trim()) {
       toast.error("Preencha todos os campos obrigatórios");
       return;
     }
 
+    const cardNumber = elements.getElement(CardNumberElement);
+    if (!cardNumber) {
+      toast.error("Erro ao carregar campo de cartão");
+      return;
+    }
+
     setProcessing(true);
+    setCardError(null);
+
     try {
       const utms = JSON.parse(sessionStorage.getItem("checkout_utms") || "{}");
       const fullPhone = `${ddi}${phone.replace(/\D/g, "")}`;
 
+      // 1. Create PaymentIntent on server
       const { data: intentData, error: intentError } = await supabase.functions.invoke("create-intent", {
         body: {
-          checkout_id: checkout.id,
+          checkout_id: c.id,
           customer_name: customerName,
           customer_email: email,
           customer_phone: fullPhone,
@@ -229,11 +194,37 @@ export default function CheckoutPage() {
 
       if (intentError) throw new Error(intentError.message || "Erro ao criar pagamento");
       if (intentData?.error) throw new Error(intentData.error);
+      if (!intentData?.client_secret) throw new Error("Erro interno ao processar pagamento");
 
-      if (intentData?.url) {
-        window.location.href = intentData.url;
-      } else {
-        throw new Error("URL de pagamento não recebida");
+      // 2. Confirm payment with card details
+      const { error: stripeError, paymentIntent } = await stripe.confirmCardPayment(intentData.client_secret, {
+        payment_method: {
+          card: cardNumber,
+          billing_details: {
+            name: customerName,
+            email: email,
+            phone: fullPhone,
+          },
+        },
+      });
+
+      if (stripeError) {
+        if (stripeError.type === "card_error" || stripeError.type === "validation_error") {
+          setCardError(stripeError.message || "Erro no cartão");
+        } else {
+          setCardError("Ocorreu um erro inesperado. Tente novamente.");
+        }
+        setProcessing(false);
+        return;
+      }
+
+      if (paymentIntent?.status === "succeeded") {
+        // Redirect to success or offer page
+        if (c.first_offer_id) {
+          window.location.href = `/success/${c.id}?payment_intent_id=${paymentIntent.id}`;
+        } else {
+          window.location.href = `${c.redirect_url}${c.redirect_url.includes("?") ? "&" : "?"}payment_intent_id=${paymentIntent.id}`;
+        }
       }
     } catch (error: any) {
       toast.error(error.message || "Erro ao processar pagamento. Tente novamente.");
@@ -241,30 +232,6 @@ export default function CheckoutPage() {
     }
   };
 
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center" style={{ backgroundColor: "#f8fafc" }}>
-        <Loader2 className="h-10 w-10 animate-spin" style={{ color: "#2563eb" }} />
-      </div>
-    );
-  }
-
-  if (notFound) {
-    return (
-      <div className="min-h-screen flex items-center justify-center" style={{ backgroundColor: "#f8fafc" }}>
-        <div className="text-center space-y-3">
-          <div className="w-16 h-16 rounded-full bg-gray-100 flex items-center justify-center mx-auto">
-            <span className="text-2xl">🔍</span>
-          </div>
-          <h1 className="text-2xl font-bold text-gray-900">Página não encontrada</h1>
-          <p className="text-gray-500 text-sm">Este checkout não existe ou foi desativado.</p>
-        </div>
-      </div>
-    );
-  }
-
-  const c = checkout!;
-  const currency = c.product.currency || "brl";
   const selectedDdiEntry = COUNTRY_CODES.find((cc) => cc.code === ddi);
 
   return (
@@ -318,6 +285,7 @@ export default function CheckoutPage() {
           {/* Form */}
           <div className="p-6 sm:p-8">
             <form onSubmit={handleSubmit} className="space-y-5">
+              {/* Personal Info */}
               <div className="space-y-4">
                 <div className="space-y-1.5">
                   <Label htmlFor="name" className="text-xs font-semibold uppercase tracking-wider text-gray-400">
@@ -376,6 +344,47 @@ export default function CheckoutPage() {
                     />
                   </div>
                 </div>
+              </div>
+
+              {/* Card Section */}
+              <div className="space-y-3">
+                <div className="flex items-center gap-2">
+                  <CreditCard className="h-4 w-4" style={{ color: c.primary_color }} />
+                  <Label className="text-xs font-semibold uppercase tracking-wider text-gray-400">
+                    Dados do cartão <span className="text-red-400">*</span>
+                  </Label>
+                </div>
+
+                <div className="space-y-3">
+                  <div className="h-11 rounded-lg bg-gray-50 border border-gray-200 px-3 flex items-center transition-colors focus-within:bg-white focus-within:border-gray-300 focus-within:ring-2 focus-within:ring-gray-100">
+                    <CardNumberElement
+                      options={{ style: CARD_ELEMENT_STYLE, placeholder: "Número do cartão" }}
+                      onChange={(e) => setCardError(e.error?.message || null)}
+                      className="w-full"
+                    />
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="h-11 rounded-lg bg-gray-50 border border-gray-200 px-3 flex items-center transition-colors focus-within:bg-white focus-within:border-gray-300 focus-within:ring-2 focus-within:ring-gray-100">
+                      <CardExpiryElement
+                        options={{ style: CARD_ELEMENT_STYLE, placeholder: "MM / AA" }}
+                        className="w-full"
+                      />
+                    </div>
+                    <div className="h-11 rounded-lg bg-gray-50 border border-gray-200 px-3 flex items-center transition-colors focus-within:bg-white focus-within:border-gray-300 focus-within:ring-2 focus-within:ring-gray-100">
+                      <CardCvcElement
+                        options={{ style: CARD_ELEMENT_STYLE, placeholder: "CVC" }}
+                        className="w-full"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {cardError && (
+                  <p className="text-xs text-red-500 flex items-center gap-1">
+                    <span className="inline-block w-1 h-1 rounded-full bg-red-500" />
+                    {cardError}
+                  </p>
+                )}
               </div>
 
               {/* Order Bumps */}
@@ -450,19 +459,11 @@ export default function CheckoutPage() {
                 </div>
               </div>
 
-              {/* Payment info note */}
-              <div className="bg-blue-50 rounded-xl p-3 border border-blue-100">
-                <p className="text-xs text-blue-700 text-center leading-relaxed">
-                  <CreditCard className="h-3.5 w-3.5 inline mr-1 -mt-0.5" />
-                  Ao clicar no botão abaixo, você será redirecionado para o <strong>ambiente seguro do Stripe</strong> para inserir os dados do cartão.
-                </p>
-              </div>
-
               {/* CTA */}
               <Button
                 type="submit"
                 className="w-full h-14 text-base font-bold rounded-xl transition-all duration-200 border-0"
-                disabled={processing}
+                disabled={processing || !stripe}
                 style={{
                   backgroundColor: c.primary_color,
                   color: "white",
@@ -472,12 +473,12 @@ export default function CheckoutPage() {
                 {processing ? (
                   <>
                     <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-                    Processando...
+                    Processando pagamento...
                   </>
                 ) : (
                   <>
                     <Lock className="mr-2 h-4 w-4" />
-                    {c.cta_text}
+                    {c.cta_text} — {formatCents(totalAmount(), currency)}
                   </>
                 )}
               </Button>
@@ -504,5 +505,87 @@ export default function CheckoutPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function CheckoutPage() {
+  const { slug } = useParams<{ slug: string }>();
+  const [checkout, setCheckout] = useState<CheckoutData | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [notFound, setNotFound] = useState(false);
+
+  useEffect(() => {
+    async function load() {
+      if (!slug) return;
+      const { data, error } = await supabase
+        .from("checkouts")
+        .select("*, products!checkouts_product_id_fkey(id, name, description, price, currency, image_url)")
+        .eq("checkout_slug", slug)
+        .eq("active", true)
+        .maybeSingle();
+
+      if (error || !data) {
+        setNotFound(true);
+        setLoading(false);
+        return;
+      }
+
+      const { data: bumpsData } = await supabase
+        .from("checkout_order_bumps" as any)
+        .select("product_id, sort_order, products(id, name, price, currency)")
+        .eq("checkout_id", data.id)
+        .order("sort_order");
+
+      const bumpProducts: BumpProduct[] = ((bumpsData as any[]) || [])
+        .filter((b: any) => b.products)
+        .map((b: any) => ({
+          id: b.products.id,
+          name: b.products.name,
+          price: b.products.price,
+          currency: b.products.currency || "brl",
+        }));
+
+      setCheckout({
+        ...data,
+        primary_color: data.primary_color || "#2563eb",
+        accent_color: data.accent_color || "#1e40af",
+        bg_color: data.bg_color || "#f8fafc",
+        cta_text: data.cta_text || "Finalizar compra",
+        show_product_image: data.show_product_image ?? true,
+        first_offer_id: data.first_offer_id,
+        product: data.products as any,
+        bump_products: bumpProducts,
+      });
+      setLoading(false);
+    }
+    load();
+  }, [slug]);
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center" style={{ backgroundColor: "#f8fafc" }}>
+        <Loader2 className="h-10 w-10 animate-spin" style={{ color: "#2563eb" }} />
+      </div>
+    );
+  }
+
+  if (notFound || !checkout) {
+    return (
+      <div className="min-h-screen flex items-center justify-center" style={{ backgroundColor: "#f8fafc" }}>
+        <div className="text-center space-y-3">
+          <div className="w-16 h-16 rounded-full bg-gray-100 flex items-center justify-center mx-auto">
+            <span className="text-2xl">🔍</span>
+          </div>
+          <h1 className="text-2xl font-bold text-gray-900">Página não encontrada</h1>
+          <p className="text-gray-500 text-sm">Este checkout não existe ou foi desativado.</p>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <Elements stripe={stripePromise} options={{ locale: "pt-BR" }}>
+      <CheckoutForm checkout={checkout} />
+    </Elements>
   );
 }

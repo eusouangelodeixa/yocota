@@ -40,200 +40,91 @@ serve(async (req) => {
     return new Response(JSON.stringify({ received: true }), { status: 200 });
   }
 
-  // Mark as processed
   await supabase.from("stripe_webhook_events").insert({ id: event.id });
 
   try {
     switch (event.type) {
+      // Handle direct PaymentIntent (embedded card checkout)
+      case "payment_intent.succeeded": {
+        const paymentIntent = event.data.object as Stripe.PaymentIntent;
+        const metadata = paymentIntent.metadata || {};
+        const checkoutId = metadata.checkout_id;
+
+        if (!checkoutId) {
+          console.log("No checkout_id in PI metadata, skipping");
+          break;
+        }
+
+        await processSuccessfulPayment(supabase, stripe, {
+          checkoutId,
+          paymentIntentId: paymentIntent.id,
+          customerId: typeof paymentIntent.customer === "string" ? paymentIntent.customer : null,
+          paymentMethodId: typeof paymentIntent.payment_method === "string" ? paymentIntent.payment_method : null,
+          customerEmail: metadata.customer_email || "",
+          customerName: metadata.customer_name || "",
+          customerPhone: metadata.customer_phone || "",
+          selectedBumpIds: metadata.selected_bump_ids || "[]",
+          utmSource: metadata.utm_source || null,
+          utmMedium: metadata.utm_medium || null,
+          utmCampaign: metadata.utm_campaign || null,
+          utmContent: metadata.utm_content || null,
+          utmTerm: metadata.utm_term || null,
+        });
+        break;
+      }
+
+      // Keep backward compat for old Checkout Session flow
       case "checkout.session.completed": {
         const session = event.data.object as Stripe.Checkout.Session;
         const metadata = session.metadata || {};
         const checkoutId = metadata.checkout_id;
 
         if (!checkoutId) {
-          console.log("No checkout_id in metadata, skipping");
+          console.log("No checkout_id in session metadata, skipping");
           break;
         }
 
-        // Get checkout with products
-        const { data: checkout } = await supabase
-          .from("checkouts")
-          .select("*, products!checkouts_product_id_fkey(id, name, price), first_offer_id")
-          .eq("id", checkoutId)
-          .single();
-
-        if (!checkout) {
-          console.error("Checkout not found:", checkoutId);
-          break;
-        }
-
-        // Create or find customer
-        const customerEmail = session.customer_email || session.customer_details?.email || "";
-        const customerName = metadata.customer_name || session.customer_details?.name || "";
-        const customerPhone = metadata.customer_phone || "";
-
-        let { data: customer } = await supabase
-          .from("customers")
-          .select("*")
-          .eq("email", customerEmail)
-          .maybeSingle();
-
-        // Get Stripe customer's default payment method for one-click upsells
-        let stripePaymentMethodId: string | null = null;
-        if (session.customer) {
+        // Get payment method from the session's payment intent
+        let paymentMethodId: string | null = null;
+        let paymentIntentId: string | null = null;
+        if (session.payment_intent) {
+          paymentIntentId = session.payment_intent as string;
           try {
-            const stripeCustomer = await stripe.customers.retrieve(session.customer as string);
-            if ('invoice_settings' in stripeCustomer && stripeCustomer.invoice_settings?.default_payment_method) {
-              stripePaymentMethodId = stripeCustomer.invoice_settings.default_payment_method as string;
-            }
-            // If no default, try to get from the session's payment intent
-            if (!stripePaymentMethodId && session.payment_intent) {
-              const pi = await stripe.paymentIntents.retrieve(session.payment_intent as string);
-              if (pi.payment_method) {
-                stripePaymentMethodId = pi.payment_method as string;
-                // Set as default for future off-session charges
-                await stripe.customers.update(session.customer as string, {
-                  invoice_settings: { default_payment_method: stripePaymentMethodId },
-                });
-              }
-            }
+            const pi = await stripe.paymentIntents.retrieve(paymentIntentId);
+            paymentMethodId = typeof pi.payment_method === "string" ? pi.payment_method : null;
           } catch (e) {
-            console.warn("Failed to get payment method:", e);
+            console.warn("Failed to retrieve PI:", e);
           }
         }
 
-        if (!customer) {
-          const { data: newCustomer } = await supabase
-            .from("customers")
-            .insert({
-              name: customerName,
-              email: customerEmail,
-              phone: customerPhone || null,
-              stripe_customer_id: typeof session.customer === "string" ? session.customer : null,
-              stripe_payment_method_id: stripePaymentMethodId,
-            })
-            .select()
-            .single();
-          customer = newCustomer;
-        } else {
-          // Update customer with stripe info
-          const updates: Record<string, any> = {};
-          if (session.customer && !customer.stripe_customer_id) {
-            updates.stripe_customer_id = typeof session.customer === "string" ? session.customer : null;
-          }
-          if (stripePaymentMethodId) {
-            updates.stripe_payment_method_id = stripePaymentMethodId;
-          }
-          if (Object.keys(updates).length > 0) {
-            await supabase.from("customers").update(updates).eq("id", customer.id);
+        const stripeCustomerId = typeof session.customer === "string" ? session.customer : null;
+
+        // Set default payment method on customer
+        if (stripeCustomerId && paymentMethodId) {
+          try {
+            await stripe.customers.update(stripeCustomerId, {
+              invoice_settings: { default_payment_method: paymentMethodId },
+            });
+          } catch (e) {
+            console.warn("Failed to set default PM:", e);
           }
         }
 
-        if (!customer) {
-          console.error("Failed to create/find customer");
-          break;
-        }
-
-        // Check for duplicate order
-        const { data: existingOrder } = await supabase
-          .from("orders")
-          .select("id")
-          .eq("stripe_payment_intent_id", session.payment_intent as string)
-          .maybeSingle();
-
-        if (existingOrder) {
-          console.log("Order already exists for this payment intent, skipping");
-          break;
-        }
-
-        // Calculate total
-        const includeBump = metadata.include_bump === "true";
-        let totalAmount = checkout.products.price;
-
-        let bumpProduct = null;
-        if (includeBump && checkout.order_bump_product_id) {
-          const { data: bp } = await supabase
-            .from("products")
-            .select("id, price")
-            .eq("id", checkout.order_bump_product_id)
-            .single();
-          if (bp) {
-            bumpProduct = bp;
-            totalAmount += bp.price;
-          }
-        }
-
-        // Create order
-        const { data: order, error: orderError } = await supabase
-          .from("orders")
-          .insert({
-            customer_id: customer.id,
-            checkout_id: checkout.id,
-            total_amount: totalAmount,
-            status: "paid",
-            stripe_payment_intent_id: session.payment_intent as string,
-            utm_source: metadata.utm_source || null,
-            utm_medium: metadata.utm_medium || null,
-            utm_campaign: metadata.utm_campaign || null,
-            utm_content: metadata.utm_content || null,
-            utm_term: metadata.utm_term || null,
-          })
-          .select()
-          .single();
-
-        if (orderError) {
-          console.error("Failed to create order:", orderError);
-          break;
-        }
-
-        // Create order items
-        const items = [
-          {
-            order_id: order.id,
-            product_id: checkout.products.id,
-            amount: checkout.products.price,
-            type: "main" as const,
-          },
-        ];
-
-        if (bumpProduct) {
-          items.push({
-            order_id: order.id,
-            product_id: bumpProduct.id,
-            amount: bumpProduct.price,
-            type: "bump" as const,
-          });
-        }
-
-        await supabase.from("order_items").insert(items);
-
-        // Mark abandoned checkout as recovered
-        await supabase
-          .from("abandoned_checkouts")
-          .update({ recovered: true })
-          .eq("checkout_id", checkout.id)
-          .eq("email", customerEmail);
-
-        // === OFFER ENGINE: Create first offer session if configured ===
-        if (checkout.first_offer_id && customer.id) {
-          const { data: offerSession } = await supabase
-            .from("offer_sessions")
-            .insert({
-              offer_id: checkout.first_offer_id,
-              order_id: order.id,
-              customer_id: customer.id,
-            })
-            .select("token")
-            .single();
-
-          if (offerSession) {
-            console.log("Offer session created:", offerSession.token);
-            // The redirect URL already includes the offer token
-            // The success page will handle showing the offer iframe
-          }
-        }
-
-        console.log("Order created successfully:", order.id);
+        await processSuccessfulPayment(supabase, stripe, {
+          checkoutId,
+          paymentIntentId,
+          customerId: stripeCustomerId,
+          paymentMethodId,
+          customerEmail: session.customer_email || session.customer_details?.email || "",
+          customerName: metadata.customer_name || session.customer_details?.name || "",
+          customerPhone: metadata.customer_phone || "",
+          selectedBumpIds: metadata.selected_bump_ids || "[]",
+          utmSource: metadata.utm_source || null,
+          utmMedium: metadata.utm_medium || null,
+          utmCampaign: metadata.utm_campaign || null,
+          utmContent: metadata.utm_content || null,
+          utmTerm: metadata.utm_term || null,
+        });
         break;
       }
 
@@ -259,3 +150,197 @@ serve(async (req) => {
     status: 200,
   });
 });
+
+// Shared logic for processing a successful payment
+async function processSuccessfulPayment(
+  supabase: any,
+  stripe: any,
+  params: {
+    checkoutId: string;
+    paymentIntentId: string | null;
+    customerId: string | null;
+    paymentMethodId: string | null;
+    customerEmail: string;
+    customerName: string;
+    customerPhone: string;
+    selectedBumpIds: string;
+    utmSource: string | null;
+    utmMedium: string | null;
+    utmCampaign: string | null;
+    utmContent: string | null;
+    utmTerm: string | null;
+  }
+) {
+  const {
+    checkoutId, paymentIntentId, customerId, paymentMethodId,
+    customerEmail, customerName, customerPhone, selectedBumpIds,
+    utmSource, utmMedium, utmCampaign, utmContent, utmTerm,
+  } = params;
+
+  // Get checkout with products
+  const { data: checkout } = await supabase
+    .from("checkouts")
+    .select("*, products!checkouts_product_id_fkey(id, name, price), first_offer_id")
+    .eq("id", checkoutId)
+    .single();
+
+  if (!checkout) {
+    console.error("Checkout not found:", checkoutId);
+    return;
+  }
+
+  // Create or find customer
+  let { data: customer } = await supabase
+    .from("customers")
+    .select("*")
+    .eq("email", customerEmail)
+    .maybeSingle();
+
+  if (!customer) {
+    const { data: newCustomer } = await supabase
+      .from("customers")
+      .insert({
+        name: customerName,
+        email: customerEmail,
+        phone: customerPhone || null,
+        stripe_customer_id: customerId,
+        stripe_payment_method_id: paymentMethodId,
+      })
+      .select()
+      .single();
+    customer = newCustomer;
+  } else {
+    const updates: Record<string, any> = {};
+    if (customerId && !customer.stripe_customer_id) {
+      updates.stripe_customer_id = customerId;
+    }
+    if (paymentMethodId) {
+      updates.stripe_payment_method_id = paymentMethodId;
+    }
+    if (Object.keys(updates).length > 0) {
+      await supabase.from("customers").update(updates).eq("id", customer.id);
+    }
+  }
+
+  if (!customer) {
+    console.error("Failed to create/find customer");
+    return;
+  }
+
+  // Check for duplicate order
+  if (paymentIntentId) {
+    const { data: existingOrder } = await supabase
+      .from("orders")
+      .select("id")
+      .eq("stripe_payment_intent_id", paymentIntentId)
+      .maybeSingle();
+
+    if (existingOrder) {
+      console.log("Order already exists for this payment intent, skipping");
+      return;
+    }
+  }
+
+  // Calculate total with multi-bump support
+  let totalAmount = checkout.products.price;
+  let bumpProductIds: string[] = [];
+
+  try {
+    bumpProductIds = JSON.parse(selectedBumpIds);
+  } catch {
+    bumpProductIds = [];
+  }
+
+  let bumpProducts: any[] = [];
+  if (bumpProductIds.length > 0) {
+    const { data: bps } = await supabase
+      .from("products")
+      .select("id, price")
+      .in("id", bumpProductIds);
+    bumpProducts = bps || [];
+    for (const bp of bumpProducts) {
+      totalAmount += bp.price;
+    }
+  }
+
+  // Create order
+  const { data: order, error: orderError } = await supabase
+    .from("orders")
+    .insert({
+      customer_id: customer.id,
+      checkout_id: checkout.id,
+      total_amount: totalAmount,
+      status: "paid",
+      stripe_payment_intent_id: paymentIntentId,
+      utm_source: utmSource,
+      utm_medium: utmMedium,
+      utm_campaign: utmCampaign,
+      utm_content: utmContent,
+      utm_term: utmTerm,
+    })
+    .select()
+    .single();
+
+  if (orderError) {
+    console.error("Failed to create order:", orderError);
+    return;
+  }
+
+  // Create order items
+  const items: any[] = [
+    {
+      order_id: order.id,
+      product_id: checkout.products.id,
+      amount: checkout.products.price,
+      type: "main",
+    },
+  ];
+
+  for (const bp of bumpProducts) {
+    items.push({
+      order_id: order.id,
+      product_id: bp.id,
+      amount: bp.price,
+      type: "bump",
+    });
+  }
+
+  await supabase.from("order_items").insert(items);
+
+  // Mark abandoned checkout as recovered
+  await supabase
+    .from("abandoned_checkouts")
+    .update({ recovered: true })
+    .eq("checkout_id", checkout.id)
+    .eq("email", customerEmail);
+
+  // Create first offer session if configured
+  if (checkout.first_offer_id && customer.id) {
+    const { data: offerSession } = await supabase
+      .from("offer_sessions")
+      .insert({
+        offer_id: checkout.first_offer_id,
+        order_id: order.id,
+        customer_id: customer.id,
+      })
+      .select("token")
+      .single();
+
+    if (offerSession) {
+      console.log("Offer session created:", offerSession.token);
+    }
+  }
+
+  // Set default payment method on Stripe customer for future upsells
+  if (customerId && paymentMethodId) {
+    try {
+      await stripe.customers.update(customerId, {
+        invoice_settings: { default_payment_method: paymentMethodId },
+      });
+    } catch (e) {
+      console.warn("Failed to set default payment method:", e);
+    }
+  }
+
+  console.log("Order created successfully:", order.id);
+}
