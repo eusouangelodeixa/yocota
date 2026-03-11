@@ -12,7 +12,7 @@ import { formatCents } from "@/lib/formatters";
 import { Loader2, Lock, CheckCircle2 } from "lucide-react";
 import { COUNTRY_CODES, COUNTRY_TO_DDI } from "@/lib/countryCodes";
 
-const stripePromise = loadStripe("pk_live_51SqaDe4tVPtm5YNwa58VQ0RR9WVz3P74IcqGrWTtSpmwyiO1e3kMQDhje36XacNAnGMfxvNtibgDWIhZicY73pg700Fw5mltxV");
+const stripePromise = loadStripe("pk_live_51T9VKyGfpSpNOdDI6GT8Bq78Kn7NagZZuB880xuOksJD8TPAfOFIZ762lhXVg3EbJIcf66uoOvdweVF4kjrkCU3700yfUxyd0d");
 
 function useDocTitle(title: string) {
   useEffect(() => { document.title = title; return () => { document.title = "Yocota"; }; }, [title]);
