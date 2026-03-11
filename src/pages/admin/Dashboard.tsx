@@ -276,7 +276,7 @@ export default function Dashboard() {
                   <XAxis dataKey="day" tick={{ fontSize: 11, fill: "#52525b" }} axisLine={false} tickLine={false} />
                   <YAxis tick={{ fontSize: 11, fill: "#52525b" }} axisLine={false} tickLine={false} tickFormatter={(v) => formatCents(v, "brl")} width={80} />
                   <Tooltip content={<ChartTooltip />} cursor={{ fill: "rgba(255,255,255,0.02)" }} />
-                  <Bar dataKey="value" fill="#27272a" activeBar={{ fill: "#28d56a" }} radius={0} maxBarSize={40} />
+                  <Bar dataKey="value" fill="#27272a" activeBar={{ fill: "#E04B00" }} radius={0} maxBarSize={40} />
                 </BarChart>
               </ResponsiveContainer>
             ) : (
