@@ -10,39 +10,13 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { toast } from "sonner";
 import { formatCents } from "@/lib/formatters";
 import { Loader2, Lock, CheckCircle2 } from "lucide-react";
+import { COUNTRY_CODES, COUNTRY_TO_DDI } from "@/lib/countryCodes";
 
 const stripePromise = loadStripe("pk_live_51SqaDe4tVPtm5YNwa58VQ0RR9WVz3P74IcqGrWTtSpmwyiO1e3kMQDhje36XacNAnGMfxvNtibgDWIhZicY73pg700Fw5mltxV");
 
 function useDocTitle(title: string) {
   useEffect(() => { document.title = title; return () => { document.title = "Yocota"; }; }, [title]);
 }
-
-const COUNTRY_CODES = [
-  { code: "+55", flag: "🇧🇷", country: "BR", label: "Brasil" },
-  { code: "+1", flag: "🇺🇸", country: "US", label: "EUA" },
-  { code: "+54", flag: "🇦🇷", country: "AR", label: "Argentina" },
-  { code: "+56", flag: "🇨🇱", country: "CL", label: "Chile" },
-  { code: "+57", flag: "🇨🇴", country: "CO", label: "Colômbia" },
-  { code: "+52", flag: "🇲🇽", country: "MX", label: "México" },
-  { code: "+51", flag: "🇵🇪", country: "PE", label: "Peru" },
-  { code: "+598", flag: "🇺🇾", country: "UY", label: "Uruguai" },
-  { code: "+595", flag: "🇵🇾", country: "PY", label: "Paraguai" },
-  { code: "+591", flag: "🇧🇴", country: "BO", label: "Bolívia" },
-  { code: "+593", flag: "🇪🇨", country: "EC", label: "Equador" },
-  { code: "+58", flag: "🇻🇪", country: "VE", label: "Venezuela" },
-  { code: "+44", flag: "🇬🇧", country: "GB", label: "Reino Unido" },
-  { code: "+49", flag: "🇩🇪", country: "DE", label: "Alemanha" },
-  { code: "+33", flag: "🇫🇷", country: "FR", label: "França" },
-  { code: "+34", flag: "🇪🇸", country: "ES", label: "Espanha" },
-  { code: "+39", flag: "🇮🇹", country: "IT", label: "Itália" },
-  { code: "+351", flag: "🇵🇹", country: "PT", label: "Portugal" },
-  { code: "+81", flag: "🇯🇵", country: "JP", label: "Japão" },
-  { code: "+91", flag: "🇮🇳", country: "IN", label: "Índia" },
-  { code: "+61", flag: "🇦🇺", country: "AU", label: "Austrália" },
-];
-
-const COUNTRY_TO_DDI: Record<string, string> = {};
-COUNTRY_CODES.forEach((c) => { COUNTRY_TO_DDI[c.country] = c.code; });
 
 interface BumpProduct { id: string; name: string; price: number; currency: string; }
 interface CheckoutData {
@@ -65,7 +39,7 @@ function CheckoutForm({ checkout: c }: { checkout: CheckoutData }) {
 
   const [customerName, setCustomerName] = useState("");
   const [email, setEmail] = useState("");
-  const [ddi, setDdi] = useState("+55");
+  const [selectedCountry, setSelectedCountry] = useState("BR");
   const [phone, setPhone] = useState("");
   const [selectedBumps, setSelectedBumps] = useState<Set<string>>(new Set());
   const [processing, setProcessing] = useState(false);
@@ -76,6 +50,9 @@ function CheckoutForm({ checkout: c }: { checkout: CheckoutData }) {
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
 
   useDocTitle(c.product.name ? `${c.product.name} — Checkout` : "Checkout");
+
+  const selectedEntry = COUNTRY_CODES.find((cc) => cc.country === selectedCountry);
+  const ddi = selectedEntry?.code || "+55";
 
   const validateField = (field: string, value: string) => {
     const errors = { ...fieldErrors };
@@ -108,8 +85,9 @@ function CheckoutForm({ checkout: c }: { checkout: CheckoutData }) {
         if (data.email) { setEmail(data.email); setAbandonedSaved(true); }
         if (data.phone) {
           const fullPhone = data.phone.replace(/\D/g, "");
+          // Try to match country code from full phone number
           const match = COUNTRY_CODES.find((cc) => fullPhone.startsWith(cc.code.replace("+", "")));
-          if (match) { setDdi(match.code); setPhone(fullPhone.substring(match.code.replace("+", "").length)); }
+          if (match) { setSelectedCountry(match.country); setPhone(fullPhone.substring(match.code.replace("+", "").length)); }
           else setPhone(fullPhone);
         }
         sessionStorage.removeItem("checkout_recovery");
@@ -119,14 +97,20 @@ function CheckoutForm({ checkout: c }: { checkout: CheckoutData }) {
 
   const currency = c.product.currency || "brl";
 
+  // Auto-detect country via geolocation API
   useEffect(() => {
     async function detectCountry() {
       try {
         const res = await fetch("https://ipapi.co/json/", { signal: AbortSignal.timeout(3000) });
         const data = await res.json();
-        if (data?.country_code && COUNTRY_TO_DDI[data.country_code]) setDdi(COUNTRY_TO_DDI[data.country_code]);
+        if (data?.country_code && COUNTRY_TO_DDI[data.country_code]) {
+          setSelectedCountry(data.country_code);
+        }
       } catch {
-        try { const region = (navigator.language || "pt-BR").split("-")[1]?.toUpperCase(); if (region && COUNTRY_TO_DDI[region]) setDdi(COUNTRY_TO_DDI[region]); } catch {}
+        try {
+          const region = (navigator.language || "pt-BR").split("-")[1]?.toUpperCase();
+          if (region && COUNTRY_TO_DDI[region]) setSelectedCountry(region);
+        } catch {}
       }
     }
     detectCountry();
@@ -138,8 +122,6 @@ function CheckoutForm({ checkout: c }: { checkout: CheckoutData }) {
     ["utm_source", "utm_medium", "utm_campaign", "utm_content", "utm_term"].forEach((key) => { const val = params.get(key); if (val) utms[key] = val; });
     if (Object.keys(utms).length > 0) sessionStorage.setItem("checkout_utms", JSON.stringify(utms));
   }, []);
-
-  // Abandoned checkout is now saved only when user clicks Pay (inside handleSubmit)
 
   const toggleBump = (productId: string) => {
     setSelectedBumps((prev) => {
@@ -169,7 +151,6 @@ function CheckoutForm({ checkout: c }: { checkout: CheckoutData }) {
     e.preventDefault();
     if (!stripe || !elements) return;
 
-    // Validate all fields
     validateField("name", customerName);
     validateField("email", email);
     validateField("phone", phone);
@@ -178,7 +159,6 @@ function CheckoutForm({ checkout: c }: { checkout: CheckoutData }) {
       return;
     }
 
-    // Save abandoned checkout data only on Pay click
     if (!abandonedSaved && !abandonedSavingRef.current) {
       abandonedSavingRef.current = true;
       const utms = JSON.parse(sessionStorage.getItem("checkout_utms") || "{}");
@@ -195,11 +175,8 @@ function CheckoutForm({ checkout: c }: { checkout: CheckoutData }) {
       const bumpIdsArray = Array.from(selectedBumps);
       const expectedTotal = totalAmount();
       console.log("[CREATE-INTENT REQUEST]", {
-        checkout_id: c.id,
-        customer_name: customerName,
-        customer_email: email,
-        selected_bump_ids: bumpIdsArray,
-        bump_count: bumpIdsArray.length,
+        checkout_id: c.id, customer_name: customerName, customer_email: email,
+        selected_bump_ids: bumpIdsArray, bump_count: bumpIdsArray.length,
         frontend_expected_total: expectedTotal,
         available_bumps: c.bump_products.map(bp => ({ id: bp.id, name: bp.name, price: bp.price })),
       });
@@ -214,13 +191,9 @@ function CheckoutForm({ checkout: c }: { checkout: CheckoutData }) {
         payment_method: { card: cardNumber, billing_details: { name: customerName, email, phone: fullPhone } },
       });
       if (stripeError) {
-        // Handle 3D Secure authentication required
         if (stripeError.type === "card_error" && stripeError.code === "authentication_required") {
           const { error: authError, paymentIntent: authedPI } = await stripe.confirmCardPayment(intentData.client_secret);
-          if (authError) {
-            setCardError(authError.message || "Falha na autenticação 3D Secure");
-            setProcessing(false); return;
-          }
+          if (authError) { setCardError(authError.message || "Falha na autenticação 3D Secure"); setProcessing(false); return; }
           if (authedPI?.status === "succeeded") {
             setSuccess(true);
             setTimeout(() => {
@@ -234,12 +207,8 @@ function CheckoutForm({ checkout: c }: { checkout: CheckoutData }) {
         setProcessing(false); return;
       }
       if (paymentIntent?.status === "requires_action") {
-        // Handle 3DS popup automatically triggered by Stripe
         const { error: actionError, paymentIntent: actionPI } = await stripe.confirmCardPayment(intentData.client_secret);
-        if (actionError) {
-          setCardError(actionError.message || "Falha na autenticação");
-          setProcessing(false); return;
-        }
+        if (actionError) { setCardError(actionError.message || "Falha na autenticação"); setProcessing(false); return; }
         if (actionPI?.status === "succeeded") {
           setSuccess(true);
           setTimeout(() => {
@@ -259,11 +228,8 @@ function CheckoutForm({ checkout: c }: { checkout: CheckoutData }) {
     } catch (error: any) { toast.error(error.message || "Erro ao processar pagamento."); setProcessing(false); }
   };
 
-  const selectedDdiEntry = COUNTRY_CODES.find((cc) => cc.code === ddi);
-
   return (
     <div className="min-h-screen flex flex-col lg:flex-row bg-[#09090b]">
-      {/* Banner - mobile only (full width top) */}
       {c.banner_url && (
         <div className="lg:hidden w-full">
           <img src={c.banner_url} alt="" className="w-full h-auto max-h-48 object-cover" crossOrigin="anonymous" />
@@ -272,7 +238,6 @@ function CheckoutForm({ checkout: c }: { checkout: CheckoutData }) {
 
       {/* Left panel - Product summary */}
       <div className="hidden lg:flex lg:w-[45%] bg-[#111113] border-r border-[#27272a] flex-col sticky top-0 h-screen overflow-y-auto">
-        {/* Banner - desktop */}
         {c.banner_url && (
           <div className="w-full shrink-0">
             <img src={c.banner_url} alt="" className="w-full h-auto max-h-56 object-cover" crossOrigin="anonymous" />
@@ -288,7 +253,6 @@ function CheckoutForm({ checkout: c }: { checkout: CheckoutData }) {
             <div className="text-4xl font-bold text-[#fafafa] tabular-nums mb-8">{formatCents(c.product.price, currency)}</div>
             <div className="border-t border-[#27272a]" />
 
-            {/* Order bumps summary */}
             {c.bump_products.length > 0 && (
               <div className="mt-6 space-y-3">
                 {c.bump_products.map((bp) => (
@@ -313,7 +277,6 @@ function CheckoutForm({ checkout: c }: { checkout: CheckoutData }) {
               </div>
             )}
 
-            {/* Total */}
             <div className="mt-6 pt-4 border-t border-[#27272a]">
               <div className="flex justify-between items-center">
                 <span className="text-sm text-[#a1a1aa]">Total</span>
@@ -327,7 +290,6 @@ function CheckoutForm({ checkout: c }: { checkout: CheckoutData }) {
       {/* Right panel - Form */}
       <div className="flex-1 flex flex-col justify-center px-5 sm:px-8 lg:px-10 xl:px-16 py-8 lg:py-12">
         <div className="max-w-md w-full mx-auto">
-          {/* Mobile summary */}
           <div className="lg:hidden mb-6">
             {c.show_product_image && c.product.image_url && (
               <img src={c.product.image_url} alt={c.product.name} className="w-16 h-16 rounded-[10px] object-cover mb-4 border border-[#27272a]" crossOrigin="anonymous" />
@@ -354,11 +316,17 @@ function CheckoutForm({ checkout: c }: { checkout: CheckoutData }) {
               <div className="space-y-1.5">
                 <label className="text-xs font-medium text-[#a1a1aa]">WhatsApp</label>
                 <div className="flex gap-2">
-                  <Select value={ddi} onValueChange={setDdi}>
-                    <SelectTrigger className="w-[100px] h-10 rounded-lg bg-[#111113] border-[#27272a] text-[#fafafa] text-xs shrink-0 focus:border-[#28d56a]">
-                      <SelectValue>{selectedDdiEntry ? `${selectedDdiEntry.flag} ${selectedDdiEntry.code}` : ddi}</SelectValue>
+                  <Select value={selectedCountry} onValueChange={setSelectedCountry}>
+                    <SelectTrigger className="w-[110px] h-10 rounded-lg bg-[#111113] border-[#27272a] text-[#fafafa] text-xs shrink-0 focus:border-[#28d56a]">
+                      <SelectValue>{selectedEntry ? `${selectedEntry.flag} ${selectedEntry.code}` : "+55"}</SelectValue>
                     </SelectTrigger>
-                    <SelectContent className="max-h-[280px]">{COUNTRY_CODES.map((cc) => (<SelectItem key={cc.code} value={cc.code}>{cc.flag} {cc.code} ({cc.label})</SelectItem>))}</SelectContent>
+                    <SelectContent className="max-h-[280px]">
+                      {COUNTRY_CODES.map((cc) => (
+                        <SelectItem key={cc.country} value={cc.country}>
+                          {cc.flag} {cc.code} ({cc.label})
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
                   </Select>
                   <input type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} onBlur={() => validateField("phone", phone)} placeholder="(11) 99999-9999" required className={`flex h-10 w-full rounded-lg border bg-[#111113] px-3 text-sm text-[#fafafa] placeholder:text-[#3f3f46] focus:outline-none focus:ring-[3px] transition-all duration-150 flex-1 ${fieldErrors.phone ? "border-[#ef4444] focus:border-[#ef4444] focus:ring-[rgba(239,68,68,0.12)]" : "border-[#27272a] focus:border-[#28d56a] focus:ring-[rgba(40,213,106,0.15)]"}`} />
                 </div>
@@ -435,7 +403,6 @@ export default function CheckoutPage() {
       if (!slug) return;
       const { data, error } = await supabase.from("checkouts").select("*, products!checkouts_product_id_fkey(id, name, description, price, currency, image_url)").eq("checkout_slug", slug).eq("active", true).maybeSingle();
       if (error || !data) { setNotFound(true); setLoading(false); return; }
-      // Load order bumps
       const { data: bumpsData, error: bumpsError } = await supabase.from("checkout_order_bumps").select("product_id, sort_order, products(id, name, price, currency)").eq("checkout_id", data.id).order("sort_order");
       console.log("Bumps query result:", { bumpsData, bumpsError });
       const bumpProducts: BumpProduct[] = ((bumpsData as any[]) || []).filter((b: any) => b.products).map((b: any) => ({ id: b.products.id, name: b.products.name, price: b.products.price, currency: b.products.currency || "brl" }));

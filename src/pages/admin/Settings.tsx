@@ -7,7 +7,8 @@ import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
-import { Loader2, Save, Upload, X, Eye, EyeOff, ExternalLink } from "lucide-react";
+import { Loader2, Save, Upload, X, Eye, EyeOff, ExternalLink, Camera } from "lucide-react";
+import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 
 const SETTINGS_ID = "00000000-0000-0000-0000-000000000001";
 
@@ -66,6 +67,26 @@ export default function Settings() {
     },
   });
 
+  // Load profile data
+  const { data: profile } = useQuery({
+    queryKey: ["profile", user?.id],
+    enabled: !!user?.id,
+    queryFn: async () => {
+      const { data, error } = await supabase.from("profiles").select("*").eq("user_id", user!.id).maybeSingle();
+      if (error) throw error;
+      // If no profile exists, create one
+      if (!data) {
+        const { data: newProfile, error: insertError } = await supabase.from("profiles").insert({
+          user_id: user!.id,
+          display_name: user!.email?.split("@")[0] || "",
+        }).select().single();
+        if (insertError) throw insertError;
+        return newProfile;
+      }
+      return data;
+    },
+  });
+
   const [brandForm, setBrandForm] = useState({
     business_name: "", logo_url: "", default_redirect_url: "",
     default_primary_color: "#28d56a", default_accent_color: "#1e40af",
@@ -101,34 +122,100 @@ export default function Settings() {
 
   const saveApiKeysMutation = useMutation({
     mutationFn: async () => {
-      const { error } = await supabase.functions.invoke("update-secrets", { body: apiKeys });
+      const { data, error } = await supabase.functions.invoke("update-secrets", { body: apiKeys });
       if (error) throw error;
+      if (data?.error) throw new Error(data.error);
     },
-    onSuccess: () => toast.success("Chaves de API atualizadas!"),
+    onSuccess: () => {
+      toast.success("Chaves de API salvas com sucesso!");
+      // Clear fields after save for security
+      setApiKeys({ stripe_secret: "", stripe_webhook_secret: "", uazapi_url: "", uazapi_token: "", utmify_api_key: "" });
+    },
     onError: (e: any) => toast.error("Erro ao salvar chaves: " + e.message),
   });
 
-  const [profileForm, setProfileForm] = useState({ email: user?.email || "", newPassword: "", confirmPassword: "" });
+  // Profile form
+  const [profileForm, setProfileForm] = useState({
+    display_name: "",
+    phone: "",
+    email: user?.email || "",
+    newPassword: "",
+    confirmPassword: "",
+  });
 
-  useEffect(() => { if (user?.email) setProfileForm((f) => ({ ...f, email: user.email || "" })); }, [user]);
+  useEffect(() => {
+    if (user?.email) setProfileForm((f) => ({ ...f, email: user.email || "" }));
+  }, [user]);
+
+  useEffect(() => {
+    if (profile) {
+      setProfileForm((f) => ({
+        ...f,
+        display_name: (profile as any).display_name || "",
+        phone: (profile as any).phone || "",
+      }));
+    }
+  }, [profile]);
 
   const saveProfileMutation = useMutation({
     mutationFn: async () => {
+      // Update profile table
+      const { error: profileError } = await supabase.from("profiles").update({
+        display_name: profileForm.display_name,
+        phone: profileForm.phone,
+        updated_at: new Date().toISOString(),
+      }).eq("user_id", user!.id);
+      if (profileError) throw profileError;
+
+      // Update password if provided
       if (profileForm.newPassword) {
         if (profileForm.newPassword !== profileForm.confirmPassword) throw new Error("As senhas não coincidem");
         if (profileForm.newPassword.length < 6) throw new Error("A senha deve ter pelo menos 6 caracteres");
         const { error } = await supabase.auth.updateUser({ password: profileForm.newPassword });
         if (error) throw error;
       }
+
+      // Update email if changed
       if (profileForm.email !== user?.email) {
         const { error } = await supabase.auth.updateUser({ email: profileForm.email });
         if (error) throw error;
       }
     },
-    onSuccess: () => { toast.success("Dados atualizados!"); setProfileForm((f) => ({ ...f, newPassword: "", confirmPassword: "" })); },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["profile"] });
+      toast.success("Dados atualizados!");
+      setProfileForm((f) => ({ ...f, newPassword: "", confirmPassword: "" }));
+    },
     onError: (e: any) => toast.error(e.message),
   });
 
+  // Avatar upload
+  const [uploadingAvatar, setUploadingAvatar] = useState(false);
+  const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !user?.id) return;
+    setUploadingAvatar(true);
+    try {
+      const ext = file.name.split(".").pop();
+      const fileName = `avatar-${user.id}-${Date.now()}.${ext}`;
+      const { error: uploadError } = await supabase.storage.from("avatars").upload(fileName, file, { upsert: true });
+      if (uploadError) throw uploadError;
+      const { data: urlData } = supabase.storage.from("avatars").getPublicUrl(fileName);
+      const { error: updateError } = await supabase.from("profiles").update({
+        avatar_url: urlData.publicUrl,
+        updated_at: new Date().toISOString(),
+      }).eq("user_id", user.id);
+      if (updateError) throw updateError;
+      queryClient.invalidateQueries({ queryKey: ["profile"] });
+      toast.success("Foto de perfil atualizada!");
+    } catch (err: any) {
+      toast.error("Erro ao enviar foto: " + err.message);
+    } finally {
+      setUploadingAvatar(false);
+    }
+  };
+
+  // Logo upload
   const [uploading, setUploading] = useState(false);
   const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -150,6 +237,9 @@ export default function Settings() {
     return <div className="flex items-center justify-center h-64"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>;
   }
 
+  const profileAvatarUrl = (profile as any)?.avatar_url;
+  const profileDisplayName = (profile as any)?.display_name || user?.email?.split("@")[0] || "";
+
   return (
     <div className="space-y-6">
       <h1 className="text-lg font-bold text-foreground">Configurações</h1>
@@ -168,7 +258,6 @@ export default function Settings() {
             </Button>
           </div>
 
-          {/* Webhook URLs - read only */}
           <SectionCard title="URLs de Webhook" description="Configure essas URLs nos serviços externos">
             <div className="space-y-1.5">
               <Label className="text-xs text-muted-foreground">URL Webhook Stripe</Label>
@@ -178,13 +267,8 @@ export default function Settings() {
                   value={`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/stripe-webhook`}
                   className="flex h-10 w-full rounded-lg border border-border bg-input px-3 text-xs text-foreground font-mono placeholder:text-muted-foreground/50 focus:outline-none cursor-text"
                 />
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  className="shrink-0 h-10 px-3 text-xs"
-                  onClick={() => { navigator.clipboard.writeText(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/stripe-webhook`); toast.success("URL copiada!"); }}
-                >
+                <Button type="button" variant="outline" size="sm" className="shrink-0 h-10 px-3 text-xs"
+                  onClick={() => { navigator.clipboard.writeText(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/stripe-webhook`); toast.success("URL copiada!"); }}>
                   Copiar
                 </Button>
               </div>
@@ -198,13 +282,8 @@ export default function Settings() {
                   value={`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/delivery-send`}
                   className="flex h-10 w-full rounded-lg border border-border bg-input px-3 text-xs text-foreground font-mono placeholder:text-muted-foreground/50 focus:outline-none cursor-text"
                 />
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  className="shrink-0 h-10 px-3 text-xs"
-                  onClick={() => { navigator.clipboard.writeText(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/delivery-send`); toast.success("URL copiada!"); }}
-                >
+                <Button type="button" variant="outline" size="sm" className="shrink-0 h-10 px-3 text-xs"
+                  onClick={() => { navigator.clipboard.writeText(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/delivery-send`); toast.success("URL copiada!"); }}>
                   Copiar
                 </Button>
               </div>
@@ -224,6 +303,13 @@ export default function Settings() {
             <SectionCard title="Utmify" description="Tracking e atribuição de UTMs">
               <SecretInput label="API Key" value={apiKeys.utmify_api_key} onChange={(v) => setApiKeys((f) => ({ ...f, utmify_api_key: v }))} placeholder="utmify_key_..." helpUrl="https://app.utmify.com.br" helpLabel="Painel Utmify" />
             </SectionCard>
+          </div>
+
+          <div className="rounded-lg border border-border bg-muted/30 p-4">
+            <p className="text-[11px] text-muted-foreground">
+              💡 As chaves são salvas de forma segura no banco de dados e utilizadas pelas funções do sistema.
+              Apenas preencha os campos que deseja atualizar — campos vazios serão ignorados.
+            </p>
           </div>
         </TabsContent>
 
@@ -288,22 +374,52 @@ export default function Settings() {
               {saveProfileMutation.isPending ? <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" /> : <Save className="mr-1.5 h-3.5 w-3.5" strokeWidth={1.5} />} Atualizar
             </Button>
           </div>
-          <div className="max-w-lg">
-            <SectionCard title="Dados da Conta" description="Altere seu email ou senha">
+          <div className="max-w-lg space-y-6">
+            {/* Avatar section */}
+            <SectionCard title="Foto de Perfil" description="Clique para alterar sua foto">
+              <div className="flex items-center gap-5">
+                <div className="relative group">
+                  <Avatar className="w-20 h-20">
+                    {profileAvatarUrl && <AvatarImage src={profileAvatarUrl} alt={profileDisplayName} />}
+                    <AvatarFallback className="bg-primary text-primary-foreground text-xl font-bold">
+                      {profileDisplayName[0]?.toUpperCase() || "?"}
+                    </AvatarFallback>
+                  </Avatar>
+                  <label className="absolute inset-0 flex items-center justify-center bg-black/50 rounded-full opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer">
+                    <input type="file" accept="image/*" className="hidden" onChange={handleAvatarUpload} disabled={uploadingAvatar} />
+                    {uploadingAvatar ? <Loader2 className="h-5 w-5 animate-spin text-white" /> : <Camera className="h-5 w-5 text-white" strokeWidth={1.5} />}
+                  </label>
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-foreground">{profileDisplayName}</p>
+                  <p className="text-xs text-muted-foreground">{user?.email}</p>
+                </div>
+              </div>
+            </SectionCard>
+
+            <SectionCard title="Dados Pessoais" description="Altere suas informações pessoais">
+              <div className="space-y-1.5">
+                <Label className="text-xs text-muted-foreground">Nome de exibição</Label>
+                <Input value={profileForm.display_name} onChange={(e) => setProfileForm((f) => ({ ...f, display_name: e.target.value }))} placeholder="Seu nome" />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs text-muted-foreground">Telefone</Label>
+                <Input type="tel" value={profileForm.phone} onChange={(e) => setProfileForm((f) => ({ ...f, phone: e.target.value }))} placeholder="+55 11 99999-9999" />
+              </div>
               <div className="space-y-1.5">
                 <Label className="text-xs text-muted-foreground">Email</Label>
                 <Input type="email" value={profileForm.email} onChange={(e) => setProfileForm((f) => ({ ...f, email: e.target.value }))} />
               </div>
-              <div className="pt-4 border-t border-border space-y-4">
-                <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider">Alterar senha</p>
-                <div className="space-y-1.5">
-                  <Label className="text-xs text-muted-foreground">Nova senha</Label>
-                  <Input type="password" value={profileForm.newPassword} onChange={(e) => setProfileForm((f) => ({ ...f, newPassword: e.target.value }))} placeholder="Mínimo 6 caracteres" />
-                </div>
-                <div className="space-y-1.5">
-                  <Label className="text-xs text-muted-foreground">Confirmar nova senha</Label>
-                  <Input type="password" value={profileForm.confirmPassword} onChange={(e) => setProfileForm((f) => ({ ...f, confirmPassword: e.target.value }))} placeholder="Repita a senha" />
-                </div>
+            </SectionCard>
+
+            <SectionCard title="Segurança" description="Altere sua senha de acesso">
+              <div className="space-y-1.5">
+                <Label className="text-xs text-muted-foreground">Nova senha</Label>
+                <Input type="password" value={profileForm.newPassword} onChange={(e) => setProfileForm((f) => ({ ...f, newPassword: e.target.value }))} placeholder="Mínimo 6 caracteres" />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs text-muted-foreground">Confirmar nova senha</Label>
+                <Input type="password" value={profileForm.confirmPassword} onChange={(e) => setProfileForm((f) => ({ ...f, confirmPassword: e.target.value }))} placeholder="Repita a senha" />
               </div>
             </SectionCard>
           </div>
