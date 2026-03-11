@@ -302,16 +302,16 @@ export default function Dashboard() {
                   }, [])}
                 >
                   <defs>
-                    <linearGradient id="greenGrad" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="0%" stopColor="#28d56a" stopOpacity={0.2} />
-                      <stop offset="100%" stopColor="#28d56a" stopOpacity={0} />
+                    <linearGradient id="accentGrad" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor="#E04B00" stopOpacity={0.2} />
+                      <stop offset="100%" stopColor="#E04B00" stopOpacity={0} />
                     </linearGradient>
                   </defs>
                   <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" />
                   <XAxis dataKey="day" tick={{ fontSize: 11, fill: "#52525b" }} axisLine={false} tickLine={false} />
                   <YAxis tick={{ fontSize: 11, fill: "#52525b" }} axisLine={false} tickLine={false} tickFormatter={(v) => formatCents(v, "brl")} width={80} />
                   <Tooltip content={<ChartTooltip />} />
-                  <Area type="monotone" dataKey="cumulative" stroke="#28d56a" strokeWidth={2} fill="url(#greenGrad)" />
+                  <Area type="monotone" dataKey="cumulative" stroke="#E04B00" strokeWidth={2} fill="url(#accentGrad)" />
                 </AreaChart>
               </ResponsiveContainer>
             ) : (
