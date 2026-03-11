@@ -1,0 +1,2 @@
+UPDATE products SET delivery_message = REPLACE(delivery_message, '{{nome))', '{{nome}}') WHERE delivery_message LIKE '%{{nome))%';
+UPDATE products SET delivery_message = REPLACE(delivery_message, 'Entrega de produto → ', '') WHERE delivery_message LIKE 'Entrega de produto →%';
