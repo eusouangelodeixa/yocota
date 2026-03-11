@@ -50,7 +50,7 @@ serve(async (req) => {
         .select("*, checkouts(*, products!checkouts_product_id_fkey(name))")
         .eq("recovered", false)
         .is("whatsapp_sent_at", null)
-        .lt("created_at", thirtyMinAgo)
+        .lt("created_at", tenMinAgo)
         .not("phone", "is", null)
         .limit(50);
       abandonedList = data || [];
