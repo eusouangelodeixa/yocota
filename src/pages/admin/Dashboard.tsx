@@ -249,7 +249,7 @@ export default function Dashboard() {
       </div>
 
       {/* KPI Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
         {kpis.map((kpi) => (
           <div key={kpi.label} className="card-surface rounded-[10px] p-5">
             <p className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground mb-2">{kpi.label}</p>
