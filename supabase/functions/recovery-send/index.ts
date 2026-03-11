@@ -43,8 +43,8 @@ serve(async (req) => {
         .maybeSingle();
       if (data) abandonedList = [data];
     } else {
-      // Process all unrecovered, unsent leads created > 30 min ago
-      const thirtyMinAgo = new Date(Date.now() - 30 * 60 * 1000).toISOString();
+      // Process all unrecovered, unsent leads created > 10 min ago
+      const tenMinAgo = new Date(Date.now() - 10 * 60 * 1000).toISOString();
       const { data } = await supabase
         .from("abandoned_checkouts")
         .select("*, checkouts(*, products!checkouts_product_id_fkey(name))")
