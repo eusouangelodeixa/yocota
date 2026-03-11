@@ -23,7 +23,7 @@ interface ProductForm {
 }
 
 const emptyForm: ProductForm = {
-  name: "", description: "", price: "", currency: "brl",
+  name: "", description: "", price: "", currency: "eur",
   type: "digital", delivery_type: "none",
   delivery_message: "", delivery_attachment: "", image_url: "",
 };
