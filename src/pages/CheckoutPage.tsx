@@ -5,9 +5,37 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
 import { formatCents } from "@/lib/formatters";
 import { Loader2, ShieldCheck, Lock, CreditCard, CheckCircle2, Sparkles } from "lucide-react";
+
+const COUNTRY_CODES = [
+  { code: "+55", flag: "🇧🇷", country: "BR", label: "Brasil" },
+  { code: "+1", flag: "🇺🇸", country: "US", label: "EUA" },
+  { code: "+54", flag: "🇦🇷", country: "AR", label: "Argentina" },
+  { code: "+56", flag: "🇨🇱", country: "CL", label: "Chile" },
+  { code: "+57", flag: "🇨🇴", country: "CO", label: "Colômbia" },
+  { code: "+52", flag: "🇲🇽", country: "MX", label: "México" },
+  { code: "+51", flag: "🇵🇪", country: "PE", label: "Peru" },
+  { code: "+598", flag: "🇺🇾", country: "UY", label: "Uruguai" },
+  { code: "+595", flag: "🇵🇾", country: "PY", label: "Paraguai" },
+  { code: "+591", flag: "🇧🇴", country: "BO", label: "Bolívia" },
+  { code: "+593", flag: "🇪🇨", country: "EC", label: "Equador" },
+  { code: "+58", flag: "🇻🇪", country: "VE", label: "Venezuela" },
+  { code: "+44", flag: "🇬🇧", country: "GB", label: "Reino Unido" },
+  { code: "+49", flag: "🇩🇪", country: "DE", label: "Alemanha" },
+  { code: "+33", flag: "🇫🇷", country: "FR", label: "França" },
+  { code: "+34", flag: "🇪🇸", country: "ES", label: "Espanha" },
+  { code: "+39", flag: "🇮🇹", country: "IT", label: "Itália" },
+  { code: "+351", flag: "🇵🇹", country: "PT", label: "Portugal" },
+  { code: "+81", flag: "🇯🇵", country: "JP", label: "Japão" },
+  { code: "+91", flag: "🇮🇳", country: "IN", label: "Índia" },
+  { code: "+61", flag: "🇦🇺", country: "AU", label: "Austrália" },
+];
+
+const COUNTRY_TO_DDI: Record<string, string> = {};
+COUNTRY_CODES.forEach((c) => { COUNTRY_TO_DDI[c.country] = c.code; });
 
 interface BumpProduct {
   id: string;
@@ -29,6 +57,7 @@ interface CheckoutData {
   cta_text: string;
   banner_url: string | null;
   show_product_image: boolean;
+  first_offer_id: string | null;
   product: { id: string; name: string; description: string | null; price: number; currency: string; image_url: string | null };
   bump_products: BumpProduct[];
 }
@@ -41,10 +70,36 @@ export default function CheckoutPage() {
 
   const [customerName, setCustomerName] = useState("");
   const [email, setEmail] = useState("");
+  const [ddi, setDdi] = useState("+55");
   const [phone, setPhone] = useState("");
   const [selectedBumps, setSelectedBumps] = useState<Set<string>>(new Set());
   const [processing, setProcessing] = useState(false);
   const [abandonedSaved, setAbandonedSaved] = useState(false);
+
+  // Auto-detect country code via geolocation API
+  useEffect(() => {
+    async function detectCountry() {
+      try {
+        const res = await fetch("https://ipapi.co/json/", { signal: AbortSignal.timeout(3000) });
+        const data = await res.json();
+        if (data?.country_code && COUNTRY_TO_DDI[data.country_code]) {
+          setDdi(COUNTRY_TO_DDI[data.country_code]);
+        }
+      } catch {
+        // Fallback to browser locale
+        try {
+          const locale = navigator.language || "pt-BR";
+          const region = locale.split("-")[1]?.toUpperCase();
+          if (region && COUNTRY_TO_DDI[region]) {
+            setDdi(COUNTRY_TO_DDI[region]);
+          }
+        } catch {
+          // Keep default +55
+        }
+      }
+    }
+    detectCountry();
+  }, []);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -76,12 +131,12 @@ export default function CheckoutPage() {
 
       // Load bumps from junction table
       const { data: bumpsData } = await supabase
-        .from("checkout_order_bumps")
+        .from("checkout_order_bumps" as any)
         .select("product_id, sort_order, products(id, name, price, currency)")
         .eq("checkout_id", data.id)
         .order("sort_order");
 
-      const bumpProducts: BumpProduct[] = (bumpsData || [])
+      const bumpProducts: BumpProduct[] = ((bumpsData as any[]) || [])
         .filter((b: any) => b.products)
         .map((b: any) => ({
           id: b.products.id,
@@ -97,6 +152,7 @@ export default function CheckoutPage() {
         bg_color: data.bg_color || "#f8fafc",
         cta_text: data.cta_text || "Finalizar compra",
         show_product_image: data.show_product_image ?? true,
+        first_offer_id: data.first_offer_id,
         product: data.products as any,
         bump_products: bumpProducts,
       };
@@ -116,12 +172,12 @@ export default function CheckoutPage() {
           checkout_id: checkout.id,
           name: customerName || null,
           email,
-          phone: phone || null,
+          phone: phone ? `${ddi}${phone}` : null,
           utm_data: Object.keys(utms).length > 0 ? utms : null,
-        })
+        } as any)
         .then(() => setAbandonedSaved(true));
     }
-  }, [email, abandonedSaved, checkout, customerName, phone]);
+  }, [email, abandonedSaved, checkout, customerName, phone, ddi]);
 
   const toggleBump = (productId: string) => {
     setSelectedBumps((prev) => {
@@ -150,7 +206,7 @@ export default function CheckoutPage() {
     e.preventDefault();
     if (!checkout) return;
 
-    if (!customerName.trim() || !email.trim()) {
+    if (!customerName.trim() || !email.trim() || !phone.trim()) {
       toast.error("Preencha todos os campos obrigatórios");
       return;
     }
@@ -158,13 +214,14 @@ export default function CheckoutPage() {
     setProcessing(true);
     try {
       const utms = JSON.parse(sessionStorage.getItem("checkout_utms") || "{}");
+      const fullPhone = `${ddi}${phone.replace(/\D/g, "")}`;
 
       const { data: intentData, error: intentError } = await supabase.functions.invoke("create-intent", {
         body: {
           checkout_id: checkout.id,
           customer_name: customerName,
           customer_email: email,
-          customer_phone: phone || null,
+          customer_phone: fullPhone,
           selected_bump_ids: Array.from(selectedBumps),
           utm_data: utms,
         },
@@ -208,6 +265,7 @@ export default function CheckoutPage() {
 
   const c = checkout!;
   const currency = c.product.currency || "brl";
+  const selectedDdiEntry = COUNTRY_CODES.find((cc) => cc.code === ddi);
 
   return (
     <div className="min-h-screen flex items-center justify-center px-4 py-8 sm:py-12" style={{ backgroundColor: c.bg_color }}>
@@ -263,7 +321,7 @@ export default function CheckoutPage() {
               <div className="space-y-4">
                 <div className="space-y-1.5">
                   <Label htmlFor="name" className="text-xs font-semibold uppercase tracking-wider text-gray-400">
-                    Nome completo
+                    Nome completo <span className="text-red-400">*</span>
                   </Label>
                   <Input
                     id="name"
@@ -276,7 +334,7 @@ export default function CheckoutPage() {
                 </div>
                 <div className="space-y-1.5">
                   <Label htmlFor="email" className="text-xs font-semibold uppercase tracking-wider text-gray-400">
-                    Email
+                    Email <span className="text-red-400">*</span>
                   </Label>
                   <Input
                     id="email"
@@ -290,16 +348,33 @@ export default function CheckoutPage() {
                 </div>
                 <div className="space-y-1.5">
                   <Label htmlFor="phone" className="text-xs font-semibold uppercase tracking-wider text-gray-400">
-                    WhatsApp <span className="text-gray-300 normal-case font-normal">(opcional)</span>
+                    WhatsApp <span className="text-red-400">*</span>
                   </Label>
-                  <Input
-                    id="phone"
-                    type="tel"
-                    value={phone}
-                    onChange={(e) => setPhone(e.target.value)}
-                    placeholder="(11) 99999-9999"
-                    className="h-11 rounded-lg bg-gray-50 border-gray-200 focus:bg-white transition-colors"
-                  />
+                  <div className="flex gap-2">
+                    <Select value={ddi} onValueChange={setDdi}>
+                      <SelectTrigger className="w-[110px] h-11 rounded-lg bg-gray-50 border-gray-200 shrink-0">
+                        <SelectValue>
+                          {selectedDdiEntry ? `${selectedDdiEntry.flag} ${selectedDdiEntry.code}` : ddi}
+                        </SelectValue>
+                      </SelectTrigger>
+                      <SelectContent className="max-h-[280px]">
+                        {COUNTRY_CODES.map((cc) => (
+                          <SelectItem key={cc.code} value={cc.code}>
+                            {cc.flag} {cc.code} ({cc.label})
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <Input
+                      id="phone"
+                      type="tel"
+                      value={phone}
+                      onChange={(e) => setPhone(e.target.value)}
+                      placeholder="(11) 99999-9999"
+                      required
+                      className="h-11 rounded-lg bg-gray-50 border-gray-200 focus:bg-white transition-colors flex-1"
+                    />
+                  </div>
                 </div>
               </div>
 
@@ -375,6 +450,14 @@ export default function CheckoutPage() {
                 </div>
               </div>
 
+              {/* Payment info note */}
+              <div className="bg-blue-50 rounded-xl p-3 border border-blue-100">
+                <p className="text-xs text-blue-700 text-center leading-relaxed">
+                  <CreditCard className="h-3.5 w-3.5 inline mr-1 -mt-0.5" />
+                  Ao clicar no botão abaixo, você será redirecionado para o <strong>ambiente seguro do Stripe</strong> para inserir os dados do cartão.
+                </p>
+              </div>
+
               {/* CTA */}
               <Button
                 type="submit"
@@ -419,10 +502,6 @@ export default function CheckoutPage() {
             </form>
           </div>
         </div>
-
-        <p className="text-center text-xs text-gray-400 leading-relaxed">
-          Ao clicar em "{c.cta_text}", você será redirecionado para um ambiente seguro de pagamento.
-        </p>
       </div>
     </div>
   );
