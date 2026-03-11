@@ -131,7 +131,7 @@ serve(async (req) => {
       });
     }
 
-    const currency = checkout.products.currency || "brl";
+    const currency = checkout.products.currency || "eur";
 
     // Calculate total amount from DB prices only
     let totalAmount = checkout.products.price;
