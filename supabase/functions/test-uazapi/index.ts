@@ -21,60 +21,49 @@ serve(async (req) => {
   }
 
   try {
-    const { phone, message } = await req.json();
+    const { phone, message, action } = await req.json();
 
-    if (!phone || !message) {
-      return new Response(JSON.stringify({ error: "phone and message required" }), {
+    const headers: Record<string, string> = {
+      "Content-Type": "application/json",
+      "token": UAZAPI_TOKEN,
+    };
+
+    // First check instance status
+    if (action === "status" || !phone) {
+      const statusRes = await fetch(`${UAZAPI_URL}/instance/status`, { headers: { "token": UAZAPI_TOKEN } });
+      const statusBody = await statusRes.text();
+      return new Response(JSON.stringify({ 
+        action: "status",
+        url: `${UAZAPI_URL}/instance/status`,
+        status: statusRes.status, 
+        response: statusBody 
+      }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
-        status: 400,
       });
     }
 
     const cleanPhone = phone.replace(/\D/g, "").replace(/^\+/, "");
 
-    // UazAPI v2: header "token" with instance token, endpoint /message/send-text
-    const endpoints = [
-      { path: "/message/send-text", body: { number: cleanPhone, text: message }, tokenHeader: "token" },
-      { path: "/message/send-text", body: { number: cleanPhone, message }, tokenHeader: "token" },
-    ];
+    // Try sending message
+    const sendUrl = `${UAZAPI_URL}/message/send-text`;
+    const body = { number: cleanPhone, text: message };
 
-    const results: any[] = [];
+    const res = await fetch(sendUrl, {
+      method: "POST",
+      headers,
+      body: JSON.stringify(body),
+    });
+    const resBody = await res.text();
 
-    for (const ep of endpoints) {
-      const url = `${UAZAPI_URL}${ep.path}`;
-      const headers: Record<string, string> = {
-        "Content-Type": "application/json",
-        [ep.tokenHeader]: UAZAPI_TOKEN,
-      };
-
-      try {
-        const res = await fetch(url, {
-          method: "POST",
-          headers,
-          body: JSON.stringify(ep.body),
-        });
-        const resBody = await res.text();
-        results.push({
-          url,
-          authHeader: ep.authHeader,
-          status: res.status,
-          response: resBody,
-          success: res.ok,
-        });
-
-        if (res.ok) break; // Stop on first success
-      } catch (e: any) {
-        results.push({
-          url,
-          authHeader: ep.authHeader,
-          error: e.message,
-        });
-      }
-    }
-
-    return new Response(JSON.stringify({ results }), {
+    return new Response(JSON.stringify({
+      action: "send",
+      url: sendUrl,
+      requestBody: body,
+      status: res.status,
+      response: resBody,
+      success: res.ok,
+    }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
-      status: 200,
     });
   } catch (error: any) {
     return new Response(JSON.stringify({ error: error.message }), {
