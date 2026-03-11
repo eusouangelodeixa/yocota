@@ -345,16 +345,33 @@ export default function Products() {
                 </div>
 
                 {form.delivery_type !== "none" && (
-                  <div className="space-y-2">
-                    <Label>Mensagem de Entrega</Label>
-                    <Textarea
-                      value={form.delivery_message}
-                      onChange={(e) => setForm({ ...form, delivery_message: e.target.value })}
-                      placeholder="Olá {{nome}}, seu acesso ao {{produto}} está pronto!"
-                    />
-                    <p className="text-xs text-muted-foreground">
-                      Variáveis: {"{{nome}}"}, {"{{email}}"}, {"{{produto}}"}
+                  <div className="space-y-4 rounded-lg border border-border p-4 bg-muted/30">
+                    <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                      Configuração de Entrega
                     </p>
+                    <div className="space-y-2">
+                      <Label>Mensagem de Entrega</Label>
+                      <Textarea
+                        value={form.delivery_message}
+                        onChange={(e) => setForm({ ...form, delivery_message: e.target.value })}
+                        placeholder="Olá {{nome}}, seu acesso ao {{produto}} está pronto! Clique no link abaixo:"
+                        rows={3}
+                      />
+                      <p className="text-xs text-muted-foreground">
+                        Variáveis: {"{{nome}}"}, {"{{email}}"}, {"{{produto}}"}
+                      </p>
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Link / Anexo de Entrega</Label>
+                      <Input
+                        value={form.delivery_attachment}
+                        onChange={(e) => setForm({ ...form, delivery_attachment: e.target.value })}
+                        placeholder="https://seusite.com/acesso ou link de download"
+                      />
+                      <p className="text-xs text-muted-foreground">
+                        URL do produto, link de acesso, arquivo para download, etc. Será enviado junto com a mensagem.
+                      </p>
+                    </div>
                   </div>
                 )}
 
