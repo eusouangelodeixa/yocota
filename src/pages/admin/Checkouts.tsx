@@ -117,7 +117,7 @@ function CheckoutLivePreview({ form, product, bumpProducts }: { form: CheckoutFo
                   <div key={bp.id} className="rounded-[10px] border border-[#27272a] bg-[#18181b] p-3 flex items-center gap-2">
                     <div className="w-3.5 h-3.5 rounded border border-[#27272a]" />
                     <span className="text-[11px] font-medium text-[#fafafa] flex-1 truncate">{bp.name}</span>
-                    <span className="text-[11px] font-bold text-[#28d56a] tabular-nums">+{formatCents(bp.price, bp.currency || currency)}</span>
+                    <span className="text-[11px] font-bold text-primary tabular-nums">+{formatCents(bp.price, bp.currency || currency)}</span>
                   </div>
                 ))}
               </div>
