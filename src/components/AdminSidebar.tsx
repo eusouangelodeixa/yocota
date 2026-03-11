@@ -6,6 +6,7 @@ import { NavLink } from "react-router-dom";
 import { useLocation } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { YocotaLogo } from "@/components/YocotaLogo";
 
 const menuItems = [
   { title: "Dashboard", url: "/admin", icon: LayoutDashboard },
@@ -31,9 +32,7 @@ export function AdminSidebar({ onNavigate }: { onNavigate?: () => void }) {
     <aside className="w-14 shrink-0 h-screen flex flex-col bg-background border-r border-border">
       {/* Logo */}
       <div className="h-14 flex items-center justify-center">
-        <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center">
-          <span className="text-primary-foreground font-bold text-sm">Y</span>
-        </div>
+        <YocotaLogo size={28} />
       </div>
 
       {/* Nav */}
