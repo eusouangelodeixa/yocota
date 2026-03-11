@@ -260,8 +260,8 @@ export default function Checkouts() {
               <Plus className="mr-1.5 h-3.5 w-3.5" strokeWidth={1.5} /> Novo Checkout
             </Button>
           </DialogTrigger>
-          <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-            <DialogHeader><DialogTitle className="text-base">{editingId ? "Editar Checkout" : "Novo Checkout"}</DialogTitle></DialogHeader>
+           <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto" aria-describedby={undefined}>
+             <DialogHeader><DialogTitle className="text-base">{editingId ? "Editar Checkout" : "Novo Checkout"}</DialogTitle></DialogHeader>
             <form onSubmit={(e) => { e.preventDefault(); saveMutation.mutate(form); }}>
               <Tabs value={activeTab} onValueChange={setActiveTab}>
                 <TabsList className="w-full mb-4 bg-secondary border border-border">
@@ -294,7 +294,7 @@ export default function Checkouts() {
                       </div>
                     )}
                     {availableBumpProducts.length > 0 && (
-                      <Select value="__none__" onValueChange={(v) => addBump(v)}><SelectTrigger><SelectValue placeholder="+ Adicionar order bump" /></SelectTrigger><SelectContent><SelectItem value="__none__" disabled>Selecione um produto</SelectItem>{availableBumpProducts.map((p: any) => (<SelectItem key={p.id} value={p.id}>{p.name} — {formatCents(p.price, p.currency || "brl")}</SelectItem>))}</SelectContent></Select>
+                      <Select value="" onValueChange={(v) => addBump(v)}><SelectTrigger><SelectValue placeholder="+ Adicionar order bump" /></SelectTrigger><SelectContent>{availableBumpProducts.map((p: any) => (<SelectItem key={p.id} value={p.id}>{p.name} — {formatCents(p.price, p.currency || "brl")}</SelectItem>))}</SelectContent></Select>
                     )}
                     {form.order_bump_product_ids.length === 0 && <p className="text-[11px] text-muted-foreground italic">Nenhum order bump adicionado.</p>}
                   </div>

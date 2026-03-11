@@ -9,9 +9,13 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
 import { formatCents } from "@/lib/formatters";
-import { Loader2, Lock } from "lucide-react";
+import { Loader2, Lock, CheckCircle2 } from "lucide-react";
 
 const stripePromise = loadStripe("pk_live_51SqaDe4tVPtm5YNwa58VQ0RR9WVz3P74IcqGrWTtSpmwyiO1e3kMQDhje36XacNAnGMfxvNtibgDWIhZicY73pg700Fw5mltxV");
+
+function useDocTitle(title: string) {
+  useEffect(() => { document.title = title; return () => { document.title = "Yocota"; }; }, [title]);
+}
 
 const COUNTRY_CODES = [
   { code: "+55", flag: "🇧🇷", country: "BR", label: "Brasil" },
@@ -65,8 +69,34 @@ function CheckoutForm({ checkout: c }: { checkout: CheckoutData }) {
   const [phone, setPhone] = useState("");
   const [selectedBumps, setSelectedBumps] = useState<Set<string>>(new Set());
   const [processing, setProcessing] = useState(false);
+  const [success, setSuccess] = useState(false);
   const [abandonedSaved, setAbandonedSaved] = useState(false);
   const [cardError, setCardError] = useState<string | null>(null);
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
+
+  useDocTitle(c.product.name ? `${c.product.name} — Checkout` : "Checkout");
+
+  const validateField = (field: string, value: string) => {
+    const errors = { ...fieldErrors };
+    switch (field) {
+      case "name":
+        if (!value.trim()) errors.name = "Nome é obrigatório";
+        else if (value.trim().length < 3) errors.name = "Nome deve ter pelo menos 3 caracteres";
+        else delete errors.name;
+        break;
+      case "email":
+        if (!value.trim()) errors.email = "Email é obrigatório";
+        else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) errors.email = "Email inválido";
+        else delete errors.email;
+        break;
+      case "phone":
+        if (!value.trim()) errors.phone = "WhatsApp é obrigatório";
+        else if (value.replace(/\D/g, "").length < 8) errors.phone = "Número muito curto";
+        else delete errors.phone;
+        break;
+    }
+    setFieldErrors(errors);
+  };
 
   useEffect(() => {
     try {
@@ -126,7 +156,16 @@ function CheckoutForm({ checkout: c }: { checkout: CheckoutData }) {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!stripe || !elements) return;
-    if (!customerName.trim() || !email.trim() || !phone.trim()) { toast.error("Preencha todos os campos obrigatórios"); return; }
+
+    // Validate all fields
+    validateField("name", customerName);
+    validateField("email", email);
+    validateField("phone", phone);
+    if (!customerName.trim() || !email.trim() || !phone.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || phone.replace(/\D/g, "").length < 8) {
+      toast.error("Preencha todos os campos corretamente");
+      return;
+    }
+
     const cardNumber = elements.getElement(CardNumberElement);
     if (!cardNumber) { toast.error("Erro ao carregar campo de cartão"); return; }
     setProcessing(true); setCardError(null);
@@ -143,12 +182,47 @@ function CheckoutForm({ checkout: c }: { checkout: CheckoutData }) {
         payment_method: { card: cardNumber, billing_details: { name: customerName, email, phone: fullPhone } },
       });
       if (stripeError) {
+        // Handle 3D Secure authentication required
+        if (stripeError.type === "card_error" && stripeError.code === "authentication_required") {
+          const { error: authError, paymentIntent: authedPI } = await stripe.confirmCardPayment(intentData.client_secret);
+          if (authError) {
+            setCardError(authError.message || "Falha na autenticação 3D Secure");
+            setProcessing(false); return;
+          }
+          if (authedPI?.status === "succeeded") {
+            setSuccess(true);
+            setTimeout(() => {
+              if (c.first_offer_id) window.location.href = `/success/${c.id}?payment_intent_id=${authedPI.id}`;
+              else window.location.href = `${c.redirect_url}${c.redirect_url.includes("?") ? "&" : "?"}payment_intent_id=${authedPI.id}`;
+            }, 800);
+            return;
+          }
+        }
         setCardError(stripeError.type === "card_error" || stripeError.type === "validation_error" ? stripeError.message || "Erro no cartão" : "Erro inesperado. Tente novamente.");
         setProcessing(false); return;
       }
+      if (paymentIntent?.status === "requires_action") {
+        // Handle 3DS popup automatically triggered by Stripe
+        const { error: actionError, paymentIntent: actionPI } = await stripe.confirmCardPayment(intentData.client_secret);
+        if (actionError) {
+          setCardError(actionError.message || "Falha na autenticação");
+          setProcessing(false); return;
+        }
+        if (actionPI?.status === "succeeded") {
+          setSuccess(true);
+          setTimeout(() => {
+            if (c.first_offer_id) window.location.href = `/success/${c.id}?payment_intent_id=${actionPI.id}`;
+            else window.location.href = `${c.redirect_url}${c.redirect_url.includes("?") ? "&" : "?"}payment_intent_id=${actionPI.id}`;
+          }, 800);
+          return;
+        }
+      }
       if (paymentIntent?.status === "succeeded") {
-        if (c.first_offer_id) window.location.href = `/success/${c.id}?payment_intent_id=${paymentIntent.id}`;
-        else window.location.href = `${c.redirect_url}${c.redirect_url.includes("?") ? "&" : "?"}payment_intent_id=${paymentIntent.id}`;
+        setSuccess(true);
+        setTimeout(() => {
+          if (c.first_offer_id) window.location.href = `/success/${c.id}?payment_intent_id=${paymentIntent.id}`;
+          else window.location.href = `${c.redirect_url}${c.redirect_url.includes("?") ? "&" : "?"}payment_intent_id=${paymentIntent.id}`;
+        }, 800);
       }
     } catch (error: any) { toast.error(error.message || "Erro ao processar pagamento."); setProcessing(false); }
   };
@@ -235,11 +309,13 @@ function CheckoutForm({ checkout: c }: { checkout: CheckoutData }) {
             <div className="space-y-4">
               <div className="space-y-1.5">
                 <label className="text-xs font-medium text-[#a1a1aa]">Nome completo</label>
-                <input value={customerName} onChange={(e) => setCustomerName(e.target.value)} placeholder="Digite seu nome" required className="flex h-10 w-full rounded-lg border border-[#27272a] bg-[#111113] px-3 text-sm text-[#fafafa] placeholder:text-[#3f3f46] focus:outline-none focus:border-[#28d56a] focus:ring-[3px] focus:ring-[rgba(40,213,106,0.15)] transition-all duration-150" />
+                <input value={customerName} onChange={(e) => setCustomerName(e.target.value)} onBlur={() => validateField("name", customerName)} placeholder="Digite seu nome" required className={`flex h-10 w-full rounded-lg border bg-[#111113] px-3 text-sm text-[#fafafa] placeholder:text-[#3f3f46] focus:outline-none focus:ring-[3px] transition-all duration-150 ${fieldErrors.name ? "border-[#ef4444] focus:border-[#ef4444] focus:ring-[rgba(239,68,68,0.12)]" : "border-[#27272a] focus:border-[#28d56a] focus:ring-[rgba(40,213,106,0.15)]"}`} />
+                {fieldErrors.name && <p className="text-[11px] text-[#ef4444] animate-in slide-in-from-top-1 duration-150">{fieldErrors.name}</p>}
               </div>
               <div className="space-y-1.5">
                 <label className="text-xs font-medium text-[#a1a1aa]">Email</label>
-                <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="seu@email.com" required className="flex h-10 w-full rounded-lg border border-[#27272a] bg-[#111113] px-3 text-sm text-[#fafafa] placeholder:text-[#3f3f46] focus:outline-none focus:border-[#28d56a] focus:ring-[3px] focus:ring-[rgba(40,213,106,0.15)] transition-all duration-150" />
+                <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} onBlur={() => validateField("email", email)} placeholder="seu@email.com" required className={`flex h-10 w-full rounded-lg border bg-[#111113] px-3 text-sm text-[#fafafa] placeholder:text-[#3f3f46] focus:outline-none focus:ring-[3px] transition-all duration-150 ${fieldErrors.email ? "border-[#ef4444] focus:border-[#ef4444] focus:ring-[rgba(239,68,68,0.12)]" : "border-[#27272a] focus:border-[#28d56a] focus:ring-[rgba(40,213,106,0.15)]"}`} />
+                {fieldErrors.email && <p className="text-[11px] text-[#ef4444] animate-in slide-in-from-top-1 duration-150">{fieldErrors.email}</p>}
               </div>
               <div className="space-y-1.5">
                 <label className="text-xs font-medium text-[#a1a1aa]">WhatsApp</label>
@@ -250,8 +326,9 @@ function CheckoutForm({ checkout: c }: { checkout: CheckoutData }) {
                     </SelectTrigger>
                     <SelectContent className="max-h-[280px]">{COUNTRY_CODES.map((cc) => (<SelectItem key={cc.code} value={cc.code}>{cc.flag} {cc.code} ({cc.label})</SelectItem>))}</SelectContent>
                   </Select>
-                  <input type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="(11) 99999-9999" required className="flex h-10 w-full rounded-lg border border-[#27272a] bg-[#111113] px-3 text-sm text-[#fafafa] placeholder:text-[#3f3f46] focus:outline-none focus:border-[#28d56a] focus:ring-[3px] focus:ring-[rgba(40,213,106,0.15)] transition-all duration-150 flex-1" />
+                  <input type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} onBlur={() => validateField("phone", phone)} placeholder="(11) 99999-9999" required className={`flex h-10 w-full rounded-lg border bg-[#111113] px-3 text-sm text-[#fafafa] placeholder:text-[#3f3f46] focus:outline-none focus:ring-[3px] transition-all duration-150 flex-1 ${fieldErrors.phone ? "border-[#ef4444] focus:border-[#ef4444] focus:ring-[rgba(239,68,68,0.12)]" : "border-[#27272a] focus:border-[#28d56a] focus:ring-[rgba(40,213,106,0.15)]"}`} />
                 </div>
+                {fieldErrors.phone && <p className="text-[11px] text-[#ef4444] animate-in slide-in-from-top-1 duration-150">{fieldErrors.phone}</p>}
               </div>
             </div>
 
@@ -289,9 +366,11 @@ function CheckoutForm({ checkout: c }: { checkout: CheckoutData }) {
             <button
               type="submit"
               className="w-full h-12 bg-[#28d56a] text-[#09090b] font-bold text-sm rounded-lg hover:bg-[#22c55e] active:scale-[0.98] disabled:opacity-40 disabled:cursor-not-allowed transition-all duration-150 flex items-center justify-center"
-              disabled={processing || !stripe}
+              disabled={processing || success || !stripe}
             >
-              {processing ? (
+              {success ? (
+                <CheckCircle2 className="h-5 w-5 animate-in zoom-in duration-200" strokeWidth={2} />
+              ) : processing ? (
                 <Loader2 className="h-4 w-4 animate-spin" />
               ) : (
                 <>
