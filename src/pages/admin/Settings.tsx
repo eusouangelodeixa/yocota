@@ -11,6 +11,7 @@ import { Loader2, Save, Upload, X, Eye, EyeOff, ExternalLink, Camera, UserPlus, 
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 
 const SETTINGS_ID = "00000000-0000-0000-0000-000000000001";
+const SUPER_ADMIN_EMAIL = "eusouangelodeixa@gmail.com";
 
 function SectionCard({ title, description, children }: { title: string; description?: string; children: React.ReactNode }) {
   return (
