@@ -260,8 +260,8 @@ export default function Checkouts() {
               <Plus className="mr-1.5 h-3.5 w-3.5" strokeWidth={1.5} /> Novo Checkout
             </Button>
           </DialogTrigger>
-          <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-            <DialogHeader><DialogTitle className="text-base">{editingId ? "Editar Checkout" : "Novo Checkout"}</DialogTitle></DialogHeader>
+           <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto" aria-describedby={undefined}>
+             <DialogHeader><DialogTitle className="text-base">{editingId ? "Editar Checkout" : "Novo Checkout"}</DialogTitle></DialogHeader>
             <form onSubmit={(e) => { e.preventDefault(); saveMutation.mutate(form); }}>
               <Tabs value={activeTab} onValueChange={setActiveTab}>
                 <TabsList className="w-full mb-4 bg-secondary border border-border">
