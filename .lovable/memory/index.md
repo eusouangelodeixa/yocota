@@ -1,4 +1,4 @@
-Checkout system with upsell engine - Dark financial dashboard theme (Monetra-inspired)
+Checkout system with upsell engine - Dark financial dashboard theme (Monetra-inspired). System name: **Yocota**
 
 ## Stack Mapping
 - NextAuth → Supabase Auth (email/password)
@@ -25,7 +25,7 @@ Checkout system with upsell engine - Dark financial dashboard theme (Monetra-ins
 - RLS: authenticated=admin, anon=public checkout operations
 
 ## Edge Functions
-- create-intent, sync-product, stripe-webhook, delivery-send, offer-decision, generate-offer-url, recovery-send, test-uazapi
+- create-intent, sync-product, stripe-webhook, delivery-send, offer-decision, generate-offer-url, recovery-send, test-uazapi, update-secrets
 - UazAPI: endpoint /send/text, header "token", body { number, text }
 
 ## Key Rules
@@ -35,3 +35,7 @@ Checkout system with upsell engine - Dark financial dashboard theme (Monetra-ins
 - UTMs captured from URL → sessionStorage → order metadata
 - All monetary values in centavos (integer)
 - Language: PT-BR throughout UI
+- System name: Yocota (NOT Cashflow)
+
+## Removals/Rejections
+- Settings page: user rejected simple brand-only settings; wants API keys (Stripe, UazAPI, Utmify) + profile editing
