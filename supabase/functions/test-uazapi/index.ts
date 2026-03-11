@@ -32,12 +32,19 @@ serve(async (req) => {
 
     const cleanPhone = phone.replace(/\D/g, "").replace(/^\+/, "");
 
-    // Try multiple endpoint patterns to find the right one
+    // Try multiple endpoint patterns including token-in-path (UazAPI v2 style)
     const endpoints = [
+      // Token in path (v2 common pattern): {base}/{token}/message/send-text
+      { path: `/${UAZAPI_TOKEN}/message/send-text`, body: { number: cleanPhone, text: message }, authHeader: "none" },
+      // Token in path with different body format
+      { path: `/${UAZAPI_TOKEN}/message/send-text`, body: { phone: cleanPhone, message }, authHeader: "none" },
+      // Token as apitoken header
       { path: "/message/send-text", body: { number: cleanPhone, text: message }, authHeader: "apitoken" },
+      // Token as Authorization Bearer
       { path: "/message/send-text", body: { number: cleanPhone, text: message }, authHeader: "Authorization" },
+      // /send-text variants
+      { path: `/${UAZAPI_TOKEN}/send-text`, body: { number: cleanPhone, text: message }, authHeader: "none" },
       { path: "/send-text", body: { number: cleanPhone, text: message }, authHeader: "apitoken" },
-      { path: "/send-text", body: { phone: cleanPhone, message }, authHeader: "Authorization" },
     ];
 
     const results: any[] = [];
