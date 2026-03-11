@@ -400,8 +400,16 @@ export default function Products() {
           <TableBody>
               {isLoading ? (
                 <TableRow>
-                  <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
-                    Carregando...
+                  <TableCell colSpan={7} className="text-center py-12 text-muted-foreground">
+                    <div className="space-y-2">
+                      {Array.from({ length: 3 }).map((_, i) => (
+                        <div key={i} className="flex items-center gap-4 justify-center">
+                          <div className="h-10 w-10 shimmer rounded-lg" />
+                          <div className="h-4 w-40 shimmer rounded" />
+                          <div className="h-4 w-16 shimmer rounded" />
+                        </div>
+                      ))}
+                    </div>
                   </TableCell>
                 </TableRow>
               ) : data?.products?.length === 0 ? (
