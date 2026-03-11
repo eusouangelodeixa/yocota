@@ -388,7 +388,9 @@ function CheckoutForm({ checkout: c }: { checkout: CheckoutData }) {
                 {c.bump_products.map((bp) => (
                   <div key={bp.id} className={`rounded-[10px] border p-3 cursor-pointer transition-all duration-150 ${selectedBumps.has(bp.id) ? "border-[#28d56a] bg-[rgba(40,213,106,0.06)]" : "border-[#27272a] bg-[#18181b]"}`} onClick={() => toggleBump(bp.id)}>
                     <div className="flex items-center gap-3">
-                      <Checkbox checked={selectedBumps.has(bp.id)} className="border-[#27272a] data-[state=checked]:bg-[#28d56a] data-[state=checked]:border-[#28d56a] pointer-events-none" />
+                      <div className={`h-4 w-4 shrink-0 rounded-sm border flex items-center justify-center transition-colors ${selectedBumps.has(bp.id) ? "bg-[#28d56a] border-[#28d56a]" : "border-[#27272a]"}`}>
+                        {selectedBumps.has(bp.id) && <CheckCircle2 className="h-3 w-3 text-[#09090b]" />}
+                      </div>
                       <span className="text-[13px] font-medium text-[#fafafa] flex-1">{bp.name}</span>
                       <span className="text-[13px] font-bold text-[#28d56a] tabular-nums">+{formatCents(bp.price, bp.currency || currency)}</span>
                     </div>
