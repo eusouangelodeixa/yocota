@@ -156,55 +156,77 @@ function CheckoutForm({ checkout: c }: { checkout: CheckoutData }) {
   const selectedDdiEntry = COUNTRY_CODES.find((cc) => cc.code === ddi);
 
   return (
-    <div className="min-h-screen flex bg-[#09090b]">
+    <div className="min-h-screen flex flex-col lg:flex-row bg-[#09090b]">
+      {/* Banner - mobile only (full width top) */}
+      {c.banner_url && (
+        <div className="lg:hidden w-full">
+          <img src={c.banner_url} alt="" className="w-full h-auto max-h-48 object-cover" crossOrigin="anonymous" />
+        </div>
+      )}
+
       {/* Left panel - Product summary */}
-      <div className="hidden lg:flex lg:w-[45%] bg-[#111113] border-r border-[#27272a] flex-col justify-center px-10 xl:px-16 sticky top-0 h-screen">
-        <div className="max-w-md">
-          <h1 className="text-xl font-semibold text-[#fafafa] mb-2">{c.headline_text || c.product.name}</h1>
-          {c.product.description && <p className="text-sm text-[#71717a] leading-relaxed mb-8">{c.product.description}</p>}
-          <div className="text-4xl font-bold text-[#fafafa] tabular-nums mb-8">{formatCents(c.product.price, currency)}</div>
-          <div className="border-t border-[#27272a]" />
+      <div className="hidden lg:flex lg:w-[45%] bg-[#111113] border-r border-[#27272a] flex-col sticky top-0 h-screen overflow-y-auto">
+        {/* Banner - desktop */}
+        {c.banner_url && (
+          <div className="w-full shrink-0">
+            <img src={c.banner_url} alt="" className="w-full h-auto max-h-56 object-cover" crossOrigin="anonymous" />
+          </div>
+        )}
+        <div className="flex-1 flex flex-col justify-center px-10 xl:px-16 py-12">
+          <div className="max-w-md">
+            {c.show_product_image && c.product.image_url && (
+              <img src={c.product.image_url} alt={c.product.name} className="w-20 h-20 rounded-[10px] object-cover mb-5 border border-[#27272a]" crossOrigin="anonymous" />
+            )}
+            <h1 className="text-xl font-semibold text-[#fafafa] mb-2">{c.headline_text || c.product.name}</h1>
+            {c.product.description && <p className="text-sm text-[#71717a] leading-relaxed mb-8">{c.product.description}</p>}
+            <div className="text-4xl font-bold text-[#fafafa] tabular-nums mb-8">{formatCents(c.product.price, currency)}</div>
+            <div className="border-t border-[#27272a]" />
 
-          {/* Order bumps summary */}
-          {c.bump_products.length > 0 && (
-            <div className="mt-6 space-y-3">
-              {c.bump_products.map((bp) => (
-                <div
-                  key={bp.id}
-                  className={`rounded-[10px] border p-4 cursor-pointer transition-all duration-150 ${
-                    selectedBumps.has(bp.id) ? "border-[#28d56a] bg-[rgba(40,213,106,0.06)]" : "border-[#27272a] bg-[#18181b] hover:border-[#3f3f46]"
-                  }`}
-                  onClick={() => toggleBump(bp.id)}
-                >
-                  <div className="flex items-center gap-3">
-                    <Checkbox checked={selectedBumps.has(bp.id)} onCheckedChange={() => toggleBump(bp.id)} className="border-[#27272a] data-[state=checked]:bg-[#28d56a] data-[state=checked]:border-[#28d56a]" />
-                    <div className="flex-1">
-                      <p className="text-[13px] font-medium text-[#fafafa]">{bp.name}</p>
+            {/* Order bumps summary */}
+            {c.bump_products.length > 0 && (
+              <div className="mt-6 space-y-3">
+                {c.bump_products.map((bp) => (
+                  <div
+                    key={bp.id}
+                    className={`rounded-[10px] border p-4 cursor-pointer transition-all duration-150 ${
+                      selectedBumps.has(bp.id) ? "border-[#28d56a] bg-[rgba(40,213,106,0.06)]" : "border-[#27272a] bg-[#18181b] hover:border-[#3f3f46]"
+                    }`}
+                    onClick={() => toggleBump(bp.id)}
+                  >
+                    <div className="flex items-center gap-3">
+                      <Checkbox checked={selectedBumps.has(bp.id)} onCheckedChange={() => toggleBump(bp.id)} className="border-[#27272a] data-[state=checked]:bg-[#28d56a] data-[state=checked]:border-[#28d56a]" />
+                      <div className="flex-1">
+                        <p className="text-[13px] font-medium text-[#fafafa]">{bp.name}</p>
+                      </div>
+                      <span className="text-[13px] font-bold text-[#28d56a] tabular-nums">+{formatCents(bp.price, bp.currency || currency)}</span>
                     </div>
-                    <span className="text-[13px] font-bold text-[#28d56a] tabular-nums">+{formatCents(bp.price, bp.currency || currency)}</span>
                   </div>
-                </div>
-              ))}
-            </div>
-          )}
+                ))}
+              </div>
+            )}
 
-          {/* Total */}
-          <div className="mt-6 pt-4 border-t border-[#27272a]">
-            <div className="flex justify-between items-center">
-              <span className="text-sm text-[#a1a1aa]">Total</span>
-              <span className="text-2xl font-bold text-[#fafafa] tabular-nums">{formatCents(totalAmount(), currency)}</span>
+            {/* Total */}
+            <div className="mt-6 pt-4 border-t border-[#27272a]">
+              <div className="flex justify-between items-center">
+                <span className="text-sm text-[#a1a1aa]">Total</span>
+                <span className="text-2xl font-bold text-[#fafafa] tabular-nums">{formatCents(totalAmount(), currency)}</span>
+              </div>
             </div>
           </div>
         </div>
       </div>
 
       {/* Right panel - Form */}
-      <div className="flex-1 flex flex-col justify-center px-6 sm:px-10 xl:px-16 py-12">
+      <div className="flex-1 flex flex-col justify-center px-5 sm:px-8 lg:px-10 xl:px-16 py-8 lg:py-12">
         <div className="max-w-md w-full mx-auto">
           {/* Mobile summary */}
-          <div className="lg:hidden mb-8">
-            <h1 className="text-xl font-semibold text-[#fafafa] mb-2">{c.headline_text || c.product.name}</h1>
-            <div className="text-3xl font-bold text-[#fafafa] tabular-nums">{formatCents(c.product.price, currency)}</div>
+          <div className="lg:hidden mb-6">
+            {c.show_product_image && c.product.image_url && (
+              <img src={c.product.image_url} alt={c.product.name} className="w-16 h-16 rounded-[10px] object-cover mb-4 border border-[#27272a]" crossOrigin="anonymous" />
+            )}
+            <h1 className="text-lg font-semibold text-[#fafafa] mb-1">{c.headline_text || c.product.name}</h1>
+            {c.product.description && <p className="text-xs text-[#71717a] leading-relaxed mb-3">{c.product.description}</p>}
+            <div className="text-2xl font-bold text-[#fafafa] tabular-nums">{formatCents(c.product.price, currency)}</div>
           </div>
 
           <p className="text-[11px] uppercase tracking-wider text-[#52525b] font-medium mb-6">Informações de pagamento</p>

@@ -154,14 +154,80 @@ export default function Settings() {
     <div className="space-y-6">
       <h1 className="text-lg font-bold text-foreground">Configurações</h1>
 
-      <Tabs defaultValue="brand" className="space-y-6">
+      <Tabs defaultValue="integrations" className="space-y-6">
         <TabsList className="bg-secondary border border-border p-1 rounded-lg h-auto">
-          <TabsTrigger value="brand" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground rounded-md text-xs font-medium px-4 py-1.5">Marca</TabsTrigger>
           <TabsTrigger value="integrations" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground rounded-md text-xs font-medium px-4 py-1.5">Integrações</TabsTrigger>
+          <TabsTrigger value="checkout" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground rounded-md text-xs font-medium px-4 py-1.5">Checkout</TabsTrigger>
           <TabsTrigger value="profile" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground rounded-md text-xs font-medium px-4 py-1.5">Minha Conta</TabsTrigger>
         </TabsList>
 
-        <TabsContent value="brand" className="space-y-6">
+        <TabsContent value="integrations" className="space-y-6">
+          <div className="flex justify-end">
+            <Button onClick={() => saveApiKeysMutation.mutate()} disabled={saveApiKeysMutation.isPending} className="h-9 bg-primary text-primary-foreground font-bold text-xs hover:brightness-110 active:scale-[0.98]">
+              {saveApiKeysMutation.isPending ? <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" /> : <Save className="mr-1.5 h-3.5 w-3.5" strokeWidth={1.5} />} Salvar Chaves
+            </Button>
+          </div>
+
+          {/* Webhook URLs - read only */}
+          <SectionCard title="URLs de Webhook" description="Configure essas URLs nos serviços externos">
+            <div className="space-y-1.5">
+              <Label className="text-xs text-muted-foreground">URL Webhook Stripe</Label>
+              <div className="flex items-center gap-2">
+                <input
+                  readOnly
+                  value={`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/stripe-webhook`}
+                  className="flex h-10 w-full rounded-lg border border-border bg-input px-3 text-xs text-foreground font-mono placeholder:text-muted-foreground/50 focus:outline-none cursor-text"
+                />
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="shrink-0 h-10 px-3 text-xs"
+                  onClick={() => { navigator.clipboard.writeText(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/stripe-webhook`); toast.success("URL copiada!"); }}
+                >
+                  Copiar
+                </Button>
+              </div>
+              <p className="text-[10px] text-muted-foreground">Cole esta URL no <a href="https://dashboard.stripe.com/webhooks" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">painel de Webhooks da Stripe</a>. Eventos: <code className="text-[10px]">payment_intent.succeeded</code>, <code className="text-[10px]">payment_intent.payment_failed</code></p>
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs text-muted-foreground">URL Webhook UazAPI</Label>
+              <div className="flex items-center gap-2">
+                <input
+                  readOnly
+                  value={`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/delivery-send`}
+                  className="flex h-10 w-full rounded-lg border border-border bg-input px-3 text-xs text-foreground font-mono placeholder:text-muted-foreground/50 focus:outline-none cursor-text"
+                />
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="shrink-0 h-10 px-3 text-xs"
+                  onClick={() => { navigator.clipboard.writeText(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/delivery-send`); toast.success("URL copiada!"); }}
+                >
+                  Copiar
+                </Button>
+              </div>
+              <p className="text-[10px] text-muted-foreground">Cole esta URL na configuração de webhook da UazAPI</p>
+            </div>
+          </SectionCard>
+
+          <div className="grid gap-6 md:grid-cols-2">
+            <SectionCard title="Stripe" description="Chaves para processar pagamentos">
+              <SecretInput label="Secret Key" value={apiKeys.stripe_secret} onChange={(v) => setApiKeys((f) => ({ ...f, stripe_secret: v }))} placeholder="sk_live_..." helpUrl="https://dashboard.stripe.com/apikeys" helpLabel="Dashboard Stripe" />
+              <SecretInput label="Webhook Secret" value={apiKeys.stripe_webhook_secret} onChange={(v) => setApiKeys((f) => ({ ...f, stripe_webhook_secret: v }))} placeholder="whsec_..." helpUrl="https://dashboard.stripe.com/webhooks" helpLabel="Stripe Webhooks" />
+            </SectionCard>
+            <SectionCard title="UazAPI (WhatsApp)" description="Integração para entregas via WhatsApp">
+              <SecretInput label="URL da API" value={apiKeys.uazapi_url} onChange={(v) => setApiKeys((f) => ({ ...f, uazapi_url: v }))} placeholder="https://api.uazapi.com/..." />
+              <SecretInput label="Token" value={apiKeys.uazapi_token} onChange={(v) => setApiKeys((f) => ({ ...f, uazapi_token: v }))} placeholder="seu-token-uazapi" />
+            </SectionCard>
+            <SectionCard title="Utmify" description="Tracking e atribuição de UTMs">
+              <SecretInput label="API Key" value={apiKeys.utmify_api_key} onChange={(v) => setApiKeys((f) => ({ ...f, utmify_api_key: v }))} placeholder="utmify_key_..." helpUrl="https://app.utmify.com.br" helpLabel="Painel Utmify" />
+            </SectionCard>
+          </div>
+        </TabsContent>
+
+        <TabsContent value="checkout" className="space-y-6">
           <div className="flex justify-end">
             <Button onClick={() => saveBrandMutation.mutate()} disabled={saveBrandMutation.isPending} className="h-9 bg-primary text-primary-foreground font-bold text-xs hover:brightness-110 active:scale-[0.98]">
               {saveBrandMutation.isPending ? <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" /> : <Save className="mr-1.5 h-3.5 w-3.5" strokeWidth={1.5} />} Salvar
@@ -212,27 +278,6 @@ export default function Settings() {
                   </div>
                 ))}
               </div>
-            </SectionCard>
-          </div>
-        </TabsContent>
-
-        <TabsContent value="integrations" className="space-y-6">
-          <div className="flex justify-end">
-            <Button onClick={() => saveApiKeysMutation.mutate()} disabled={saveApiKeysMutation.isPending} className="h-9 bg-primary text-primary-foreground font-bold text-xs hover:brightness-110 active:scale-[0.98]">
-              {saveApiKeysMutation.isPending ? <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" /> : <Save className="mr-1.5 h-3.5 w-3.5" strokeWidth={1.5} />} Salvar Chaves
-            </Button>
-          </div>
-          <div className="grid gap-6 md:grid-cols-2">
-            <SectionCard title="Stripe" description="Chaves para processar pagamentos">
-              <SecretInput label="Secret Key" value={apiKeys.stripe_secret} onChange={(v) => setApiKeys((f) => ({ ...f, stripe_secret: v }))} placeholder="sk_live_..." helpUrl="https://dashboard.stripe.com/apikeys" helpLabel="Dashboard Stripe" />
-              <SecretInput label="Webhook Secret" value={apiKeys.stripe_webhook_secret} onChange={(v) => setApiKeys((f) => ({ ...f, stripe_webhook_secret: v }))} placeholder="whsec_..." helpUrl="https://dashboard.stripe.com/webhooks" helpLabel="Stripe Webhooks" />
-            </SectionCard>
-            <SectionCard title="UazAPI (WhatsApp)" description="Integração para entregas via WhatsApp">
-              <SecretInput label="URL da API" value={apiKeys.uazapi_url} onChange={(v) => setApiKeys((f) => ({ ...f, uazapi_url: v }))} placeholder="https://api.uazapi.com/..." />
-              <SecretInput label="Token" value={apiKeys.uazapi_token} onChange={(v) => setApiKeys((f) => ({ ...f, uazapi_token: v }))} placeholder="seu-token-uazapi" />
-            </SectionCard>
-            <SectionCard title="Utmify" description="Tracking e atribuição de UTMs">
-              <SecretInput label="API Key" value={apiKeys.utmify_api_key} onChange={(v) => setApiKeys((f) => ({ ...f, utmify_api_key: v }))} placeholder="utmify_key_..." helpUrl="https://app.utmify.com.br" helpLabel="Painel Utmify" />
             </SectionCard>
           </div>
         </TabsContent>
