@@ -141,11 +141,27 @@ function CheckoutForm({ checkout: c }: { checkout: CheckoutData }) {
 
   // Abandoned checkout is now saved only when user clicks Pay (inside handleSubmit)
 
-  const toggleBump = (productId: string) => { setSelectedBumps((prev) => { const next = new Set(prev); next.has(productId) ? next.delete(productId) : next.add(productId); return next; }); };
+  const toggleBump = (productId: string) => {
+    setSelectedBumps((prev) => {
+      const next = new Set(prev);
+      const action = next.has(productId) ? "REMOVE" : "ADD";
+      next.has(productId) ? next.delete(productId) : next.add(productId);
+      const bumpInfo = c.bump_products.find(bp => bp.id === productId);
+      console.log(`[BUMP ${action}] productId=${productId}, name=${bumpInfo?.name}, price=${bumpInfo?.price}, selectedAfter=[${Array.from(next).join(",")}]`);
+      return next;
+    });
+  };
 
   const totalAmount = () => {
     let total = c.product.price;
-    c.bump_products.forEach((bp) => { if (selectedBumps.has(bp.id)) total += bp.price; });
+    const breakdown: string[] = [`main=${c.product.price}`];
+    c.bump_products.forEach((bp) => {
+      if (selectedBumps.has(bp.id)) {
+        total += bp.price;
+        breakdown.push(`bump(${bp.name})=${bp.price}`);
+      }
+    });
+    console.log(`[TOTAL CALC] ${breakdown.join(" + ")} = ${total} | selectedBumps=[${Array.from(selectedBumps).join(",")}]`);
     return total;
   };
 
