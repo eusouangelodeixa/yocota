@@ -13,7 +13,7 @@ import Orders from "@/pages/admin/Orders";
 import Offers from "@/pages/admin/Offers";
 import Deliveries from "@/pages/admin/Deliveries";
 import Remarketing from "@/pages/admin/Remarketing";
-import Placeholder from "@/pages/admin/Placeholder";
+import Settings from "@/pages/admin/Settings";
 import CheckoutPage from "@/pages/CheckoutPage";
 import OfferFrame from "@/pages/OfferFrame";
 import SuccessPage from "@/pages/SuccessPage";
