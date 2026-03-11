@@ -43,14 +43,14 @@ serve(async (req) => {
         .maybeSingle();
       if (data) abandonedList = [data];
     } else {
-      // Process all unrecovered, unsent leads created > 30 min ago
-      const thirtyMinAgo = new Date(Date.now() - 30 * 60 * 1000).toISOString();
+      // Process all unrecovered, unsent leads created > 10 min ago
+      const tenMinAgo = new Date(Date.now() - 10 * 60 * 1000).toISOString();
       const { data } = await supabase
         .from("abandoned_checkouts")
         .select("*, checkouts(*, products!checkouts_product_id_fkey(name))")
         .eq("recovered", false)
         .is("whatsapp_sent_at", null)
-        .lt("created_at", thirtyMinAgo)
+        .lt("created_at", tenMinAgo)
         .not("phone", "is", null)
         .limit(50);
       abandonedList = data || [];
@@ -113,15 +113,15 @@ serve(async (req) => {
 
       // Send via UazAPI
       try {
-        const uazRes = await fetch(`${UAZAPI_URL}/send-text`, {
+        const uazRes = await fetch(`${UAZAPI_URL}/send/text`, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
-            "Authorization": `Bearer ${UAZAPI_TOKEN}`,
+            "token": UAZAPI_TOKEN,
           },
           body: JSON.stringify({
-            phone: cleanPhone,
-            message,
+            number: cleanPhone,
+            text: message,
           }),
         });
 
