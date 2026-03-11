@@ -384,21 +384,20 @@ export default function Products() {
         </div>
       </div>
 
-      <Card>
-        <CardContent className="p-0">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead className="w-12"></TableHead>
-                <TableHead>Nome</TableHead>
-                <TableHead>Tipo</TableHead>
-                <TableHead>Preço</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Stripe</TableHead>
-                <TableHead className="w-24">Ações</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
+      <div className="card-glass rounded-xl overflow-hidden">
+        <Table>
+          <TableHeader>
+            <TableRow className="border-[rgba(255,255,255,0.06)] hover:bg-transparent">
+              <TableHead className="w-12"></TableHead>
+              <TableHead className="text-muted-foreground text-xs font-medium">Nome</TableHead>
+              <TableHead className="text-muted-foreground text-xs font-medium">Tipo</TableHead>
+              <TableHead className="text-muted-foreground text-xs font-medium">Preço</TableHead>
+              <TableHead className="text-muted-foreground text-xs font-medium">Status</TableHead>
+              <TableHead className="text-muted-foreground text-xs font-medium">Stripe</TableHead>
+              <TableHead className="w-24 text-muted-foreground text-xs font-medium">Ações</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
               {isLoading ? (
                 <TableRow>
                   <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
