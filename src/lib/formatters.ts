@@ -54,7 +54,7 @@ export function formatCentsToBRL(cents: number): string {
 }
 
 export function parsePriceToCents(value: string, currency = "eur"): number {
-  const config = CURRENCY_CONFIG[currency] || CURRENCY_CONFIG.brl;
+  const config = CURRENCY_CONFIG[currency] || CURRENCY_CONFIG.eur;
   const cleaned = value.replace(/[^\d.,]/g, "").replace(",", ".");
   return Math.round(parseFloat(cleaned) * Math.pow(10, config.decimals));
 }
