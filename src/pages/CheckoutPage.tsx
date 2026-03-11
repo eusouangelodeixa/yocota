@@ -139,13 +139,7 @@ function CheckoutForm({ checkout: c }: { checkout: CheckoutData }) {
     if (Object.keys(utms).length > 0) sessionStorage.setItem("checkout_utms", JSON.stringify(utms));
   }, []);
 
-  useEffect(() => {
-    if (email && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) && !abandonedSaved && !abandonedSavingRef.current && c) {
-      abandonedSavingRef.current = true;
-      const utms = JSON.parse(sessionStorage.getItem("checkout_utms") || "{}");
-      supabase.from("abandoned_checkouts").insert({ checkout_id: c.id, name: customerName || null, email, phone: phone ? `${ddi}${phone}` : null, utm_data: Object.keys(utms).length > 0 ? utms : null } as any).then(() => { setAbandonedSaved(true); }, () => { abandonedSavingRef.current = false; });
-    }
-  }, [email]);
+  // Abandoned checkout is now saved only when user clicks Pay (inside handleSubmit)
 
   const toggleBump = (productId: string) => { setSelectedBumps((prev) => { const next = new Set(prev); next.has(productId) ? next.delete(productId) : next.add(productId); return next; }); };
 
@@ -166,6 +160,14 @@ function CheckoutForm({ checkout: c }: { checkout: CheckoutData }) {
     if (!customerName.trim() || !email.trim() || !phone.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || phone.replace(/\D/g, "").length < 8) {
       toast.error("Preencha todos os campos corretamente");
       return;
+    }
+
+    // Save abandoned checkout data only on Pay click
+    if (!abandonedSaved && !abandonedSavingRef.current) {
+      abandonedSavingRef.current = true;
+      const utms = JSON.parse(sessionStorage.getItem("checkout_utms") || "{}");
+      const fullPhoneForAbandoned = `${ddi}${phone.replace(/\D/g, "")}`;
+      await supabase.from("abandoned_checkouts").insert({ checkout_id: c.id, name: customerName || null, email, phone: fullPhoneForAbandoned, utm_data: Object.keys(utms).length > 0 ? utms : null } as any).then(() => { setAbandonedSaved(true); }, () => { abandonedSavingRef.current = false; });
     }
 
     const cardNumber = elements.getElement(CardNumberElement);
@@ -401,7 +403,9 @@ export default function CheckoutPage() {
       if (!slug) return;
       const { data, error } = await supabase.from("checkouts").select("*, products!checkouts_product_id_fkey(id, name, description, price, currency, image_url)").eq("checkout_slug", slug).eq("active", true).maybeSingle();
       if (error || !data) { setNotFound(true); setLoading(false); return; }
-      const { data: bumpsData } = await supabase.from("checkout_order_bumps" as any).select("product_id, sort_order, products(id, name, price, currency)").eq("checkout_id", data.id).order("sort_order");
+      // Load order bumps
+      const { data: bumpsData, error: bumpsError } = await supabase.from("checkout_order_bumps").select("product_id, sort_order, products(id, name, price, currency)").eq("checkout_id", data.id).order("sort_order");
+      console.log("Bumps query result:", { bumpsData, bumpsError });
       const bumpProducts: BumpProduct[] = ((bumpsData as any[]) || []).filter((b: any) => b.products).map((b: any) => ({ id: b.products.id, name: b.products.name, price: b.products.price, currency: b.products.currency || "brl" }));
       setCheckout({ ...data, primary_color: data.primary_color || "#28d56a", accent_color: data.accent_color || "#1e40af", bg_color: data.bg_color || "#09090b", cta_text: data.cta_text || "Finalizar compra", show_product_image: data.show_product_image ?? true, first_offer_id: data.first_offer_id, product: data.products as any, bump_products: bumpProducts });
       setLoading(false);
