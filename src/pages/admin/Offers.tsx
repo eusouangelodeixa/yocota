@@ -8,7 +8,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
-import { formatCentsToBRL } from "@/lib/formatters";
+import { formatCents } from "@/lib/formatters";
 import { Plus, Pencil, Trash2, GitBranch, Copy, Code, ExternalLink, Eye } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { OfferFunnelTree } from "@/components/OfferFunnelTree";
