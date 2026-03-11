@@ -427,53 +427,58 @@ export default function Offers() {
         </TabsList>
 
         <TabsContent value="list">
-          <Card>
-            <CardContent className="p-0">
+          <div className="card-glass rounded-xl overflow-hidden">
               <Table>
                 <TableHeader>
-                  <TableRow>
-                    <TableHead>Nome</TableHead>
-                    <TableHead>Produto</TableHead>
-                    <TableHead>Preço</TableHead>
-                    <TableHead>Modo</TableHead>
-                    <TableHead>Se Aceitar</TableHead>
-                    <TableHead>Se Recusar</TableHead>
-                    <TableHead className="w-32">Ações</TableHead>
+                  <TableRow className="border-[rgba(255,255,255,0.06)] hover:bg-transparent">
+                    <TableHead className="text-muted-foreground text-xs font-medium">Nome</TableHead>
+                    <TableHead className="text-muted-foreground text-xs font-medium">Produto</TableHead>
+                    <TableHead className="text-muted-foreground text-xs font-medium">Preço</TableHead>
+                    <TableHead className="text-muted-foreground text-xs font-medium">Modo</TableHead>
+                    <TableHead className="text-muted-foreground text-xs font-medium">Se Aceitar</TableHead>
+                    <TableHead className="text-muted-foreground text-xs font-medium">Se Recusar</TableHead>
+                    <TableHead className="w-32 text-muted-foreground text-xs font-medium">Ações</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {isLoading ? (
-                    <TableRow>
-                      <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
-                        Carregando...
-                      </TableCell>
-                    </TableRow>
+                    Array.from({ length: 3 }).map((_, i) => (
+                      <TableRow key={i} className="border-[rgba(255,255,255,0.04)]">
+                        {Array.from({ length: 7 }).map((_, j) => (
+                          <TableCell key={j}><div className="h-4 w-20 shimmer rounded" /></TableCell>
+                        ))}
+                      </TableRow>
+                    ))
                   ) : offers?.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
+                      <TableCell colSpan={7} className="text-center py-12 text-muted-foreground">
                         Nenhuma oferta encontrada
                       </TableCell>
                     </TableRow>
                   ) : (
                     offers?.map((offer: any) => (
-                      <TableRow key={offer.id}>
-                        <TableCell className="font-medium">{offer.name}</TableCell>
-                        <TableCell>{offer.products?.name}</TableCell>
-                        <TableCell>{formatCentsToBRL(offer.products?.price ?? 0)}</TableCell>
+                      <TableRow key={offer.id} className="border-[rgba(255,255,255,0.04)] hover:bg-[rgba(255,255,255,0.03)] transition-colors duration-150">
+                        <TableCell className="font-medium text-foreground">{offer.name}</TableCell>
+                        <TableCell className="text-sm text-muted-foreground">{offer.products?.name}</TableCell>
+                        <TableCell className="font-medium text-foreground">{formatCentsToBRL(offer.products?.price ?? 0)}</TableCell>
                         <TableCell>
-                          <Badge variant={offer.page_url ? "default" : "secondary"} className="text-xs">
+                          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border-0 ${
+                            offer.page_url
+                              ? "bg-[#3b82f618] text-[#60a5fa]"
+                              : "bg-[rgba(255,255,255,0.06)] text-muted-foreground"
+                          }`}>
                             {offer.page_url ? "Externa" : "Inline"}
-                          </Badge>
+                          </span>
                         </TableCell>
                         <TableCell>
-                          <Badge variant="outline" className="text-xs">
+                          <span className="text-xs text-muted-foreground">
                             {getOfferName(offer.accept_next_offer_id)}
-                          </Badge>
+                          </span>
                         </TableCell>
                         <TableCell>
-                          <Badge variant="outline" className="text-xs">
+                          <span className="text-xs text-muted-foreground">
                             {getOfferName(offer.reject_next_offer_id)}
-                          </Badge>
+                          </span>
                         </TableCell>
                         <TableCell>
                           <div className="flex gap-1">
@@ -504,8 +509,7 @@ export default function Offers() {
                   )}
                 </TableBody>
               </Table>
-            </CardContent>
-          </Card>
+          </div>
         </TabsContent>
 
         <TabsContent value="funnel">

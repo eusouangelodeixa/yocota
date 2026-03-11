@@ -575,38 +575,39 @@ export default function Checkouts() {
         </Dialog>
       </div>
 
-      <Card>
-        <CardContent className="p-0">
+      <div className="card-glass rounded-xl overflow-hidden">
           <Table>
             <TableHeader>
-              <TableRow>
-                <TableHead>Nome</TableHead>
-                <TableHead>Produto</TableHead>
-                <TableHead>Slug</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead className="w-40">Ações</TableHead>
+              <TableRow className="border-[rgba(255,255,255,0.06)] hover:bg-transparent">
+                <TableHead className="text-muted-foreground text-xs font-medium">Nome</TableHead>
+                <TableHead className="text-muted-foreground text-xs font-medium">Produto</TableHead>
+                <TableHead className="text-muted-foreground text-xs font-medium">Slug</TableHead>
+                <TableHead className="text-muted-foreground text-xs font-medium">Status</TableHead>
+                <TableHead className="w-40 text-muted-foreground text-xs font-medium">Ações</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {isLoading ? (
-                <TableRow>
-                  <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
-                    Carregando...
-                  </TableCell>
-                </TableRow>
+                Array.from({ length: 3 }).map((_, i) => (
+                  <TableRow key={i} className="border-[rgba(255,255,255,0.04)]">
+                    {Array.from({ length: 5 }).map((_, j) => (
+                      <TableCell key={j}><div className="h-4 w-24 shimmer rounded" /></TableCell>
+                    ))}
+                  </TableRow>
+                ))
               ) : checkouts?.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
+                  <TableCell colSpan={5} className="text-center py-12 text-muted-foreground">
                     Nenhum checkout encontrado
                   </TableCell>
                 </TableRow>
               ) : (
                 checkouts?.map((checkout: any) => (
-                  <TableRow key={checkout.id}>
-                    <TableCell className="font-medium">{checkout.name}</TableCell>
-                    <TableCell>{checkout.products?.name}</TableCell>
+                  <TableRow key={checkout.id} className="border-[rgba(255,255,255,0.04)] hover:bg-[rgba(255,255,255,0.03)] transition-colors duration-150">
+                    <TableCell className="font-medium text-foreground">{checkout.name}</TableCell>
+                    <TableCell className="text-sm text-muted-foreground">{checkout.products?.name}</TableCell>
                     <TableCell>
-                      <code className="text-xs bg-muted px-2 py-1 rounded">
+                      <code className="text-xs bg-[rgba(255,255,255,0.06)] text-muted-foreground px-2 py-1 rounded-md font-mono">
                         /checkout/{checkout.checkout_slug}
                       </code>
                     </TableCell>
@@ -650,8 +651,7 @@ export default function Checkouts() {
               )}
             </TableBody>
           </Table>
-        </CardContent>
-      </Card>
+      </div>
     </div>
   );
 }
