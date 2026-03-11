@@ -54,7 +54,7 @@ export function AdminSidebar() {
           <span className="text-primary-foreground font-bold text-sm">C</span>
         </div>
         {!collapsed && (
-          <span className="text-sm font-bold tracking-tight text-foreground">CashFlow</span>
+          <span className="text-sm font-bold tracking-tight text-foreground">Yocota</span>
         )}
       </div>
       <SidebarContent className="px-2 py-3">

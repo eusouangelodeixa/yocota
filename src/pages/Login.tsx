@@ -32,7 +32,7 @@ export default function Login() {
       <div className="w-full max-w-sm space-y-8">
         <div className="text-center space-y-2">
           <div className="w-12 h-12 rounded-xl bg-primary flex items-center justify-center mx-auto mb-4">
-            <span className="text-primary-foreground font-bold text-lg">C</span>
+            <span className="text-primary-foreground font-bold text-lg">Y</span>
           </div>
           <h1 className="text-2xl font-bold text-foreground">Painel Admin</h1>
           <p className="text-sm text-muted-foreground">Entre com suas credenciais</p>
