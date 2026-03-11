@@ -95,7 +95,7 @@ function CheckoutForm({ checkout: c }: { checkout: CheckoutData }) {
     } catch {}
   }, []);
 
-  const currency = c.product.currency || "brl";
+  const currency = c.product.currency || "eur";
 
   // Auto-detect country via geolocation API
   useEffect(() => {
