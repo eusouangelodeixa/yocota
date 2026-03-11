@@ -24,6 +24,14 @@ serve(async (req) => {
 
     const { checkout_id, customer_name, customer_email, customer_phone, selected_bump_ids, utm_data } = await req.json();
 
+    console.log("[CREATE-INTENT] Input received:", {
+      checkout_id,
+      customer_name,
+      customer_email,
+      selected_bump_ids,
+      bump_count: selected_bump_ids?.length || 0,
+    });
+
     // Get checkout with product
     const { data: checkout, error: checkoutError } = await supabase
       .from("checkouts")
@@ -33,11 +41,21 @@ serve(async (req) => {
       .single();
 
     if (checkoutError || !checkout) {
+      console.error("[CREATE-INTENT] Checkout not found:", { checkoutError, checkout_id });
       return new Response(JSON.stringify({ error: "Checkout não encontrado" }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
         status: 404,
       });
     }
+
+    console.log("[CREATE-INTENT] Checkout loaded:", {
+      checkout_id: checkout.id,
+      product_name: checkout.products.name,
+      product_price: checkout.products.price,
+      currency: checkout.products.currency,
+      order_bump_product_id_legacy: checkout.order_bump_product_id,
+      first_offer_id: checkout.first_offer_id,
+    });
 
     const currency = checkout.products.currency || "brl";
 
@@ -46,12 +64,20 @@ serve(async (req) => {
     const bumpIds: string[] = selected_bump_ids || [];
     let validBumpProducts: any[] = [];
 
+    console.log("[CREATE-INTENT] Processing bumps:", { bumpIds, bumpCount: bumpIds.length });
+
     if (bumpIds.length > 0) {
       // Verify bumps belong to this checkout
-      const { data: validBumps } = await supabase
+      const { data: validBumps, error: bumpsQueryError } = await supabase
         .from("checkout_order_bumps")
         .select("product_id")
         .eq("checkout_id", checkout_id);
+
+      console.log("[CREATE-INTENT] checkout_order_bumps query:", {
+        validBumps,
+        bumpsQueryError,
+        checkout_id,
+      });
 
       const validBumpIdSet = new Set((validBumps || []).map((b: any) => b.product_id));
       
@@ -60,20 +86,38 @@ serve(async (req) => {
         validBumpIdSet.add(checkout.order_bump_product_id);
       }
 
+      console.log("[CREATE-INTENT] Valid bump product IDs:", Array.from(validBumpIdSet));
+
       const filteredBumpIds = bumpIds.filter((id: string) => validBumpIdSet.has(id));
 
+      console.log("[CREATE-INTENT] Filtered bump IDs (after validation):", {
+        requested: bumpIds,
+        filtered: filteredBumpIds,
+        rejected: bumpIds.filter((id: string) => !validBumpIdSet.has(id)),
+      });
+
       if (filteredBumpIds.length > 0) {
-        const { data: bumpProducts } = await supabase
+        const { data: bumpProducts, error: bumpProductsError } = await supabase
           .from("products")
           .select("id, name, price, currency")
           .in("id", filteredBumpIds);
 
+        console.log("[CREATE-INTENT] Bump products loaded:", { bumpProducts, bumpProductsError });
+
         validBumpProducts = bumpProducts || [];
         for (const bp of validBumpProducts) {
+          console.log(`[CREATE-INTENT] Adding bump: ${bp.name} = ${bp.price}`);
           totalAmount += bp.price;
         }
       }
     }
+
+    console.log("[CREATE-INTENT] Final total:", {
+      mainProduct: checkout.products.price,
+      bumpsTotal: totalAmount - checkout.products.price,
+      totalAmount,
+      validBumpCount: validBumpProducts.length,
+    });
 
     // Find or create Stripe customer
     const customers = await stripe.customers.list({ email: customer_email, limit: 1 });
@@ -131,6 +175,14 @@ serve(async (req) => {
     }
 
     const paymentIntent = await stripe.paymentIntents.create(piConfig);
+
+    console.log("[CREATE-INTENT] PaymentIntent created:", {
+      pi_id: paymentIntent.id,
+      amount: paymentIntent.amount,
+      currency: paymentIntent.currency,
+      description: paymentIntent.description,
+      metadata: paymentIntent.metadata,
+    });
 
     return new Response(JSON.stringify({
       client_secret: paymentIntent.client_secret,

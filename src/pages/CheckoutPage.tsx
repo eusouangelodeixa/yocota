@@ -141,11 +141,27 @@ function CheckoutForm({ checkout: c }: { checkout: CheckoutData }) {
 
   // Abandoned checkout is now saved only when user clicks Pay (inside handleSubmit)
 
-  const toggleBump = (productId: string) => { setSelectedBumps((prev) => { const next = new Set(prev); next.has(productId) ? next.delete(productId) : next.add(productId); return next; }); };
+  const toggleBump = (productId: string) => {
+    setSelectedBumps((prev) => {
+      const next = new Set(prev);
+      const action = next.has(productId) ? "REMOVE" : "ADD";
+      next.has(productId) ? next.delete(productId) : next.add(productId);
+      const bumpInfo = c.bump_products.find(bp => bp.id === productId);
+      console.log(`[BUMP ${action}] productId=${productId}, name=${bumpInfo?.name}, price=${bumpInfo?.price}, selectedAfter=[${Array.from(next).join(",")}]`);
+      return next;
+    });
+  };
 
   const totalAmount = () => {
     let total = c.product.price;
-    c.bump_products.forEach((bp) => { if (selectedBumps.has(bp.id)) total += bp.price; });
+    const breakdown: string[] = [`main=${c.product.price}`];
+    c.bump_products.forEach((bp) => {
+      if (selectedBumps.has(bp.id)) {
+        total += bp.price;
+        breakdown.push(`bump(${bp.name})=${bp.price}`);
+      }
+    });
+    console.log(`[TOTAL CALC] ${breakdown.join(" + ")} = ${total} | selectedBumps=[${Array.from(selectedBumps).join(",")}]`);
     return total;
   };
 
@@ -176,9 +192,21 @@ function CheckoutForm({ checkout: c }: { checkout: CheckoutData }) {
     try {
       const utms = JSON.parse(sessionStorage.getItem("checkout_utms") || "{}");
       const fullPhone = `${ddi}${phone.replace(/\D/g, "")}`;
-      const { data: intentData, error: intentError } = await supabase.functions.invoke("create-intent", {
-        body: { checkout_id: c.id, customer_name: customerName, customer_email: email, customer_phone: fullPhone, selected_bump_ids: Array.from(selectedBumps), utm_data: utms },
+      const bumpIdsArray = Array.from(selectedBumps);
+      const expectedTotal = totalAmount();
+      console.log("[CREATE-INTENT REQUEST]", {
+        checkout_id: c.id,
+        customer_name: customerName,
+        customer_email: email,
+        selected_bump_ids: bumpIdsArray,
+        bump_count: bumpIdsArray.length,
+        frontend_expected_total: expectedTotal,
+        available_bumps: c.bump_products.map(bp => ({ id: bp.id, name: bp.name, price: bp.price })),
       });
+      const { data: intentData, error: intentError } = await supabase.functions.invoke("create-intent", {
+        body: { checkout_id: c.id, customer_name: customerName, customer_email: email, customer_phone: fullPhone, selected_bump_ids: bumpIdsArray, utm_data: utms },
+      });
+      console.log("[CREATE-INTENT RESPONSE]", { intentData, intentError });
       if (intentError) throw new Error(intentError.message || "Erro ao criar pagamento");
       if (intentData?.error) throw new Error(intentData.error);
       if (!intentData?.client_secret) throw new Error("Erro interno ao processar pagamento");
