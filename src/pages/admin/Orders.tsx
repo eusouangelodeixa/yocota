@@ -1,7 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { formatCentsToBRL } from "@/lib/formatters";
+import { formatCents } from "@/lib/formatters";
 
 const statusPill: Record<string, { label: string; cls: string }> = {
   pending: { label: "PENDENTE", cls: "pill-pending" },
