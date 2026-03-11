@@ -8,18 +8,20 @@ serve(async (req) => {
     Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
   );
 
-  // Get Stripe keys: env var first, then api_keys table
-  let stripeKey = Deno.env.get("STRIPE_SECRET_KEY") || "";
-  let webhookSecret = Deno.env.get("STRIPE_WEBHOOK_SECRET") || "";
-  if (!stripeKey || !webhookSecret) {
+  // Get Stripe keys: api_keys table first (user-configured), then env var fallback
+  let stripeKey = "";
+  let webhookSecret = "";
+  {
     const { data: keys } = await supabase.from("api_keys").select("key_name, key_value").in("key_name", ["STRIPE_SECRET_KEY", "STRIPE_WEBHOOK_SECRET"]);
     if (keys) {
       for (const k of keys) {
-        if (k.key_name === "STRIPE_SECRET_KEY" && !stripeKey) stripeKey = k.key_value;
-        if (k.key_name === "STRIPE_WEBHOOK_SECRET" && !webhookSecret) webhookSecret = k.key_value;
+        if (k.key_name === "STRIPE_SECRET_KEY") stripeKey = k.key_value;
+        if (k.key_name === "STRIPE_WEBHOOK_SECRET") webhookSecret = k.key_value;
       }
     }
   }
+  if (!stripeKey) stripeKey = Deno.env.get("STRIPE_SECRET_KEY") || "";
+  if (!webhookSecret) webhookSecret = Deno.env.get("STRIPE_WEBHOOK_SECRET") || "";
 
   const stripe = new Stripe(stripeKey, {
     apiVersion: "2025-08-27.basil",

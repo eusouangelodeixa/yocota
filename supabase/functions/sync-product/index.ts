@@ -13,11 +13,12 @@ serve(async (req) => {
   }
 
   try {
-    let stripeKey = Deno.env.get("STRIPE_SECRET_KEY") || "";
-    if (!stripeKey) {
+    let stripeKey = "";
+    {
       const { data: keyRow } = await supabase.from("api_keys").select("key_value").eq("key_name", "STRIPE_SECRET_KEY").maybeSingle();
       if (keyRow?.key_value) stripeKey = keyRow.key_value;
     }
+    if (!stripeKey) stripeKey = Deno.env.get("STRIPE_SECRET_KEY") || "";
 
     const stripe = new Stripe(stripeKey, {
       apiVersion: "2025-08-27.basil",
