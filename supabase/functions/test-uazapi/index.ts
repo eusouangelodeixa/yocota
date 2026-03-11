@@ -55,9 +55,10 @@ serve(async (req) => {
       
       if (ep.authHeader === "apitoken") {
         headers["apitoken"] = UAZAPI_TOKEN;
-      } else {
+      } else if (ep.authHeader === "Authorization") {
         headers["Authorization"] = `Bearer ${UAZAPI_TOKEN}`;
       }
+      // "none" = no auth header (token already in path)
 
       try {
         const res = await fetch(url, {
