@@ -9,6 +9,11 @@ const LandingPage = () => {
   const counterStartedRef = useRef(false);
 
   useEffect(() => {
+    document.documentElement.classList.add('lp-active');
+    return () => { document.documentElement.classList.remove('lp-active'); };
+  }, []);
+
+  useEffect(() => {
     const revealEls = document.querySelectorAll('.reveal');
     const ro = new IntersectionObserver((entries) => {
       entries.forEach(e => {
