@@ -34,7 +34,7 @@ serve(async (req) => {
     // 1. Load session with offer and product
     const { data: session, error: sessionError } = await supabase
       .from("offer_sessions")
-      .select("*, offers(*, products(*))")
+      .select("*, offers(*, products(*)), orders:order_id(id, status)")
       .eq("token", token)
       .maybeSingle();
 
@@ -64,13 +64,37 @@ serve(async (req) => {
       });
     }
 
+    // 4. ANTI-BYPASS: Verify original order is actually paid before allowing upsell
+    const order = session.orders;
+    if (!order || order.status !== "paid") {
+      console.error("[OFFER-DECISION] Anti-bypass: order not paid", {
+        order_id: session.order_id,
+        order_status: order?.status,
+      });
+
+      await supabase.from("audit_logs").insert({
+        event_type: "upsell_bypass_attempt",
+        payload: {
+          token,
+          order_id: session.order_id,
+          order_status: order?.status || "not_found",
+          decision,
+        },
+      });
+
+      return new Response(JSON.stringify({ error: "Pedido original não confirmado" }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 403,
+      });
+    }
+
     const offer = session.offers;
     const product = offer.products;
 
     let stripePaymentIntentId: string | null = null;
 
     if (decision === "accepted") {
-      // 4. Get customer's saved payment method
+      // 5. Get customer's saved payment method
       const { data: customer } = await supabase
         .from("customers")
         .select("stripe_customer_id, stripe_payment_method_id")
@@ -84,11 +108,13 @@ serve(async (req) => {
         });
       }
 
-      // 5. One-click charge via Stripe off-session
+      // 6. One-click charge via Stripe off-session with idempotency key
       try {
+        const idempotencyKey = `upsell_${session.id}_${offer.id}`;
+
         const paymentIntent = await stripe.paymentIntents.create({
           amount: product.price,
-          currency: "brl",
+          currency: product.currency || "brl",
           customer: customer.stripe_customer_id,
           payment_method: customer.stripe_payment_method_id,
           off_session: true,
@@ -99,11 +125,13 @@ serve(async (req) => {
             order_id: session.order_id,
             type: "upsell",
           },
+        }, {
+          idempotencyKey,
         });
 
         stripePaymentIntentId = paymentIntent.id;
 
-        // 6. Create order item for the upsell
+        // 7. Create order item for the upsell
         const { data: upsellItem } = await supabase.from("order_items").insert({
           order_id: session.order_id,
           product_id: product.id,
@@ -128,19 +156,32 @@ serve(async (req) => {
           }
         }
 
-        // 7. Update order total
-        const { data: order } = await supabase
+        // 8. Update order total
+        const { data: orderData } = await supabase
           .from("orders")
           .select("total_amount")
           .eq("id", session.order_id)
           .single();
 
-        if (order) {
+        if (orderData) {
           await supabase
             .from("orders")
-            .update({ total_amount: order.total_amount + product.price })
+            .update({ total_amount: orderData.total_amount + product.price })
             .eq("id", session.order_id);
         }
+
+        // Audit log: upsell accepted
+        await supabase.from("audit_logs").insert({
+          event_type: "upsell_accepted",
+          payload: {
+            offer_session_id: session.id,
+            offer_id: offer.id,
+            order_id: session.order_id,
+            product_id: product.id,
+            amount: product.price,
+            payment_intent_id: paymentIntent.id,
+          },
+        });
       } catch (stripeError: any) {
         console.error("Stripe off-session charge failed:", stripeError);
         await supabase
@@ -148,14 +189,34 @@ serve(async (req) => {
           .update({ decision: "failed", decided_at: new Date().toISOString() })
           .eq("id", session.id);
 
+        // Audit log: upsell payment failed
+        await supabase.from("audit_logs").insert({
+          event_type: "upsell_payment_failed",
+          payload: {
+            offer_session_id: session.id,
+            offer_id: offer.id,
+            error: stripeError.message,
+          },
+        });
+
         return new Response(JSON.stringify({ error: "Falha no pagamento: " + stripeError.message }), {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
           status: 402,
         });
       }
+    } else {
+      // Audit log: upsell declined
+      await supabase.from("audit_logs").insert({
+        event_type: "upsell_declined",
+        payload: {
+          offer_session_id: session.id,
+          offer_id: offer.id,
+          order_id: session.order_id,
+        },
+      });
     }
 
-    // 8. Mark session as decided
+    // 9. Mark session as decided
     await supabase
       .from("offer_sessions")
       .update({
@@ -165,7 +226,7 @@ serve(async (req) => {
       })
       .eq("id", session.id);
 
-    // 9. Determine next offer
+    // 10. Determine next offer
     const nextOfferId = decision === "accepted"
       ? offer.accept_next_offer_id
       : offer.reject_next_offer_id;
@@ -175,14 +236,12 @@ serve(async (req) => {
     let nextOfferToken: string | null = null;
 
     if (nextOfferId) {
-      // Get next offer's page_url
       const { data: nextOffer } = await supabase
         .from("offers")
         .select("page_url")
         .eq("id", nextOfferId)
         .single();
 
-      // Create a new offer session for the next offer
       const { data: nextSession } = await supabase
         .from("offer_sessions")
         .insert({
@@ -196,8 +255,6 @@ serve(async (req) => {
       if (nextSession) {
         nextOfferToken = nextSession.token;
         nextOfferPageUrl = nextOffer?.page_url || null;
-
-        // Build the offer-frame URL for inline mode
         const origin = req.headers.get("origin") || "";
         nextOfferUrl = `${origin}/offer-frame/${nextSession.token}`;
       }
