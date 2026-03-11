@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -10,9 +10,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { toast } from "sonner";
 import { slugify, formatCents } from "@/lib/formatters";
-import { Plus, Copy, Pencil, Trash2, Eye, Palette, X, GripVertical } from "lucide-react";
+import { Plus, Copy, Pencil, Trash2, Eye, Palette, X, GripVertical, Upload, ImageIcon, Loader2 } from "lucide-react";
 
 interface CheckoutForm {
   name: string; product_id: string; redirect_url: string; checkout_slug: string; first_offer_id: string;
@@ -40,31 +41,120 @@ function OfferSelect({ value, onChange }: { value: string; onChange: (v: string)
   );
 }
 
-function CheckoutPreview({ form, product, bumpProducts }: { form: CheckoutForm; product: any; bumpProducts: any[] }) {
+/* ── Banner Upload ── */
+function BannerUpload({ value, onChange }: { value: string; onChange: (url: string) => void }) {
+  const [uploading, setUploading] = useState(false);
+  const fileRef = useRef<HTMLInputElement>(null);
+
+  const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!file.type.startsWith("image/")) { toast.error("Selecione um arquivo de imagem"); return; }
+    if (file.size > 5 * 1024 * 1024) { toast.error("Imagem deve ter no máximo 5MB"); return; }
+    setUploading(true);
+    try {
+      const ext = file.name.split(".").pop();
+      const fileName = `banners/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
+      const { error: uploadError } = await supabase.storage.from("product-images").upload(fileName, file, { cacheControl: "3600", upsert: false });
+      if (uploadError) throw uploadError;
+      const { data: publicUrl } = supabase.storage.from("product-images").getPublicUrl(fileName);
+      onChange(publicUrl.publicUrl);
+      toast.success("Banner enviado!");
+    } catch (err: any) { toast.error("Erro ao enviar banner: " + err.message); }
+    finally { setUploading(false); }
+  };
+
   return (
-    <div className="rounded-[10px] overflow-hidden border border-border max-w-[320px] mx-auto" style={{ backgroundColor: form.bg_color }}>
-      {form.banner_url && <div className="w-full h-24 overflow-hidden"><img src={form.banner_url} alt="" className="w-full h-full object-cover" /></div>}
-      <div className="px-5 py-4 text-center" style={{ background: `linear-gradient(135deg, ${form.primary_color}, ${form.accent_color})` }}>
-        <p className="text-white/70 text-[10px] font-medium uppercase tracking-wider mb-0.5">Investimento</p>
-        <div className="text-2xl font-extrabold text-white">{product ? formatCents(product.price, product.currency || "brl") : "R$ 0,00"}</div>
-      </div>
-      <div className="p-4 space-y-3">
-        <div className="text-center"><h3 className="font-bold text-sm" style={{ color: "#1a1a2e" }}>{form.headline_text || product?.name || "Nome do Produto"}</h3></div>
-        <div className="space-y-2">
-          {["Nome completo", "Email"].map((label) => (<div key={label}><p className="text-[9px] font-semibold uppercase tracking-wider text-gray-400 mb-0.5">{label}</p><div className="h-7 rounded-md bg-gray-100 border border-gray-200" /></div>))}
+    <div className="space-y-1.5">
+      <Label className="text-xs font-medium text-muted-foreground">Banner</Label>
+      {value ? (
+        <div className="relative w-full h-32 rounded-lg overflow-hidden border border-border bg-input">
+          <img src={value} alt="Banner" className="w-full h-full object-cover" />
+          <Button type="button" variant="destructive" size="icon" className="absolute top-2 right-2 h-6 w-6" onClick={() => onChange("")}>
+            <X className="h-3 w-3" />
+          </Button>
         </div>
-        {bumpProducts.length > 0 && (
-          <div className="space-y-2">
-            {bumpProducts.map((bp) => (
-              <div key={bp.id} className="rounded-lg border border-dashed border-gray-300 p-2 flex items-center gap-2">
-                <div className="w-3 h-3 rounded border border-gray-300" />
-                <span className="text-[10px] font-medium text-gray-600 flex-1 truncate">{bp.name}</span>
-                <span className="text-[10px] font-bold" style={{ color: form.primary_color }}>+{formatCents(bp.price, bp.currency || "brl")}</span>
+      ) : (
+        <button
+          type="button"
+          onClick={() => fileRef.current?.click()}
+          disabled={uploading}
+          className="w-full h-32 rounded-lg border border-dashed border-border bg-input hover:border-primary/30 hover:bg-secondary/50 transition-all duration-150 flex flex-col items-center justify-center gap-2 text-muted-foreground"
+        >
+          {uploading ? <Loader2 className="h-5 w-5 animate-spin" /> : <Upload className="h-5 w-5" strokeWidth={1.5} />}
+          <span className="text-[11px]">{uploading ? "Enviando..." : "Clique para fazer upload do banner"}</span>
+        </button>
+      )}
+      <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={handleUpload} />
+    </div>
+  );
+}
+
+/* ── Checkout Live Preview (faithful recreation) ── */
+function CheckoutLivePreview({ form, product, bumpProducts }: { form: CheckoutForm; product: any; bumpProducts: any[] }) {
+  const currency = product?.currency || "brl";
+
+  return (
+    <div className="w-full bg-[#09090b] rounded-[10px] border border-border overflow-hidden">
+      <div className="flex flex-col lg:flex-row min-h-[480px]">
+        {/* Left panel */}
+        <div className="lg:w-[45%] bg-[#111113] border-b lg:border-b-0 lg:border-r border-[#27272a] p-6 lg:p-8 flex flex-col justify-center">
+          <div className="max-w-sm">
+            {form.banner_url && (
+              <div className="w-full h-28 rounded-lg overflow-hidden mb-4 border border-[#27272a]">
+                <img src={form.banner_url} alt="" className="w-full h-full object-cover" />
               </div>
-            ))}
+            )}
+            <h3 className="text-base font-semibold text-[#fafafa] mb-1">{form.headline_text || product?.name || "Nome do Produto"}</h3>
+            {product?.description && <p className="text-xs text-[#71717a] leading-relaxed mb-4">{product.description}</p>}
+            <div className="text-2xl font-bold text-[#fafafa] tabular-nums mb-4">{product ? formatCents(product.price, currency) : "R$ 0,00"}</div>
+            <div className="border-t border-[#27272a]" />
+
+            {bumpProducts.length > 0 && (
+              <div className="mt-4 space-y-2">
+                {bumpProducts.map((bp) => (
+                  <div key={bp.id} className="rounded-[10px] border border-[#27272a] bg-[#18181b] p-3 flex items-center gap-2">
+                    <div className="w-3.5 h-3.5 rounded border border-[#27272a]" />
+                    <span className="text-[11px] font-medium text-[#fafafa] flex-1 truncate">{bp.name}</span>
+                    <span className="text-[11px] font-bold text-[#28d56a] tabular-nums">+{formatCents(bp.price, bp.currency || currency)}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            <div className="mt-4 pt-3 border-t border-[#27272a] flex justify-between items-center">
+              <span className="text-xs text-[#a1a1aa]">Total</span>
+              <span className="text-lg font-bold text-[#fafafa] tabular-nums">{product ? formatCents(product.price, currency) : "R$ 0,00"}</span>
+            </div>
           </div>
-        )}
-        <button className="w-full h-9 rounded-lg text-white text-xs font-bold" style={{ backgroundColor: form.primary_color }}>🔒 {form.cta_text || "Finalizar compra"}</button>
+        </div>
+
+        {/* Right panel */}
+        <div className="flex-1 p-6 lg:p-8 flex flex-col justify-center">
+          <div className="max-w-sm mx-auto w-full">
+            <p className="text-[10px] uppercase tracking-wider text-[#52525b] font-medium mb-4">Informações de pagamento</p>
+            <div className="space-y-3">
+              {["Nome completo", "Email", "WhatsApp"].map((label) => (
+                <div key={label} className="space-y-1">
+                  <p className="text-[10px] font-medium text-[#a1a1aa]">{label}</p>
+                  <div className="h-10 rounded-lg bg-[#111113] border border-[#27272a]" />
+                </div>
+              ))}
+              <div className="space-y-1">
+                <p className="text-[10px] font-medium text-[#a1a1aa]">Dados do cartão</p>
+                <div className="h-10 rounded-lg bg-[#111113] border border-[#27272a]" />
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="h-10 rounded-lg bg-[#111113] border border-[#27272a]" />
+                  <div className="h-10 rounded-lg bg-[#111113] border border-[#27272a]" />
+                </div>
+              </div>
+              <button className="w-full h-11 bg-[#28d56a] text-[#09090b] font-bold text-xs rounded-lg cursor-default flex items-center justify-center gap-1.5">
+                🔒 {form.cta_text || "Finalizar compra"} {product ? formatCents(product.price, currency) : ""}
+              </button>
+              <p className="text-[10px] text-[#52525b] text-center">🔒 Pagamento processado com segurança via Stripe</p>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   );
@@ -76,15 +166,16 @@ export default function Checkouts() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState<CheckoutForm>(emptyForm);
   const [activeTab, setActiveTab] = useState("info");
+  const [previewSlug, setPreviewSlug] = useState<string | null>(null);
 
   const { data: products } = useQuery({
     queryKey: ["products-active"],
-    queryFn: async () => { const { data, error } = await supabase.from("products").select("id, name, price, currency, image_url").eq("active", true).order("name"); if (error) throw error; return data; },
+    queryFn: async () => { const { data, error } = await supabase.from("products").select("id, name, price, currency, image_url, description").eq("active", true).order("name"); if (error) throw error; return data; },
   });
 
   const { data: checkouts, isLoading } = useQuery({
     queryKey: ["checkouts"],
-    queryFn: async () => { const { data, error } = await supabase.from("checkouts").select("*, products!checkouts_product_id_fkey(name, price, currency)").order("created_at", { ascending: false }); if (error) throw error; return data; },
+    queryFn: async () => { const { data, error } = await supabase.from("checkouts").select("*, products!checkouts_product_id_fkey(name, price, currency, description, image_url)").order("created_at", { ascending: false }); if (error) throw error; return data; },
   });
 
   const loadBumpsForCheckout = async (checkoutId: string): Promise<string[]> => {
@@ -169,7 +260,7 @@ export default function Checkouts() {
               <Plus className="mr-1.5 h-3.5 w-3.5" strokeWidth={1.5} /> Novo Checkout
             </Button>
           </DialogTrigger>
-          <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+          <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
             <DialogHeader><DialogTitle className="text-base">{editingId ? "Editar Checkout" : "Novo Checkout"}</DialogTitle></DialogHeader>
             <form onSubmit={(e) => { e.preventDefault(); saveMutation.mutate(form); }}>
               <Tabs value={activeTab} onValueChange={setActiveTab}>
@@ -180,10 +271,14 @@ export default function Checkouts() {
                 </TabsList>
 
                 <TabsContent value="info" className="space-y-4">
-                  <div className="space-y-1.5"><Label className="text-xs text-muted-foreground">Nome</Label><Input value={form.name} onChange={(e) => { const name = e.target.value; setForm({ ...form, name, checkout_slug: editingId ? form.checkout_slug : slugify(name) }); }} required /></div>
-                  <div className="space-y-1.5"><Label className="text-xs text-muted-foreground">Slug</Label><Input value={form.checkout_slug} onChange={(e) => setForm({ ...form, checkout_slug: e.target.value })} required /><p className="text-[10px] text-muted-foreground">URL: /checkout/{form.checkout_slug || "..."}</p></div>
-                  <div className="space-y-1.5"><Label className="text-xs text-muted-foreground">Produto Principal</Label><Select value={form.product_id} onValueChange={(v) => setForm({ ...form, product_id: v })}><SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger><SelectContent>{products?.map((p: any) => (<SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>))}</SelectContent></Select></div>
-                  <div className="space-y-1.5"><Label className="text-xs text-muted-foreground">URL Final (após pagamento e ofertas)</Label><Input value={form.redirect_url} onChange={(e) => setForm({ ...form, redirect_url: e.target.value })} placeholder="https://exemplo.com/obrigado" required /></div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-1.5"><Label className="text-xs text-muted-foreground">Nome</Label><Input value={form.name} onChange={(e) => { const name = e.target.value; setForm({ ...form, name, checkout_slug: editingId ? form.checkout_slug : slugify(name) }); }} required /></div>
+                    <div className="space-y-1.5"><Label className="text-xs text-muted-foreground">Slug</Label><Input value={form.checkout_slug} onChange={(e) => setForm({ ...form, checkout_slug: e.target.value })} required /><p className="text-[10px] text-muted-foreground">URL: /checkout/{form.checkout_slug || "..."}</p></div>
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-1.5"><Label className="text-xs text-muted-foreground">Produto Principal</Label><Select value={form.product_id} onValueChange={(v) => setForm({ ...form, product_id: v })}><SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger><SelectContent>{products?.map((p: any) => (<SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>))}</SelectContent></Select></div>
+                    <div className="space-y-1.5"><Label className="text-xs text-muted-foreground">URL Final (após pagamento)</Label><Input value={form.redirect_url} onChange={(e) => setForm({ ...form, redirect_url: e.target.value })} placeholder="https://exemplo.com/obrigado" required /></div>
+                  </div>
                   <div className="space-y-3">
                     <Label className="text-xs text-muted-foreground">Order Bumps</Label>
                     {bumpProducts.length > 0 && (
@@ -207,22 +302,27 @@ export default function Checkouts() {
                 </TabsContent>
 
                 <TabsContent value="design" className="space-y-4">
-                  <div className="grid grid-cols-3 gap-4">
+                  <BannerUpload value={form.banner_url} onChange={(url) => setForm({ ...form, banner_url: url })} />
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                     {[{ label: "Cor Primária", key: "primary_color" as const }, { label: "Cor Secundária", key: "accent_color" as const }, { label: "Cor de Fundo", key: "bg_color" as const }].map((c) => (
                       <div key={c.key} className="space-y-1.5">
                         <Label className="text-xs text-muted-foreground">{c.label}</Label>
-                        <div className="flex gap-2 items-center"><input type="color" value={form[c.key]} onChange={(e) => setForm({ ...form, [c.key]: e.target.value })} className="w-10 h-10 rounded-lg border border-border cursor-pointer" /><Input value={form[c.key]} onChange={(e) => setForm({ ...form, [c.key]: e.target.value })} className="flex-1 text-xs" /></div>
+                        <div className="flex gap-2 items-center"><input type="color" value={form[c.key]} onChange={(e) => setForm({ ...form, [c.key]: e.target.value })} className="w-10 h-10 rounded-lg border border-border cursor-pointer bg-transparent" /><Input value={form[c.key]} onChange={(e) => setForm({ ...form, [c.key]: e.target.value })} className="flex-1 text-xs" /></div>
                       </div>
                     ))}
                   </div>
-                  <div className="space-y-1.5"><Label className="text-xs text-muted-foreground">Headline</Label><Input value={form.headline_text} onChange={(e) => setForm({ ...form, headline_text: e.target.value })} placeholder="Deixe vazio para usar o nome do produto" /></div>
-                  <div className="space-y-1.5"><Label className="text-xs text-muted-foreground">Texto do Botão (CTA)</Label><Input value={form.cta_text} onChange={(e) => setForm({ ...form, cta_text: e.target.value })} placeholder="Finalizar compra" /></div>
-                  <div className="space-y-1.5"><Label className="text-xs text-muted-foreground">URL do Banner</Label><Input value={form.banner_url} onChange={(e) => setForm({ ...form, banner_url: e.target.value })} placeholder="https://exemplo.com/banner.jpg" /></div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-1.5"><Label className="text-xs text-muted-foreground">Headline</Label><Input value={form.headline_text} onChange={(e) => setForm({ ...form, headline_text: e.target.value })} placeholder="Deixe vazio para usar o nome do produto" /></div>
+                    <div className="space-y-1.5"><Label className="text-xs text-muted-foreground">Texto do Botão (CTA)</Label><Input value={form.cta_text} onChange={(e) => setForm({ ...form, cta_text: e.target.value })} placeholder="Finalizar compra" /></div>
+                  </div>
                   <div className="flex items-center gap-3"><Switch checked={form.show_product_image} onCheckedChange={(v) => setForm({ ...form, show_product_image: v })} /><Label className="text-xs text-muted-foreground">Mostrar imagem do produto</Label></div>
                 </TabsContent>
 
                 <TabsContent value="preview">
-                  <div className="flex justify-center py-6"><CheckoutPreview form={form} product={selectedProduct} bumpProducts={bumpProducts} /></div>
+                  <div className="py-2">
+                    <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium mb-3">Preview em tempo real</p>
+                    <CheckoutLivePreview form={form} product={selectedProduct} bumpProducts={bumpProducts} />
+                  </div>
                 </TabsContent>
               </Tabs>
               <Button type="submit" className="w-full mt-4 h-10 bg-primary text-primary-foreground font-bold hover:brightness-110 active:scale-[0.98]" disabled={saveMutation.isPending}>{saveMutation.isPending ? "Salvando..." : "Salvar"}</Button>
@@ -231,13 +331,31 @@ export default function Checkouts() {
         </Dialog>
       </div>
 
-      <div className="card-surface rounded-[10px] overflow-hidden">
+      {/* Preview Sheet */}
+      <Sheet open={!!previewSlug} onOpenChange={(open) => !open && setPreviewSlug(null)}>
+        <SheetContent side="right" className="w-full sm:max-w-[800px] p-0 bg-background border-border">
+          <SheetHeader className="px-4 py-3 border-b border-border">
+            <SheetTitle className="text-sm font-semibold">Preview do Checkout</SheetTitle>
+          </SheetHeader>
+          <div className="w-full h-[calc(100vh-56px)]">
+            {previewSlug && (
+              <iframe
+                src={`/checkout/${previewSlug}`}
+                className="w-full h-full border-0"
+                title="Checkout Preview"
+              />
+            )}
+          </div>
+        </SheetContent>
+      </Sheet>
+
+      <div className="card-surface rounded-[10px] overflow-x-auto">
         <Table>
           <TableHeader>
             <TableRow className="border-border hover:bg-transparent bg-input">
               <TableHead className="text-[11px] uppercase tracking-wider text-muted-foreground font-medium">Nome</TableHead>
-              <TableHead className="text-[11px] uppercase tracking-wider text-muted-foreground font-medium">Produto</TableHead>
-              <TableHead className="text-[11px] uppercase tracking-wider text-muted-foreground font-medium">Slug</TableHead>
+              <TableHead className="text-[11px] uppercase tracking-wider text-muted-foreground font-medium hidden sm:table-cell">Produto</TableHead>
+              <TableHead className="text-[11px] uppercase tracking-wider text-muted-foreground font-medium hidden md:table-cell">Slug</TableHead>
               <TableHead className="text-[11px] uppercase tracking-wider text-muted-foreground font-medium">Status</TableHead>
               <TableHead className="w-36 text-[11px] uppercase tracking-wider text-muted-foreground font-medium">Ações</TableHead>
             </TableRow>
@@ -251,12 +369,12 @@ export default function Checkouts() {
               checkouts?.map((checkout: any) => (
                 <TableRow key={checkout.id} className="border-border hover:bg-[rgba(255,255,255,0.02)] h-12">
                   <TableCell className="text-[13px] font-medium text-foreground">{checkout.name}</TableCell>
-                  <TableCell className="text-[13px] text-muted-foreground">{checkout.products?.name}</TableCell>
-                  <TableCell><code className="text-[11px] bg-secondary text-muted-foreground px-2 py-0.5 rounded font-mono">/checkout/{checkout.checkout_slug}</code></TableCell>
+                  <TableCell className="text-[13px] text-muted-foreground hidden sm:table-cell">{checkout.products?.name}</TableCell>
+                  <TableCell className="hidden md:table-cell"><code className="text-[11px] bg-secondary text-muted-foreground px-2 py-0.5 rounded font-mono">/checkout/{checkout.checkout_slug}</code></TableCell>
                   <TableCell><Switch checked={checkout.active} onCheckedChange={(active) => toggleActive.mutate({ id: checkout.id, active })} /></TableCell>
                   <TableCell>
                     <div className="flex gap-0.5">
-                      <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-foreground" title="Preview" asChild><a href={`/checkout/${checkout.checkout_slug}`} target="_blank" rel="noopener noreferrer"><Eye className="h-3.5 w-3.5" strokeWidth={1.5} /></a></Button>
+                      <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-foreground" title="Preview" onClick={() => setPreviewSlug(checkout.checkout_slug)}><Eye className="h-3.5 w-3.5" strokeWidth={1.5} /></Button>
                       <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-foreground" onClick={() => copyUrl(checkout.checkout_slug)} title="Copiar URL"><Copy className="h-3.5 w-3.5" strokeWidth={1.5} /></Button>
                       <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-foreground" onClick={() => openEdit(checkout)} title="Editar"><Pencil className="h-3.5 w-3.5" strokeWidth={1.5} /></Button>
                       <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-destructive" title="Excluir" onClick={() => { if (confirm("Excluir este checkout?")) deleteMutation.mutate(checkout.id); }}><Trash2 className="h-3.5 w-3.5" strokeWidth={1.5} /></Button>

@@ -177,7 +177,7 @@ export default function Dashboard() {
     return (
       <div className="space-y-6">
         <div className="h-6 w-32 shimmer rounded" />
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
           {Array.from({ length: 8 }).map((_, i) => <SkeletonCard key={i} />)}
         </div>
       </div>
@@ -249,11 +249,11 @@ export default function Dashboard() {
       </div>
 
       {/* KPI Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
         {kpis.map((kpi) => (
-          <div key={kpi.label} className="card-surface rounded-[10px] p-5">
-            <p className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground mb-2">{kpi.label}</p>
-            <p className="text-[28px] font-bold text-foreground tabular-nums leading-none">
+          <div key={kpi.label} className="card-surface rounded-[10px] p-4 md:p-5">
+            <p className="text-[10px] md:text-[11px] font-medium uppercase tracking-wider text-muted-foreground mb-2">{kpi.label}</p>
+            <p className="text-xl md:text-[28px] font-bold text-foreground tabular-nums leading-none">
               {typeof kpi.value === "number" ? <AnimatedNumber value={kpi.value} /> : kpi.value}
             </p>
           </div>

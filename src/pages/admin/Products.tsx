@@ -141,9 +141,9 @@ export default function Products() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
         <h2 className="text-lg font-bold text-foreground">Produtos</h2>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 w-full sm:w-auto">
           <Select value={filterType} onValueChange={(v) => { setFilterType(v); setPage(0); }}>
             <SelectTrigger className="w-36 h-9 text-xs"><SelectValue placeholder="Filtrar tipo" /></SelectTrigger>
             <SelectContent>
@@ -218,7 +218,7 @@ export default function Products() {
         </div>
       </div>
 
-      <div className="card-surface rounded-[10px] overflow-hidden">
+      <div className="card-surface rounded-[10px] overflow-x-auto">
         <Table>
           <TableHeader>
             <TableRow className="border-border hover:bg-transparent bg-input">
