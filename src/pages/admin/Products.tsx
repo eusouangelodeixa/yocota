@@ -425,7 +425,7 @@ export default function Products() {
                       {product.image_url ? (
                         <img src={product.image_url} alt="" className="w-10 h-10 rounded-md object-cover" />
                       ) : (
-                        <div className="w-10 h-10 rounded-md bg-muted flex items-center justify-center">
+                        <div className="w-10 h-10 rounded-lg bg-[rgba(255,255,255,0.04)] flex items-center justify-center">
                           <ImageIcon className="h-4 w-4 text-muted-foreground" />
                         </div>
                       )}
