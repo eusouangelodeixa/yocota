@@ -430,9 +430,9 @@ export default function Products() {
                         </div>
                       )}
                     </TableCell>
-                    <TableCell className="font-medium">{product.name}</TableCell>
+                    <TableCell className="font-medium text-foreground">{product.name}</TableCell>
                     <TableCell>
-                      <Badge variant="secondary">{product.type}</Badge>
+                      <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-[rgba(255,255,255,0.06)] text-muted-foreground">{product.type}</span>
                     </TableCell>
                     <TableCell>{formatCents(product.price, product.currency || "brl")}</TableCell>
                     <TableCell>
