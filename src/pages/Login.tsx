@@ -1,11 +1,8 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
-import { Loader2, Lock } from "lucide-react";
+import { Loader2 } from "lucide-react";
 
 export default function Login() {
   const [email, setEmail] = useState("");
@@ -30,53 +27,52 @@ export default function Login() {
   return (
     <div className="flex min-h-screen items-center justify-center bg-background px-4">
       <div className="w-full max-w-sm space-y-8">
-        <div className="text-center space-y-2">
-          <div className="w-12 h-12 rounded-xl bg-primary flex items-center justify-center mx-auto mb-4">
-            <span className="text-primary-foreground font-bold text-lg">Y</span>
+        <div className="text-center space-y-3">
+          <div className="w-10 h-10 rounded-lg bg-primary flex items-center justify-center mx-auto">
+            <span className="text-primary-foreground font-bold text-base">Y</span>
           </div>
-          <h1 className="text-2xl font-bold text-foreground">Painel Admin</h1>
-          <p className="text-sm text-muted-foreground">Entre com suas credenciais</p>
+          <div>
+            <h1 className="text-lg font-bold text-foreground">Yocota</h1>
+            <p className="text-[13px] text-muted-foreground mt-1">Entre com suas credenciais</p>
+          </div>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="email" className="text-xs font-medium text-muted-foreground">Email</Label>
-            <Input
+          <div className="space-y-1.5">
+            <label htmlFor="email" className="text-xs font-medium text-muted-foreground">Email</label>
+            <input
               id="email"
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               placeholder="admin@exemplo.com"
               required
-              className="h-11 bg-input border-[rgba(255,255,255,0.1)] rounded-lg focus:border-primary focus:ring-1 focus:ring-primary transition-all duration-150"
+              className="flex h-10 w-full rounded-lg border border-border bg-input px-3 text-sm text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:border-primary focus:ring-[3px] focus:ring-primary/15 transition-all duration-150"
             />
           </div>
-          <div className="space-y-2">
-            <Label htmlFor="password" className="text-xs font-medium text-muted-foreground">Senha</Label>
-            <Input
+          <div className="space-y-1.5">
+            <label htmlFor="password" className="text-xs font-medium text-muted-foreground">Senha</label>
+            <input
               id="password"
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               placeholder="••••••••"
               required
-              className="h-11 bg-input border-[rgba(255,255,255,0.1)] rounded-lg focus:border-primary focus:ring-1 focus:ring-primary transition-all duration-150"
+              className="flex h-10 w-full rounded-lg border border-border bg-input px-3 text-sm text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:border-primary focus:ring-[3px] focus:ring-primary/15 transition-all duration-150"
             />
           </div>
-          <Button
+          <button
             type="submit"
-            className="w-full h-11 bg-primary text-primary-foreground font-bold rounded-lg hover:brightness-110 transition-all duration-150"
+            className="w-full h-10 bg-primary text-primary-foreground font-bold text-sm rounded-lg hover:brightness-110 active:scale-[0.98] disabled:opacity-40 disabled:cursor-not-allowed transition-all duration-150 flex items-center justify-center"
             disabled={loading}
           >
             {loading ? (
               <Loader2 className="h-4 w-4 animate-spin" />
             ) : (
-              <>
-                <Lock className="mr-2 h-4 w-4" />
-                Entrar
-              </>
+              "Entrar"
             )}
-          </Button>
+          </button>
         </form>
       </div>
     </div>
