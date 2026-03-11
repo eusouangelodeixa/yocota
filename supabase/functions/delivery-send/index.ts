@@ -142,24 +142,24 @@ serve(async (req) => {
 
     // Send via UazAPI with retry logic
     let sent = false;
-    const delays = [0, 60000, 300000]; // 0s, 1min, 5min
+    const delays = [0, 5000, 5000]; // 0s, 5s, 5s (capped for edge fn)
     let lastError = "";
 
     for (let attempt = 0; attempt < 3; attempt++) {
       if (attempt > 0) {
-        await new Promise((resolve) => setTimeout(resolve, Math.min(delays[attempt], 5000))); // Cap at 5s in edge fn
+        await new Promise((resolve) => setTimeout(resolve, delays[attempt]));
       }
 
       try {
-        const uazRes = await fetch(`${UAZAPI_URL}/send-text`, {
+        const uazRes = await fetch(`${UAZAPI_URL}/send/text`, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
-            "Authorization": `Bearer ${UAZAPI_TOKEN}`,
+            "token": UAZAPI_TOKEN,
           },
           body: JSON.stringify({
-            phone: cleanPhone,
-            message,
+            number: cleanPhone,
+            text: message,
           }),
         });
 
