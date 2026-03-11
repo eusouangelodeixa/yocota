@@ -11,6 +11,7 @@ import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { toast } from "sonner";
 import { slugify, formatCents } from "@/lib/formatters";
 import { Plus, Copy, Pencil, Trash2, Eye, Palette, X, GripVertical, Upload, ImageIcon, Loader2 } from "lucide-react";
@@ -294,12 +295,26 @@ export default function Checkouts() {
                       </div>
                     )}
                     {availableBumpProducts.length > 0 && (
-                      <div>
-                        <Select key={`bump-select-${form.order_bump_product_ids.join("-")}`} onValueChange={(v) => { if (v) addBump(v); }}>
-                          <SelectTrigger><SelectValue placeholder="+ Adicionar order bump" /></SelectTrigger>
-                          <SelectContent>{availableBumpProducts.map((p: any) => (<SelectItem key={p.id} value={p.id}>{p.name} — {formatCents(p.price, p.currency || "brl")}</SelectItem>))}</SelectContent>
-                        </Select>
-                      </div>
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <Button type="button" variant="outline" className="w-full justify-start text-muted-foreground text-xs h-10">
+                            <Plus className="mr-1.5 h-3.5 w-3.5" /> Adicionar order bump
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-80 p-1 max-h-60 overflow-y-auto" align="start" side="bottom">
+                          {availableBumpProducts.map((p: any) => (
+                            <button
+                              key={p.id}
+                              type="button"
+                              className="w-full text-left px-3 py-2 text-[13px] rounded-md hover:bg-accent hover:text-accent-foreground transition-colors flex justify-between items-center gap-2"
+                              onClick={() => { addBump(p.id); }}
+                            >
+                              <span className="truncate">{p.name}</span>
+                              <span className="text-[11px] text-muted-foreground shrink-0">{formatCents(p.price, p.currency || "brl")}</span>
+                            </button>
+                          ))}
+                        </PopoverContent>
+                      </Popover>
                     )}
                     {form.order_bump_product_ids.length === 0 && <p className="text-[11px] text-muted-foreground italic">Nenhum order bump adicionado.</p>}
                   </div>
