@@ -32,33 +32,20 @@ serve(async (req) => {
 
     const cleanPhone = phone.replace(/\D/g, "").replace(/^\+/, "");
 
-    // Try multiple endpoint patterns including token-in-path (UazAPI v2 style)
+    // UazAPI v2: header "token" with instance token, endpoint /message/send-text
     const endpoints = [
-      // Token in path (v2 common pattern): {base}/{token}/message/send-text
-      { path: `/${UAZAPI_TOKEN}/message/send-text`, body: { number: cleanPhone, text: message }, authHeader: "none" },
-      // Token in path with different body format
-      { path: `/${UAZAPI_TOKEN}/message/send-text`, body: { phone: cleanPhone, message }, authHeader: "none" },
-      // Token as apitoken header
-      { path: "/message/send-text", body: { number: cleanPhone, text: message }, authHeader: "apitoken" },
-      // Token as Authorization Bearer
-      { path: "/message/send-text", body: { number: cleanPhone, text: message }, authHeader: "Authorization" },
-      // /send-text variants
-      { path: `/${UAZAPI_TOKEN}/send-text`, body: { number: cleanPhone, text: message }, authHeader: "none" },
-      { path: "/send-text", body: { number: cleanPhone, text: message }, authHeader: "apitoken" },
+      { path: "/message/send-text", body: { number: cleanPhone, text: message }, tokenHeader: "token" },
+      { path: "/message/send-text", body: { number: cleanPhone, message }, tokenHeader: "token" },
     ];
 
     const results: any[] = [];
 
     for (const ep of endpoints) {
       const url = `${UAZAPI_URL}${ep.path}`;
-      const headers: Record<string, string> = { "Content-Type": "application/json" };
-      
-      if (ep.authHeader === "apitoken") {
-        headers["apitoken"] = UAZAPI_TOKEN;
-      } else if (ep.authHeader === "Authorization") {
-        headers["Authorization"] = `Bearer ${UAZAPI_TOKEN}`;
-      }
-      // "none" = no auth header (token already in path)
+      const headers: Record<string, string> = {
+        "Content-Type": "application/json",
+        [ep.tokenHeader]: UAZAPI_TOKEN,
+      };
 
       try {
         const res = await fetch(url, {
