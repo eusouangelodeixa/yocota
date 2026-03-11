@@ -368,7 +368,7 @@ function CheckoutForm({ checkout: c }: { checkout: CheckoutData }) {
             <button
               type="submit"
               className="w-full h-12 bg-[#28d56a] text-[#09090b] font-bold text-sm rounded-lg hover:bg-[#22c55e] active:scale-[0.98] disabled:opacity-40 disabled:cursor-not-allowed transition-all duration-150 flex items-center justify-center"
-              disabled={processing || success || !stripe}
+              disabled={processing || success || !stripe || !customerName.trim() || !email.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || phone.replace(/\D/g, "").length < 8}
             >
               {success ? (
                 <CheckCircle2 className="h-5 w-5 animate-in zoom-in duration-200" strokeWidth={2} />
