@@ -32,7 +32,7 @@ const emptyForm: CheckoutForm = {
   name: "", product_id: "", redirect_url: "", checkout_slug: "", first_offer_id: "",
   primary_color: "#2563eb", accent_color: "#1e40af", bg_color: "#f8fafc",
   headline_text: "", cta_text: "Finalizar compra", banner_url: "", show_product_image: true,
-  order_bump_product_ids: [],
+  order_bump_product_ids: [], order_bump_descriptions: {},
   countdown_enabled: false, countdown_duration: 10, countdown_text: "Essa oferta expira em:",
   countdown_bg_color: "#dc2626", countdown_text_color: "#ffffff",
   social_proof_enabled: false, social_proof_messages: "", social_proof_interval: 15,
