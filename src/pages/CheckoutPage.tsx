@@ -519,7 +519,7 @@ export default function CheckoutPage() {
 
   return (
     <Elements stripe={stripePromise} options={{ locale: stripeLocale as any }}>
-      <CheckoutForm checkout={checkout} lang={detectedLang} t={t} />
+      <CheckoutForm checkout={checkout} lang={detectedLang} t={t} detectedCountry={detectedCountry} />
     </Elements>
   );
 }
