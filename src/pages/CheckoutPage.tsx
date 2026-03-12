@@ -390,7 +390,7 @@ function CheckoutForm({ checkout: c, lang, t }: { checkout: CheckoutData; lang: 
 
             {/* Cardholder name */}
             <div className="space-y-1.5">
-              <label className="text-[13px] font-medium text-[#fafafa]">{t.cardholderName}</label>
+              <label className="text-[13px] font-medium text-[#1a1a1a]">{t.cardholderName}</label>
               <input value={customerName} onChange={(e) => setCustomerName(e.target.value)} onBlur={() => validateField("name", customerName)} placeholder={t.cardholderNamePlaceholder} required className={`checkout-input ${inputClass(!!fieldErrors.name)}`} />
               {fieldErrors.name && <p className="text-[11px] text-[#ef4444] animate-in slide-in-from-top-1 duration-150">{fieldErrors.name}</p>}
             </div>
