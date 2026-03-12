@@ -329,12 +329,15 @@ async function processSuccessfulPayment(
     for (const bp of bumpProducts) totalAmount += bp.price;
   }
 
+  const orderCurrency = checkout.products.currency || "eur";
+
   const { data: order, error: orderError } = await supabase
     .from("orders")
     .insert({
       customer_id: customer.id,
       checkout_id: checkout.id,
       total_amount: totalAmount,
+      currency: orderCurrency,
       status: "paid",
       stripe_payment_intent_id: paymentIntentId,
       utm_source: utmSource,
