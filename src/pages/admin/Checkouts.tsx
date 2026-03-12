@@ -108,7 +108,7 @@ function CheckoutLivePreview({ form, product, bumpProducts }: { form: CheckoutFo
             )}
             <h3 className="text-base font-semibold text-[#fafafa] mb-1">{form.headline_text || product?.name || "Nome do Produto"}</h3>
             {product?.description && <p className="text-xs text-[#71717a] leading-relaxed mb-4">{product.description}</p>}
-            <div className="text-2xl font-bold text-[#fafafa] tabular-nums mb-4">{product ? formatCents(product.price, currency) : "R$ 0,00"}</div>
+            <div className="text-2xl font-bold text-[#fafafa] tabular-nums mb-4">{product ? formatCents(product.price, currency) : "€ 0,00"}</div>
             <div className="border-t border-[#27272a]" />
 
             {bumpProducts.length > 0 && (

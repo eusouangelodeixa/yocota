@@ -82,7 +82,7 @@ function ChartTooltip({ active, payload, label }: any) {
       <p className="text-xs text-muted-foreground mb-1">{label}</p>
       {payload.map((entry: any, i: number) => (
         <p key={i} className="text-sm font-semibold text-foreground">
-          {formatCents(entry.value, "brl")}
+          {formatCents(entry.value, "eur")}
         </p>
       ))}
     </div>
