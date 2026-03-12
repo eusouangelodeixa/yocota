@@ -415,6 +415,7 @@ export default function Checkouts() {
                   </div>
                 </TabsContent>
 
+                <TabsContent value="preview">
                   <div className="py-2">
                     <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium mb-3">Preview em tempo real</p>
                     <CheckoutLivePreview form={form} product={selectedProduct} bumpProducts={bumpProducts} />
