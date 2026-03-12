@@ -490,10 +490,10 @@ async function sendToUtmify(supabase: any, params: UtmifyParams) {
     return;
   }
 
-  const currencyMap: Record<string, string> = {
-    eur: "EUR", usd: "USD", brl: "BRL", gbp: "GBP",
-  };
-  const currency = currencyMap[params.currency.toLowerCase()] || params.currency.toUpperCase();
+  // Utmify only supports these currencies
+  const UTMIFY_SUPPORTED = new Set(["BRL", "USD", "EUR", "GBP", "ARS", "CAD", "COP", "MXN", "PYG", "CLP", "PEN", "PLN", "UAH", "CHF", "THB", "AUD"]);
+  const currencyUpper = params.currency.toUpperCase();
+  const currency = UTMIFY_SUPPORTED.has(currencyUpper) ? currencyUpper : "EUR";
 
   const payload = {
     orderId: params.orderId,
