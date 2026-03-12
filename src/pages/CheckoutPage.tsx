@@ -20,7 +20,7 @@ function useDocTitle(title: string) {
   useEffect(() => { document.title = title; return () => { document.title = "Yocota"; }; }, [title]);
 }
 
-interface BumpProduct { id: string; name: string; price: number; currency: string; }
+interface BumpProduct { id: string; name: string; description: string | null; price: number; currency: string; }
 interface CheckoutData {
   id: string; name: string; checkout_slug: string; redirect_url: string; product_id: string;
   primary_color: string; accent_color: string; bg_color: string;
