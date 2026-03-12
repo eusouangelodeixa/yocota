@@ -101,14 +101,13 @@ function BannerUpload({ value, onChange }: { value: string; onChange: (url: stri
   );
 }
 
-/* ── Checkout Live Preview (faithful recreation) ── */
+/* ── Checkout Live Preview (faithful recreation — light theme) ── */
 function CheckoutLivePreview({ form, product, bumpProducts }: { form: CheckoutForm; product: any; bumpProducts: any[] }) {
   const currency = product?.currency || "eur";
   const pc = form.primary_color || "#2563eb";
-  const bgColor = form.bg_color || "#09090b";
 
   return (
-    <div className="w-full rounded-[10px] border border-border overflow-hidden" style={{ backgroundColor: bgColor }}>
+    <div className="w-full rounded-[10px] border border-border overflow-hidden bg-white">
       {/* Countdown bar preview */}
       {form.countdown_enabled && (
         <div className="py-1.5 px-4 flex items-center justify-center gap-2 text-xs font-semibold" style={{ backgroundColor: form.countdown_bg_color, color: form.countdown_text_color }}>
@@ -117,31 +116,31 @@ function CheckoutLivePreview({ form, product, bumpProducts }: { form: CheckoutFo
       )}
       <div className="flex flex-col lg:flex-row min-h-[480px]">
         {/* Left panel */}
-        <div className="lg:w-[45%] bg-[#111113] border-b lg:border-b-0 lg:border-r border-[#27272a] p-6 lg:p-8 flex flex-col justify-center">
+        <div className="lg:w-[45%] bg-white border-b lg:border-b-0 lg:border-r border-[#111111] p-6 lg:p-8 flex flex-col justify-center">
           <div className="max-w-sm">
             {form.banner_url && (
-              <div className="w-full h-28 rounded-lg overflow-hidden mb-4 border border-[#27272a]">
+              <div className="w-full h-28 rounded-lg overflow-hidden mb-4 border border-[#111111]">
                 <img src={form.banner_url} alt="" className="w-full h-full object-cover" />
               </div>
             )}
             {form.show_product_image && product?.image_url && (
-              <img src={product.image_url} alt="" className="w-14 h-14 rounded-lg object-cover mb-3 border border-[#27272a]" />
+              <img src={product.image_url} alt="" className="w-14 h-14 rounded-lg object-cover mb-3 border border-[#111111]" />
             )}
-            <h3 className="text-base font-semibold text-[#fafafa] mb-1">{form.headline_text || product?.name || "Nome do Produto"}</h3>
-            {product?.description && <p className="text-xs text-[#71717a] leading-relaxed mb-4">{product.description}</p>}
-            <div className="text-2xl font-bold text-[#fafafa] tabular-nums mb-4">{product ? formatCents(product.price, currency) : "€ 0,00"}</div>
-            <div className="border-t border-[#27272a]" />
+            <h3 className="text-base font-semibold text-[#111111] mb-1">{form.headline_text || product?.name || "Nome do Produto"}</h3>
+            {product?.description && <p className="text-xs text-[#525252] leading-relaxed mb-4">{product.description}</p>}
+            <div className="text-2xl font-bold text-[#111111] tabular-nums mb-4">{product ? formatCents(product.price, currency) : "€ 0,00"}</div>
+            <div className="border-t border-[#111111]" />
 
             {bumpProducts.length > 0 && (
               <div className="mt-4 space-y-2">
                 {bumpProducts.map((bp) => {
                   const bumpCopy = form.order_bump_descriptions[bp.id] || bp.description;
                   return (
-                    <div key={bp.id} className="rounded-[10px] border border-[#27272a] bg-[#18181b] p-3">
+                    <div key={bp.id} className="rounded-[10px] border border-[#111111] bg-white p-3">
                       <div className="flex items-center gap-2">
-                        <div className="w-3.5 h-3.5 rounded-sm border border-[#27272a] shrink-0" />
+                        <div className="w-3.5 h-3.5 rounded-sm border border-[#111111] shrink-0" />
                         <div className="flex-1 min-w-0">
-                          <span className="text-[11px] font-medium text-[#fafafa] truncate block">{bp.name}</span>
+                          <span className="text-[11px] font-medium text-[#111111] truncate block">{bp.name}</span>
                           {bumpCopy && <p className="text-[10px] text-[#71717a] mt-0.5 line-clamp-2">{bumpCopy}</p>}
                         </div>
                         <span className="text-[11px] font-bold tabular-nums shrink-0" style={{ color: pc }}>+{formatCents(bp.price, bp.currency || currency)}</span>
@@ -152,37 +151,47 @@ function CheckoutLivePreview({ form, product, bumpProducts }: { form: CheckoutFo
               </div>
             )}
 
-            <div className="mt-4 pt-3 border-t border-[#27272a] flex justify-between items-center">
-              <span className="text-xs text-[#a1a1aa]">Total</span>
-              <span className="text-lg font-bold text-[#fafafa] tabular-nums">{product ? formatCents(product.price, currency) : "€ 0,00"}</span>
+            <div className="mt-4 pt-3 border-t border-[#111111] flex justify-between items-center">
+              <span className="text-xs text-[#525252]">Total</span>
+              <span className="text-lg font-bold text-[#111111] tabular-nums">{product ? formatCents(product.price, currency) : "€ 0,00"}</span>
             </div>
           </div>
         </div>
 
         {/* Right panel */}
-        <div className="flex-1 p-6 lg:p-8 flex flex-col justify-center">
-          <div className="max-w-sm mx-auto w-full">
-            <p className="text-[10px] uppercase tracking-wider text-[#52525b] font-medium mb-4">Informações de pagamento</p>
+        <div className="flex-1 bg-white p-6 lg:p-8 flex flex-col justify-center">
+          <div className="max-w-sm mx-auto w-full space-y-4">
+            {/* Contact information */}
+            <p className="text-[13px] font-medium text-[#111111]">Informações de contacto</p>
             <div className="space-y-3">
-              {["Nome completo", "Email", "WhatsApp"].map((label) => (
+              {["Email", "WhatsApp"].map((label) => (
                 <div key={label} className="space-y-1">
-                  <p className="text-[10px] font-medium text-[#a1a1aa]">{label}</p>
-                  <div className="h-10 rounded-lg bg-[#111113] border border-[#27272a]" />
+                  <p className="text-[10px] font-medium text-[#27272a]">{label}</p>
+                  <div className="h-10 rounded-lg bg-white border border-[#111111]" />
                 </div>
               ))}
-              <div className="space-y-1">
-                <p className="text-[10px] font-medium text-[#a1a1aa]">Dados do cartão</p>
-                <div className="h-10 rounded-lg bg-[#111113] border border-[#27272a]" />
-                <div className="grid grid-cols-2 gap-2">
-                  <div className="h-10 rounded-lg bg-[#111113] border border-[#27272a]" />
-                  <div className="h-10 rounded-lg bg-[#111113] border border-[#27272a]" />
-                </div>
-              </div>
-              <button className="w-full h-11 font-bold text-xs rounded-lg cursor-default flex items-center justify-center gap-1.5" style={{ backgroundColor: pc, color: '#fff' }}>
-                🔒 {form.cta_text || "Finalizar compra"} {product ? formatCents(product.price, currency) : ""}
-              </button>
-              <p className="text-[10px] text-[#52525b] text-center">🔒 Pagamento processado com segurança via Stripe</p>
             </div>
+
+            {/* Card information */}
+            <p className="text-[13px] font-medium text-[#111111] pt-2">Informações do cartão</p>
+            <div className="rounded-lg border border-[#111111] overflow-hidden">
+              <div className="h-10 bg-white border-b border-[#111111]" />
+              <div className="grid grid-cols-2">
+                <div className="h-10 bg-white border-r border-[#111111]" />
+                <div className="h-10 bg-white" />
+              </div>
+            </div>
+
+            {/* Cardholder name */}
+            <div className="space-y-1">
+              <p className="text-[13px] font-medium text-[#111111]">Nome no cartão</p>
+              <div className="h-10 rounded-lg bg-white border border-[#111111]" />
+            </div>
+
+            <button className="w-full h-11 font-bold text-xs rounded-lg cursor-default flex items-center justify-center gap-1.5" style={{ backgroundColor: pc, color: '#fff' }}>
+              🔒 {form.cta_text || "Finalizar compra"} {product ? formatCents(product.price, currency) : ""}
+            </button>
+            <p className="text-[10px] text-[#8a8a8a] text-center">🔒 Pagamento processado com segurança via Stripe</p>
           </div>
         </div>
       </div>
