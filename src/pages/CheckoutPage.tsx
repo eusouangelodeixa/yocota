@@ -249,7 +249,7 @@ function CheckoutForm({ checkout: c, lang, t, detectedCountry }: { checkout: Che
           </div>
           <div className="flex-1 min-w-0">
             <p className="text-[13px] font-medium text-[#1a1a1a]">{bp.name}</p>
-            {displayDesc && <p className="text-[11px] text-[#71717a] mt-0.5 line-clamp-2">{displayDesc}</p>}
+            {displayDesc && <p className="text-[11px] text-[#71717a] mt-0.5">{displayDesc}</p>}
           </div>
           <span className="text-[13px] font-bold tabular-nums" style={{ color: pc }}>+{formatCents(bp.price, bp.currency || currency)}</span>
         </div>
