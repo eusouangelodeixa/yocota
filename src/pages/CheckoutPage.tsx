@@ -503,14 +503,14 @@ export default function CheckoutPage() {
   const t = getTranslations(detectedLang);
   const stripeLocale = getStripeLocale(detectedLang);
 
-  if (loading) return <div className="min-h-screen flex items-center justify-center bg-[#09090b]"><Loader2 className="h-8 w-8 animate-spin text-[#a1a1aa]" /></div>;
+  if (loading) return <div className="min-h-screen flex items-center justify-center bg-white"><Loader2 className="h-8 w-8 animate-spin text-[#a3a3a3]" /></div>;
 
   if (notFound || !checkout) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-[#09090b]">
+      <div className="min-h-screen flex items-center justify-center bg-white">
         <div className="text-center space-y-3">
-          <h1 className="text-lg font-bold text-[#fafafa]">{t.notFound}</h1>
-          <p className="text-[13px] text-[#52525b]">{t.notFoundDesc}</p>
+          <h1 className="text-lg font-bold text-[#1a1a1a]">{t.notFound}</h1>
+          <p className="text-[13px] text-[#a3a3a3]">{t.notFoundDesc}</p>
         </div>
       </div>
     );
