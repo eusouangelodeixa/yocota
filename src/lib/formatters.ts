@@ -277,15 +277,27 @@ export function getCurrencyLabel(code: string): string {
   return labels[code] || code.toUpperCase();
 }
 
+// Currencies where Intl uses an ambiguous single-letter symbol (e.g. "R" for ZAR)
+// and we prefer the ISO code instead for clarity
+const USE_ISO_CODE: Record<string, boolean> = {
+  zar: true,
+};
+
 export function formatCents(cents: number, currency = "eur"): string {
   const config = CURRENCY_CONFIG[currency] || CURRENCY_CONFIG.eur;
   const value = cents / Math.pow(10, config.decimals);
-  return new Intl.NumberFormat(config.locale, {
+  const formatted = new Intl.NumberFormat(config.locale, {
     style: "currency",
     currency: currency.toUpperCase(),
     minimumFractionDigits: config.decimals,
     maximumFractionDigits: config.decimals,
   }).format(value);
+
+  if (USE_ISO_CODE[currency]) {
+    // Replace the native symbol with the ISO code (e.g. "R 1,00" → "ZAR 1,00")
+    return formatted.replace(config.symbol, currency.toUpperCase() + " ").replace(/\s+/g, " ").trim();
+  }
+  return formatted;
 }
 
 // Keep backward compat
