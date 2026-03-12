@@ -304,13 +304,23 @@ export default function Checkouts() {
                   <div className="space-y-3">
                     <Label className="text-xs text-muted-foreground">Order Bumps</Label>
                     {bumpProducts.length > 0 && (
-                      <div className="space-y-2">
+                      <div className="space-y-3">
                         {bumpProducts.map((bp: any, idx: number) => (
-                          <div key={bp.id} className="flex items-center gap-3 rounded-lg border border-border bg-input px-3 py-2">
-                            <GripVertical className="h-4 w-4 text-muted-foreground shrink-0" strokeWidth={1.5} />
-                            <div className="flex-1 min-w-0"><p className="text-[13px] font-medium truncate text-foreground">{bp.name}</p><p className="text-[11px] text-muted-foreground">{formatCents(bp.price, bp.currency || "eur")}</p></div>
-                            <Badge variant="secondary" className="text-[10px] shrink-0">#{idx + 1}</Badge>
-                            <Button type="button" variant="ghost" size="icon" className="h-7 w-7 shrink-0" onClick={() => removeBump(bp.id)}><X className="h-3.5 w-3.5 text-destructive" /></Button>
+                          <div key={bp.id} className="rounded-lg border border-border bg-input px-3 py-3 space-y-2">
+                            <div className="flex items-center gap-3">
+                              <GripVertical className="h-4 w-4 text-muted-foreground shrink-0" strokeWidth={1.5} />
+                              <div className="flex-1 min-w-0"><p className="text-[13px] font-medium truncate text-foreground">{bp.name}</p><p className="text-[11px] text-muted-foreground">{formatCents(bp.price, bp.currency || "eur")}</p></div>
+                              <Badge variant="secondary" className="text-[10px] shrink-0">#{idx + 1}</Badge>
+                              <Button type="button" variant="ghost" size="icon" className="h-7 w-7 shrink-0" onClick={() => removeBump(bp.id)}><X className="h-3.5 w-3.5 text-destructive" /></Button>
+                            </div>
+                            <div className="pl-7">
+                              <Input
+                                value={form.order_bump_descriptions[bp.id] || ""}
+                                onChange={(e) => setForm({ ...form, order_bump_descriptions: { ...form.order_bump_descriptions, [bp.id]: e.target.value } })}
+                                placeholder="Copy do bump (ex: Adicione e economize 30%!)"
+                                className="text-xs h-8"
+                              />
+                            </div>
                           </div>
                         ))}
                       </div>
