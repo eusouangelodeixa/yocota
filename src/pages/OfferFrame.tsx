@@ -7,10 +7,10 @@ import { Loader2 } from "lucide-react";
 interface SessionData {
   id: string; token: string; offer_id: string; order_id: string; customer_id: string;
   decision: string | null; expires_at: string;
-  offer: { id: string; name: string; product_id: string; page_url: string | null; products: { name: string; description: string | null; price: number } };
+  offer: { id: string; name: string; product_id: string; page_url: string | null; products: { name: string; description: string | null; price: number; currency: string } };
 }
 
-interface PreviewData { name: string; product: { name: string; description: string | null; price: number } }
+interface PreviewData { name: string; product: { name: string; description: string | null; price: number; currency: string } }
 
 export default function OfferFrame() {
   const { token } = useParams<{ token: string }>();
