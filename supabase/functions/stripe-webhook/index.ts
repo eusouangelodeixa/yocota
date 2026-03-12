@@ -169,6 +169,57 @@ serve(async (req) => {
         break;
       }
 
+      case "charge.refunded": {
+        const charge = event.data.object as any;
+        const paymentIntentId = charge.payment_intent;
+        if (paymentIntentId) {
+          const { data: order } = await supabase
+            .from("orders")
+            .select("*, order_items(*, products(id, name, price, currency)), customers(name, email, phone)")
+            .eq("stripe_payment_intent_id", paymentIntentId)
+            .maybeSingle();
+
+          if (order) {
+            await supabase.from("orders").update({ status: "refunded" }).eq("id", order.id);
+
+            await sendToUtmify(supabase, {
+              orderId: order.id,
+              status: "refunded",
+              createdAt: order.created_at,
+              approvedDate: order.created_at,
+              refundedAt: new Date().toISOString(),
+              paymentMethod: "credit_card",
+              customer: {
+                name: order.customers?.name || "",
+                email: order.customers?.email || "",
+                phone: order.customers?.phone || null,
+                document: null,
+              },
+              products: (order.order_items || []).map((item: any) => ({
+                id: item.products?.id || item.product_id,
+                name: item.products?.name || "Product",
+                priceInCents: item.amount,
+                quantity: 1,
+              })),
+              trackingParameters: {
+                src: null, sck: null,
+                utm_source: order.utm_source, utm_campaign: order.utm_campaign,
+                utm_medium: order.utm_medium, utm_content: order.utm_content, utm_term: order.utm_term,
+              },
+              totalAmountCents: order.total_amount,
+              currency: order.order_items?.[0]?.products?.currency || "eur",
+            });
+
+            await supabase.from("audit_logs").insert({
+              event_type: "payment_refunded",
+              payload: { payment_intent_id: paymentIntentId, order_id: order.id },
+            });
+          }
+        }
+        console.log("Charge refunded:", charge.id);
+        break;
+      }
+
       default:
         console.log(`Unhandled event type: ${event.type}`);
     }
