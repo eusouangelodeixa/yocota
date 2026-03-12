@@ -430,13 +430,21 @@ export default function Checkouts() {
 
                 <TabsContent value="design" className="space-y-4">
                   <BannerUpload value={form.banner_url} onChange={(url) => setForm({ ...form, banner_url: url })} />
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     {[{ label: "Cor Primária", key: "primary_color" as const }, { label: "Cor Secundária", key: "accent_color" as const }, { label: "Cor de Fundo", key: "bg_color" as const }].map((c) => (
                       <div key={c.key} className="space-y-1.5">
                         <Label className="text-xs text-muted-foreground">{c.label}</Label>
                         <div className="flex gap-2 items-center"><input type="color" value={form[c.key]} onChange={(e) => setForm({ ...form, [c.key]: e.target.value })} className="w-10 h-10 rounded-lg border border-border cursor-pointer bg-transparent" /><Input value={form[c.key]} onChange={(e) => setForm({ ...form, [c.key]: e.target.value })} className="flex-1 text-xs" /></div>
                       </div>
                     ))}
+                    <div className="space-y-1.5">
+                      <Label className="text-xs text-muted-foreground">Cor do Botão de Compra</Label>
+                      <div className="flex gap-2 items-center">
+                        <input type="color" value={form.cta_button_color || form.primary_color} onChange={(e) => setForm({ ...form, cta_button_color: e.target.value })} className="w-10 h-10 rounded-lg border border-border cursor-pointer bg-transparent" />
+                        <Input value={form.cta_button_color} onChange={(e) => setForm({ ...form, cta_button_color: e.target.value })} className="flex-1 text-xs" placeholder="Deixe vazio para usar a cor primária" />
+                        {form.cta_button_color && <Button type="button" variant="ghost" size="icon" className="h-8 w-8 shrink-0" onClick={() => setForm({ ...form, cta_button_color: "" })}><X className="h-3.5 w-3.5" /></Button>}
+                      </div>
+                    </div>
                   </div>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="space-y-1.5"><Label className="text-xs text-muted-foreground">Headline</Label><Input value={form.headline_text} onChange={(e) => setForm({ ...form, headline_text: e.target.value })} placeholder="Deixe vazio para usar o nome do produto" /></div>
