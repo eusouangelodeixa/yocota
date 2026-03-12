@@ -1,0 +1,1 @@
+ALTER TABLE public.checkouts ADD COLUMN cta_button_color text DEFAULT NULL;

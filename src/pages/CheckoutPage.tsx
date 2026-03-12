@@ -72,6 +72,7 @@ function CheckoutForm({ checkout: c, lang, t }: { checkout: CheckoutData; lang: 
 
   // Dynamic colors from checkout config
   const pc = c.primary_color || "#2563eb";
+  const btnColor = (c as any).cta_button_color || pc;
   const pcRing = hexToRgba(pc, 0.15);
   const pcBg = hexToRgba(pc, 0.06);
 
@@ -401,7 +402,7 @@ function CheckoutForm({ checkout: c, lang, t }: { checkout: CheckoutData; lang: 
             <button
               type="submit"
               className="w-full h-12 font-bold text-sm rounded-lg active:scale-[0.98] disabled:opacity-40 disabled:cursor-not-allowed transition-all duration-150 flex items-center justify-center"
-              style={{ backgroundColor: pc, color: '#fff' }}
+              style={{ backgroundColor: btnColor, color: '#fff' }}
               disabled={processing || success || !stripe || !customerName.trim() || !email.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || phone.replace(/\D/g, "").length < 8}
             >
               {success ? (

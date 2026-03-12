@@ -19,7 +19,7 @@ import { Textarea } from "@/components/ui/textarea";
 
 interface CheckoutForm {
   name: string; product_id: string; redirect_url: string; checkout_slug: string; first_offer_id: string;
-  primary_color: string; accent_color: string; bg_color: string; headline_text: string; cta_text: string;
+  primary_color: string; accent_color: string; bg_color: string; cta_button_color: string; headline_text: string; cta_text: string;
   banner_url: string; show_product_image: boolean; order_bump_product_ids: string[];
   order_bump_descriptions: Record<string, string>;
   countdown_enabled: boolean; countdown_duration: number; countdown_text: string;
@@ -30,7 +30,7 @@ interface CheckoutForm {
 
 const emptyForm: CheckoutForm = {
   name: "", product_id: "", redirect_url: "", checkout_slug: "", first_offer_id: "",
-  primary_color: "#2563eb", accent_color: "#1e40af", bg_color: "#f8fafc",
+  primary_color: "#2563eb", accent_color: "#1e40af", bg_color: "#f8fafc", cta_button_color: "",
   headline_text: "", cta_text: "Finalizar compra", banner_url: "", show_product_image: true,
   order_bump_product_ids: [], order_bump_descriptions: {},
   countdown_enabled: false, countdown_duration: 10, countdown_text: "Essa oferta expira em:",
@@ -105,6 +105,7 @@ function BannerUpload({ value, onChange }: { value: string; onChange: (url: stri
 function CheckoutLivePreview({ form, product, bumpProducts }: { form: CheckoutForm; product: any; bumpProducts: any[] }) {
   const currency = product?.currency || "eur";
   const pc = form.primary_color || "#2563eb";
+  const btnColor = form.cta_button_color || pc;
 
   return (
     <div className="w-full rounded-[10px] border border-border overflow-hidden bg-white">
@@ -188,7 +189,7 @@ function CheckoutLivePreview({ form, product, bumpProducts }: { form: CheckoutFo
               <div className="h-10 rounded-lg bg-white border border-[#111111]" />
             </div>
 
-            <button className="w-full h-11 font-bold text-xs rounded-lg cursor-default flex items-center justify-center gap-1.5" style={{ backgroundColor: pc, color: '#fff' }}>
+            <button className="w-full h-11 font-bold text-xs rounded-lg cursor-default flex items-center justify-center gap-1.5" style={{ backgroundColor: btnColor, color: '#fff' }}>
               🔒 {form.cta_text || "Finalizar compra"} {product ? formatCents(product.price, currency) : ""}
             </button>
             <p className="text-[10px] text-[#8a8a8a] text-center">🔒 Pagamento processado com segurança via Stripe</p>
@@ -234,7 +235,7 @@ export default function Checkouts() {
       const payload: Record<string, any> = {
         name: form.name, product_id: form.product_id, checkout_slug: slug, redirect_url: form.redirect_url,
         order_bump_product_id: form.order_bump_product_ids[0] || null, first_offer_id: form.first_offer_id || null,
-        primary_color: form.primary_color, accent_color: form.accent_color, bg_color: form.bg_color,
+        primary_color: form.primary_color, accent_color: form.accent_color, bg_color: form.bg_color, cta_button_color: form.cta_button_color || null,
         headline_text: form.headline_text || null, cta_text: form.cta_text || "Finalizar compra",
         banner_url: form.banner_url || null, show_product_image: form.show_product_image,
         countdown_enabled: form.countdown_enabled, countdown_duration: form.countdown_duration,
@@ -282,7 +283,7 @@ export default function Checkouts() {
     const { ids: bumpIds, descriptions: bumpDescs } = await loadBumpsForCheckout(checkout.id);
     setEditingId(checkout.id);
     const spMessages = Array.isArray(checkout.social_proof_messages) ? (checkout.social_proof_messages as string[]).join("\n") : "";
-    setForm({ name: checkout.name, product_id: checkout.product_id, redirect_url: checkout.redirect_url, checkout_slug: checkout.checkout_slug, first_offer_id: checkout.first_offer_id ?? "", primary_color: checkout.primary_color || "#2563eb", accent_color: checkout.accent_color || "#1e40af", bg_color: checkout.bg_color || "#f8fafc", headline_text: checkout.headline_text ?? "", cta_text: checkout.cta_text || "Finalizar compra", banner_url: checkout.banner_url ?? "", show_product_image: checkout.show_product_image ?? true, order_bump_product_ids: bumpIds, order_bump_descriptions: bumpDescs, countdown_enabled: checkout.countdown_enabled ?? false, countdown_duration: checkout.countdown_duration ?? 10, countdown_text: checkout.countdown_text ?? "Essa oferta expira em:", countdown_bg_color: checkout.countdown_bg_color ?? "#dc2626", countdown_text_color: checkout.countdown_text_color ?? "#ffffff", social_proof_enabled: checkout.social_proof_enabled ?? false, social_proof_messages: spMessages, social_proof_interval: checkout.social_proof_interval ?? 15, social_proof_display_duration: checkout.social_proof_display_duration ?? 5, social_proof_position: checkout.social_proof_position ?? "bottom-left" });
+    setForm({ name: checkout.name, product_id: checkout.product_id, redirect_url: checkout.redirect_url, checkout_slug: checkout.checkout_slug, first_offer_id: checkout.first_offer_id ?? "", primary_color: checkout.primary_color || "#2563eb", accent_color: checkout.accent_color || "#1e40af", bg_color: checkout.bg_color || "#f8fafc", cta_button_color: checkout.cta_button_color || "", headline_text: checkout.headline_text ?? "", cta_text: checkout.cta_text || "Finalizar compra", banner_url: checkout.banner_url ?? "", show_product_image: checkout.show_product_image ?? true, order_bump_product_ids: bumpIds, order_bump_descriptions: bumpDescs, countdown_enabled: checkout.countdown_enabled ?? false, countdown_duration: checkout.countdown_duration ?? 10, countdown_text: checkout.countdown_text ?? "Essa oferta expira em:", countdown_bg_color: checkout.countdown_bg_color ?? "#dc2626", countdown_text_color: checkout.countdown_text_color ?? "#ffffff", social_proof_enabled: checkout.social_proof_enabled ?? false, social_proof_messages: spMessages, social_proof_interval: checkout.social_proof_interval ?? 15, social_proof_display_duration: checkout.social_proof_display_duration ?? 5, social_proof_position: checkout.social_proof_position ?? "bottom-left" });
     setBumpPickerOpen(false);
     setDialogOpen(true);
   };
@@ -430,13 +431,21 @@ export default function Checkouts() {
 
                 <TabsContent value="design" className="space-y-4">
                   <BannerUpload value={form.banner_url} onChange={(url) => setForm({ ...form, banner_url: url })} />
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     {[{ label: "Cor Primária", key: "primary_color" as const }, { label: "Cor Secundária", key: "accent_color" as const }, { label: "Cor de Fundo", key: "bg_color" as const }].map((c) => (
                       <div key={c.key} className="space-y-1.5">
                         <Label className="text-xs text-muted-foreground">{c.label}</Label>
                         <div className="flex gap-2 items-center"><input type="color" value={form[c.key]} onChange={(e) => setForm({ ...form, [c.key]: e.target.value })} className="w-10 h-10 rounded-lg border border-border cursor-pointer bg-transparent" /><Input value={form[c.key]} onChange={(e) => setForm({ ...form, [c.key]: e.target.value })} className="flex-1 text-xs" /></div>
                       </div>
                     ))}
+                    <div className="space-y-1.5">
+                      <Label className="text-xs text-muted-foreground">Cor do Botão de Compra</Label>
+                      <div className="flex gap-2 items-center">
+                        <input type="color" value={form.cta_button_color || form.primary_color} onChange={(e) => setForm({ ...form, cta_button_color: e.target.value })} className="w-10 h-10 rounded-lg border border-border cursor-pointer bg-transparent" />
+                        <Input value={form.cta_button_color} onChange={(e) => setForm({ ...form, cta_button_color: e.target.value })} className="flex-1 text-xs" placeholder="Deixe vazio para usar a cor primária" />
+                        {form.cta_button_color && <Button type="button" variant="ghost" size="icon" className="h-8 w-8 shrink-0" onClick={() => setForm({ ...form, cta_button_color: "" })}><X className="h-3.5 w-3.5" /></Button>}
+                      </div>
+                    </div>
                   </div>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="space-y-1.5"><Label className="text-xs text-muted-foreground">Headline</Label><Input value={form.headline_text} onChange={(e) => setForm({ ...form, headline_text: e.target.value })} placeholder="Deixe vazio para usar o nome do produto" /></div>
