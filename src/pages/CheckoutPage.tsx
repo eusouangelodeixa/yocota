@@ -13,6 +13,7 @@ import { Loader2, Lock, CheckCircle2 } from "lucide-react";
 import { COUNTRY_CODES, COUNTRY_TO_DDI } from "@/lib/countryCodes";
 import { CheckoutCountdownBar } from "@/components/CheckoutCountdownBar";
 import { SalesNotificationPopup } from "@/components/SalesNotificationPopup";
+import { getLangFromCountry, getTranslations, getStripeLocale, type CheckoutLang, type CheckoutTranslations } from "@/lib/checkoutTranslations";
 
 const stripePromise = loadStripe("pk_live_51T9VKyGfpSpNOdDI6GT8Bq78Kn7NagZZuB880xuOksJD8TPAfOFIZ762lhXVg3EbJIcf66uoOvdweVF4kjrkCU3700yfUxyd0d");
 
@@ -53,7 +54,7 @@ function hexToRgba(hex: string, alpha: number): string {
   return `rgba(${r},${g},${b},${alpha})`;
 }
 
-function CheckoutForm({ checkout: c }: { checkout: CheckoutData }) {
+function CheckoutForm({ checkout: c, lang, t }: { checkout: CheckoutData; lang: CheckoutLang; t: CheckoutTranslations }) {
   const stripe = useStripe();
   const elements = useElements();
 
@@ -83,18 +84,18 @@ function CheckoutForm({ checkout: c }: { checkout: CheckoutData }) {
     const errors = { ...fieldErrors };
     switch (field) {
       case "name":
-        if (!value.trim()) errors.name = "Nome é obrigatório";
-        else if (value.trim().length < 3) errors.name = "Nome deve ter pelo menos 3 caracteres";
+        if (!value.trim()) errors.name = t.nameRequired;
+        else if (value.trim().length < 3) errors.name = t.nameMinLength;
         else delete errors.name;
         break;
       case "email":
-        if (!value.trim()) errors.email = "Email é obrigatório";
-        else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) errors.email = "Email inválido";
+        if (!value.trim()) errors.email = t.emailRequired;
+        else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) errors.email = t.emailInvalid;
         else delete errors.email;
         break;
       case "phone":
-        if (!value.trim()) errors.phone = "WhatsApp é obrigatório";
-        else if (value.replace(/\D/g, "").length < 8) errors.phone = "Número muito curto";
+        if (!value.trim()) errors.phone = t.phoneRequired;
+        else if (value.replace(/\D/g, "").length < 8) errors.phone = t.phoneTooShort;
         else delete errors.phone;
         break;
     }
@@ -120,24 +121,6 @@ function CheckoutForm({ checkout: c }: { checkout: CheckoutData }) {
   }, []);
 
   const currency = c.product.currency || "eur";
-
-  useEffect(() => {
-    async function detectCountry() {
-      try {
-        const res = await fetch("https://ipapi.co/json/", { signal: AbortSignal.timeout(3000) });
-        const data = await res.json();
-        if (data?.country_code && COUNTRY_TO_DDI[data.country_code]) {
-          setSelectedCountry(data.country_code);
-        }
-      } catch {
-        try {
-          const region = (navigator.language || "pt-BR").split("-")[1]?.toUpperCase();
-          if (region && COUNTRY_TO_DDI[region]) setSelectedCountry(region);
-        } catch {}
-      }
-    }
-    detectCountry();
-  }, []);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -168,7 +151,7 @@ function CheckoutForm({ checkout: c }: { checkout: CheckoutData }) {
     validateField("email", email);
     validateField("phone", phone);
     if (!customerName.trim() || !email.trim() || !phone.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || phone.replace(/\D/g, "").length < 8) {
-      toast.error("Preencha todos os campos corretamente");
+      toast.error(t.fillAllFields);
       return;
     }
 
@@ -180,7 +163,7 @@ function CheckoutForm({ checkout: c }: { checkout: CheckoutData }) {
     }
 
     const cardNumber = elements.getElement(CardNumberElement);
-    if (!cardNumber) { toast.error("Erro ao carregar campo de cartão"); return; }
+    if (!cardNumber) { toast.error(t.cardLoadError); return; }
     setProcessing(true); setCardError(null);
     try {
       const utms = JSON.parse(sessionStorage.getItem("checkout_utms") || "{}");
@@ -233,16 +216,12 @@ function CheckoutForm({ checkout: c }: { checkout: CheckoutData }) {
     } catch (error: any) { toast.error(error.message || "Erro ao processar pagamento."); setProcessing(false); }
   };
 
-  // Input class with dynamic focus color
   const inputClass = (hasError: boolean) =>
     `flex h-10 w-full rounded-lg border bg-[#111113] px-3 text-sm text-[#fafafa] placeholder:text-[#3f3f46] focus:outline-none focus:ring-[3px] transition-all duration-150 ${
       hasError
         ? "border-[#ef4444] focus:border-[#ef4444] focus:ring-[rgba(239,68,68,0.12)]"
         : `border-[#27272a]`
     }`;
-
-  // Dynamic focus style applied via inline style
-  const inputFocusStyle = { "--focus-border": pc, "--focus-ring": pcRing } as React.CSSProperties;
 
   const renderBumpCard = (bp: BumpProduct) => {
     const isSelected = selectedBumps.has(bp.id);
@@ -333,7 +312,7 @@ function CheckoutForm({ checkout: c }: { checkout: CheckoutData }) {
 
             <div className="mt-6 pt-4 border-t border-[#27272a]">
               <div className="flex justify-between items-center">
-                <span className="text-sm text-[#a1a1aa]">Total</span>
+                <span className="text-sm text-[#a1a1aa]">{t.total}</span>
                 <span className="text-2xl font-bold text-[#fafafa] tabular-nums">{formatCents(totalAmount(), currency)}</span>
               </div>
             </div>
@@ -353,22 +332,22 @@ function CheckoutForm({ checkout: c }: { checkout: CheckoutData }) {
             <div className="text-2xl font-bold text-[#fafafa] tabular-nums">{formatCents(c.product.price, currency)}</div>
           </div>
 
-          <p className="text-[11px] uppercase tracking-wider text-[#52525b] font-medium mb-6">Informações de pagamento</p>
+          <p className="text-[11px] uppercase tracking-wider text-[#52525b] font-medium mb-6">{t.paymentInfo}</p>
 
           <form onSubmit={handleSubmit} className="space-y-5">
             <div className="space-y-4">
               <div className="space-y-1.5">
-                <label className="text-xs font-medium text-[#a1a1aa]">Nome completo</label>
-                <input value={customerName} onChange={(e) => setCustomerName(e.target.value)} onBlur={() => validateField("name", customerName)} placeholder="Digite seu nome" required className={`checkout-input ${inputClass(!!fieldErrors.name)}`} />
+                <label className="text-xs font-medium text-[#a1a1aa]">{t.fullName}</label>
+                <input value={customerName} onChange={(e) => setCustomerName(e.target.value)} onBlur={() => validateField("name", customerName)} placeholder={t.fullNamePlaceholder} required className={`checkout-input ${inputClass(!!fieldErrors.name)}`} />
                 {fieldErrors.name && <p className="text-[11px] text-[#ef4444] animate-in slide-in-from-top-1 duration-150">{fieldErrors.name}</p>}
               </div>
               <div className="space-y-1.5">
-                <label className="text-xs font-medium text-[#a1a1aa]">Email</label>
-                <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} onBlur={() => validateField("email", email)} placeholder="seu@email.com" required className={`checkout-input ${inputClass(!!fieldErrors.email)}`} />
+                <label className="text-xs font-medium text-[#a1a1aa]">{t.email}</label>
+                <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} onBlur={() => validateField("email", email)} placeholder={t.emailPlaceholder} required className={`checkout-input ${inputClass(!!fieldErrors.email)}`} />
                 {fieldErrors.email && <p className="text-[11px] text-[#ef4444] animate-in slide-in-from-top-1 duration-150">{fieldErrors.email}</p>}
               </div>
               <div className="space-y-1.5">
-                <label className="text-xs font-medium text-[#a1a1aa]">WhatsApp</label>
+                <label className="text-xs font-medium text-[#a1a1aa]">{t.whatsapp}</label>
                 <div className="flex gap-2">
                   <Select value={selectedCountry} onValueChange={setSelectedCountry}>
                     <SelectTrigger className="checkout-select-trigger w-[110px] h-10 rounded-lg bg-[#111113] border-[#27272a] text-[#fafafa] text-xs shrink-0">
@@ -382,23 +361,23 @@ function CheckoutForm({ checkout: c }: { checkout: CheckoutData }) {
                       ))}
                     </SelectContent>
                   </Select>
-                  <input type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} onBlur={() => validateField("phone", phone)} placeholder="(11) 99999-9999" required className={`checkout-input ${inputClass(!!fieldErrors.phone)} flex-1`} />
+                  <input type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} onBlur={() => validateField("phone", phone)} placeholder={t.phonePlaceholder} required className={`checkout-input ${inputClass(!!fieldErrors.phone)} flex-1`} />
                 </div>
                 {fieldErrors.phone && <p className="text-[11px] text-[#ef4444] animate-in slide-in-from-top-1 duration-150">{fieldErrors.phone}</p>}
               </div>
             </div>
 
             <div className="space-y-3">
-              <label className="text-xs font-medium text-[#a1a1aa]">Dados do cartão</label>
+              <label className="text-xs font-medium text-[#a1a1aa]">{t.cardDetails}</label>
               <div className="checkout-card-field h-10 rounded-lg bg-[#111113] border border-[#27272a] px-3 flex items-center transition-all duration-150">
-                <CardNumberElement options={{ style: CARD_STYLE, placeholder: "Número do cartão" }} onChange={(e) => setCardError(e.error?.message || null)} className="w-full" />
+                <CardNumberElement options={{ style: CARD_STYLE, placeholder: t.cardNumber }} onChange={(e) => setCardError(e.error?.message || null)} className="w-full" />
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div className="checkout-card-field h-10 rounded-lg bg-[#111113] border border-[#27272a] px-3 flex items-center transition-all duration-150">
-                  <CardExpiryElement options={{ style: CARD_STYLE, placeholder: "MM / AA" }} className="w-full" />
+                  <CardExpiryElement options={{ style: CARD_STYLE, placeholder: t.expiry }} className="w-full" />
                 </div>
                 <div className="checkout-card-field h-10 rounded-lg bg-[#111113] border border-[#27272a] px-3 flex items-center transition-all duration-150">
-                  <CardCvcElement options={{ style: CARD_STYLE, placeholder: "CVC" }} className="w-full" />
+                  <CardCvcElement options={{ style: CARD_STYLE, placeholder: t.cvc }} className="w-full" />
                 </div>
               </div>
               {cardError && <p className="text-xs text-[#ef4444]">{cardError}</p>}
@@ -424,12 +403,12 @@ function CheckoutForm({ checkout: c }: { checkout: CheckoutData }) {
               ) : (
                 <>
                   <Lock className="mr-2 h-4 w-4" strokeWidth={1.5} />
-                  {c.cta_text || "Finalizar compra"} — {formatCents(totalAmount(), currency)}
+                  {c.cta_text || t.defaultCta} — {formatCents(totalAmount(), currency)}
                 </>
               )}
             </button>
 
-            <p className="text-[11px] text-[#52525b] text-center">🔒 Pagamento processado com segurança via Stripe</p>
+            <p className="text-[11px] text-[#52525b] text-center">🔒 {t.securePayment}</p>
           </form>
         </div>
       </div>
@@ -443,6 +422,7 @@ export default function CheckoutPage() {
   const [checkout, setCheckout] = useState<CheckoutData | null>(null);
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
+  const [detectedLang, setDetectedLang] = useState<CheckoutLang>("pt");
 
   useEffect(() => {
     async function load() {
@@ -484,22 +464,49 @@ export default function CheckoutPage() {
     load();
   }, [slug]);
 
+  // Detect language from geolocation
+  useEffect(() => {
+    async function detectLang() {
+      try {
+        const res = await fetch("https://ipapi.co/json/", { signal: AbortSignal.timeout(3000) });
+        const data = await res.json();
+        if (data?.country_code) {
+          setDetectedLang(getLangFromCountry(data.country_code));
+        }
+      } catch {
+        try {
+          const region = (navigator.language || "pt-BR").split("-")[1]?.toUpperCase();
+          if (region) setDetectedLang(getLangFromCountry(region));
+          else {
+            const langPrefix = (navigator.language || "pt").split("-")[0].toLowerCase();
+            const langMap: Record<string, CheckoutLang> = { pt: "pt", en: "en", es: "es", fr: "fr", de: "de", it: "it", nl: "nl" };
+            if (langMap[langPrefix]) setDetectedLang(langMap[langPrefix]);
+          }
+        } catch {}
+      }
+    }
+    detectLang();
+  }, []);
+
+  const t = getTranslations(detectedLang);
+  const stripeLocale = getStripeLocale(detectedLang);
+
   if (loading) return <div className="min-h-screen flex items-center justify-center bg-[#09090b]"><Loader2 className="h-8 w-8 animate-spin text-[#a1a1aa]" /></div>;
 
   if (notFound || !checkout) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-[#09090b]">
         <div className="text-center space-y-3">
-          <h1 className="text-lg font-bold text-[#fafafa]">Página não encontrada</h1>
-          <p className="text-[13px] text-[#52525b]">Este checkout não existe ou foi desativado.</p>
+          <h1 className="text-lg font-bold text-[#fafafa]">{t.notFound}</h1>
+          <p className="text-[13px] text-[#52525b]">{t.notFoundDesc}</p>
         </div>
       </div>
     );
   }
 
   return (
-    <Elements stripe={stripePromise} options={{ locale: "pt-BR" }}>
-      <CheckoutForm checkout={checkout} />
+    <Elements stripe={stripePromise} options={{ locale: stripeLocale as any }}>
+      <CheckoutForm checkout={checkout} lang={detectedLang} t={t} />
     </Elements>
   );
 }
