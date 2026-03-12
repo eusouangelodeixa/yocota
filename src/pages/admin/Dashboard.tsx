@@ -344,7 +344,7 @@ export default function Dashboard() {
                             <p className="text-[11px] text-muted-foreground">{p.count} vendas</p>
                           </div>
                         </div>
-                        <span className="text-[13px] font-semibold text-primary tabular-nums">{formatCents(p.revenue, "brl")}</span>
+                        <span className="text-[13px] font-semibold text-primary tabular-nums">{formatCents(p.revenue, "eur")}</span>
                       </div>
                       <div className="h-1 bg-secondary rounded-full overflow-hidden ml-7">
                         <div className="h-full bg-primary rounded-full transition-all duration-500" style={{ width: `${pct}%` }} />
