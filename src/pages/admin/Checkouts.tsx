@@ -375,10 +375,17 @@ export default function Checkouts() {
                             <div className="pl-7">
                               <Textarea
                                 value={form.order_bump_descriptions[bp.id] || ""}
-                                onChange={(e) => setForm({ ...form, order_bump_descriptions: { ...form.order_bump_descriptions, [bp.id]: e.target.value } })}
+                                onChange={(e) =>
+                                  setForm((prev) => ({
+                                    ...prev,
+                                    order_bump_descriptions: {
+                                      ...prev.order_bump_descriptions,
+                                      [bp.id]: e.target.value,
+                                    },
+                                  }))
+                                }
                                 placeholder="Copy do bump (ex: Adicione e economize 30%!)"
                                 className="text-xs min-h-[60px] resize-y"
-                                maxLength={500}
                               />
                             </div>
                           </div>
