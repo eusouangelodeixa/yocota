@@ -22,7 +22,7 @@ export default function SuccessPage() {
   useEffect(() => {
     if (!checkoutId || !paymentIntentId) { setState("error"); return; }
     let attempts = 0;
-    const maxAttempts = 30;
+    const maxAttempts = 60;
     const poll = async () => {
       attempts++;
       // Try to find the order by payment_intent_id first, fallback to checkout_id
