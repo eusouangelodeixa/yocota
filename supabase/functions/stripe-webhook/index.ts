@@ -260,7 +260,7 @@ async function processSuccessfulPayment(
 
   const { data: checkout } = await supabase
     .from("checkouts")
-    .select("*, products!checkouts_product_id_fkey(id, name, price), first_offer_id")
+    .select("*, products!checkouts_product_id_fkey(id, name, price, currency), first_offer_id")
     .eq("id", checkoutId)
     .single();
 
