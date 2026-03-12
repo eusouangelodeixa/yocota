@@ -227,7 +227,7 @@ export default function Checkouts() {
       }
       await supabase.from("checkout_order_bumps").delete().eq("checkout_id", checkoutId);
       if (form.order_bump_product_ids.length > 0) {
-        const rows = form.order_bump_product_ids.map((pid, i) => ({ checkout_id: checkoutId, product_id: pid, sort_order: i }));
+        const rows = form.order_bump_product_ids.map((pid, i) => ({ checkout_id: checkoutId, product_id: pid, sort_order: i, description: form.order_bump_descriptions[pid] || null }));
         const { error: bumpError } = await supabase.from("checkout_order_bumps").insert(rows as any);
         if (bumpError) throw bumpError;
       }
