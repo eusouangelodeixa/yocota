@@ -51,10 +51,7 @@ serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
-  const supabase = createClient(
-    Deno.env.get("SUPABASE_URL") ?? "",
-    Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
-  );
+  // supabase client created inside try block below
 
   // Rate limit check
   const clientIp = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
@@ -258,9 +255,13 @@ serve(async (req) => {
   } catch (error) {
     console.error("create-intent error:", error);
 
-    // Audit log: payment error
+    // Audit log: payment error (use fresh client since `supabase` may be out of scope)
     try {
-      await supabase.from("audit_logs").insert({
+      const errorClient = createClient(
+        Deno.env.get("SUPABASE_URL") ?? "",
+        Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
+      );
+      await errorClient.from("audit_logs").insert({
         event_type: "payment_error",
         payload: { error: error.message },
       });

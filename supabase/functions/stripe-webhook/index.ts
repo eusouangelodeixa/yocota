@@ -323,7 +323,7 @@ async function processSuccessfulPayment(
   if (bumpProductIds.length > 0) {
     const { data: bps } = await supabase
       .from("products")
-      .select("id, price")
+      .select("id, name, price")
       .in("id", bumpProductIds);
     bumpProducts = bps || [];
     for (const bp of bumpProducts) totalAmount += bp.price;

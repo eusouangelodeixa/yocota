@@ -13,6 +13,12 @@ serve(async (req) => {
   }
 
   try {
+    const supabase = createClient(
+      Deno.env.get("SUPABASE_URL") ?? "",
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
+    );
+
+    // Get Stripe key: api_keys table first, then env var fallback
     let stripeKey = "";
     {
       const { data: keyRow } = await supabase.from("api_keys").select("key_value").eq("key_name", "STRIPE_SECRET_KEY").maybeSingle();
@@ -23,11 +29,6 @@ serve(async (req) => {
     const stripe = new Stripe(stripeKey, {
       apiVersion: "2025-08-27.basil",
     });
-
-    const supabase = createClient(
-      Deno.env.get("SUPABASE_URL") ?? "",
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
-    );
 
     // Verify auth (admin only)
     const authHeader = req.headers.get("Authorization");
