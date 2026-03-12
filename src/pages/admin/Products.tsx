@@ -298,9 +298,14 @@ export default function Products() {
                     )}
                   </TableCell>
                   <TableCell>
-                    <Button variant="ghost" size="icon" onClick={() => openEdit(product)} className="h-8 w-8 text-muted-foreground hover:text-foreground">
-                      <Pencil className="h-3.5 w-3.5" strokeWidth={1.5} />
-                    </Button>
+                    <div className="flex gap-0.5">
+                      <Button variant="ghost" size="icon" onClick={() => openEdit(product)} className="h-8 w-8 text-muted-foreground hover:text-foreground">
+                        <Pencil className="h-3.5 w-3.5" strokeWidth={1.5} />
+                      </Button>
+                      <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-destructive" title="Excluir" onClick={() => { if (confirm("Excluir este produto? Esta ação não pode ser desfeita.")) deleteMutation.mutate(product); }}>
+                        <Trash2 className="h-3.5 w-3.5" strokeWidth={1.5} />
+                      </Button>
+                    </div>
                   </TableCell>
                 </TableRow>
               ))
