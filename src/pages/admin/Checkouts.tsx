@@ -105,6 +105,7 @@ function BannerUpload({ value, onChange }: { value: string; onChange: (url: stri
 function CheckoutLivePreview({ form, product, bumpProducts }: { form: CheckoutForm; product: any; bumpProducts: any[] }) {
   const currency = product?.currency || "eur";
   const pc = form.primary_color || "#2563eb";
+  const btnColor = form.cta_button_color || pc;
 
   return (
     <div className="w-full rounded-[10px] border border-border overflow-hidden bg-white">
