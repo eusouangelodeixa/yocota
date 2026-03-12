@@ -1,0 +1,1 @@
+UPDATE orders SET currency = 'zar' WHERE id = '4e2431b6-369e-4d73-9f86-c45e5681f638';
