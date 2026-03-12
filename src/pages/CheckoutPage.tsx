@@ -482,6 +482,9 @@ export default function CheckoutPage() {
         const data = await res.json();
         if (data?.country_code) {
           setDetectedLang(getLangFromCountry(data.country_code));
+          const cc = data.country_code.toUpperCase();
+          const validCountry = COUNTRY_CODES.find((c) => c.country === cc);
+          if (validCountry) setDetectedCountry(cc);
         }
       } catch {
         try {
