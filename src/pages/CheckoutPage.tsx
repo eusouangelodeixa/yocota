@@ -418,6 +418,8 @@ function CheckoutForm({ checkout: c }: { checkout: CheckoutData }) {
           </form>
         </div>
       </div>
+      </div>
+    </div>
     </div>
   );
 }
