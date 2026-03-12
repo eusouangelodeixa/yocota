@@ -42,13 +42,54 @@ export default function SuccessPage() {
         }
         setTimeout(poll, 500); return;
       }
-      const { data: checkout } = await supabase.from("checkouts").select("redirect_url").eq("id", checkoutId).single();
+
+      // Order found as paid — now poll for offer_session (webhook may still be creating it)
+      const { data: checkout } = await supabase.from("checkouts").select("redirect_url, first_offer_id").eq("id", checkoutId).single();
       setRedirectUrl(checkout?.redirect_url || "");
-      const { data: offerSession } = await supabase.from("offer_sessions").select("token, decision, offer_id").eq("order_id", order.id).is("decision", null).order("created_at", { ascending: true }).limit(1).maybeSingle();
-      if (!offerSession?.token) { setState("done"); if (checkout?.redirect_url) setTimeout(() => { window.location.href = checkout.redirect_url; }, 3000); return; }
-      const { data: offer } = await supabase.from("offers").select("page_url").eq("id", offerSession.offer_id).single();
-      if (offer?.page_url) { window.location.href = `${offer.page_url}${offer.page_url.includes("?") ? "&" : "?"}offer_token=${offerSession.token}`; }
-      else { setOfferToken(offerSession.token); setState("offer-inline"); }
+
+      const hasOfferFunnel = !!checkout?.first_offer_id;
+
+      // If checkout has no offer funnel configured, skip waiting
+      if (!hasOfferFunnel) {
+        setState("done");
+        if (checkout?.redirect_url) setTimeout(() => { window.location.href = checkout.redirect_url; }, 3000);
+        return;
+      }
+
+      // Poll for offer_session with retries (webhook may still be processing)
+      let offerAttempts = 0;
+      const maxOfferAttempts = 20; // 10 seconds max wait
+      const pollOffer = async () => {
+        offerAttempts++;
+        const { data: offerSession } = await supabase
+          .from("offer_sessions")
+          .select("token, decision, offer_id")
+          .eq("order_id", order.id)
+          .is("decision", null)
+          .order("created_at", { ascending: true })
+          .limit(1)
+          .maybeSingle();
+
+        if (!offerSession?.token) {
+          if (offerAttempts >= maxOfferAttempts) {
+            // Give up waiting for offer session
+            setState("done");
+            if (checkout?.redirect_url) setTimeout(() => { window.location.href = checkout.redirect_url; }, 3000);
+            return;
+          }
+          setTimeout(pollOffer, 500);
+          return;
+        }
+
+        const { data: offer } = await supabase.from("offers").select("page_url").eq("id", offerSession.offer_id).single();
+        if (offer?.page_url) {
+          window.location.href = `${offer.page_url}${offer.page_url.includes("?") ? "&" : "?"}offer_token=${offerSession.token}`;
+        } else {
+          setOfferToken(offerSession.token);
+          setState("offer-inline");
+        }
+      };
+      pollOffer();
     };
     poll();
   }, [checkoutId, paymentIntentId]);
