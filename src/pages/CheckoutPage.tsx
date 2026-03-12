@@ -364,20 +364,20 @@ function CheckoutForm({ checkout: c, lang, t }: { checkout: CheckoutData; lang: 
 
             {/* Divider */}
             <div className="flex items-center gap-3">
-              <div className="flex-1 h-px bg-[#e4e4e7]" />
-              <span className="text-[11px] text-[#a3a3a3] whitespace-nowrap">{t.orPayWithCard}</span>
-              <div className="flex-1 h-px bg-[#e4e4e7]" />
+              <div className="flex-1 h-px bg-[#111111]" />
+              <span className="text-[11px] text-[#8a8a8a] whitespace-nowrap">{t.orPayWithCard}</span>
+              <div className="flex-1 h-px bg-[#111111]" />
             </div>
 
             {/* Card information section - grouped fields */}
             <div className="space-y-3">
-              <label className="text-[13px] font-medium text-[#1a1a1a]">{t.cardDetails}</label>
-              <div className="rounded-lg border border-[#d4d4d8] overflow-hidden">
-                <div className="checkout-card-field h-10 bg-white px-3 flex items-center transition-all duration-150 border-b border-[#d4d4d8]">
+              <label className="text-[13px] font-medium text-[#111111]">{t.cardDetails}</label>
+              <div className="rounded-lg border border-[#111111] overflow-hidden">
+                <div className="checkout-card-field h-10 bg-white px-3 flex items-center transition-all duration-150 border-b border-[#111111]">
                   <CardNumberElement options={{ style: CARD_STYLE, placeholder: t.cardNumber }} onChange={(e) => setCardError(e.error?.message || null)} className="w-full" />
                 </div>
                 <div className="grid grid-cols-2">
-                  <div className="checkout-card-field h-10 bg-white px-3 flex items-center transition-all duration-150 border-r border-[#d4d4d8]">
+                  <div className="checkout-card-field h-10 bg-white px-3 flex items-center transition-all duration-150 border-r border-[#111111]">
                     <CardExpiryElement options={{ style: CARD_STYLE, placeholder: t.expiry }} className="w-full" />
                   </div>
                   <div className="checkout-card-field h-10 bg-white px-3 flex items-center transition-all duration-150">
