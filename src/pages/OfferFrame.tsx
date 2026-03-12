@@ -32,7 +32,7 @@ export default function OfferFrame() {
         if (offerError || !offer) { setError("Oferta não encontrada para preview"); setLoading(false); return; }
         setPreview({ name: offer.name, product: offer.products as any }); setLoading(false); return;
       }
-      const { data, error: fetchError } = await supabase.from("offer_sessions").select("id, token, offer_id, order_id, customer_id, decision, expires_at, offers:offer_id(id, name, product_id, page_url, products:product_id(name, description, price))").eq("token", token).maybeSingle();
+      const { data, error: fetchError } = await supabase.from("offer_sessions").select("id, token, offer_id, order_id, customer_id, decision, expires_at, offers:offer_id(id, name, product_id, page_url, products:product_id(name, description, price, currency))").eq("token", token).maybeSingle();
       if (fetchError || !data) { setError("Sessão de oferta não encontrada"); setLoading(false); return; }
       if (new Date(data.expires_at) < new Date()) { setError("Esta oferta expirou"); setLoading(false); return; }
       if (data.decision) { setResult({ decision: data.decision }); setLoading(false); return; }
