@@ -188,7 +188,7 @@ export default function Offers() {
                     <TableRow key={offer.id} className="border-border hover:bg-[rgba(255,255,255,0.02)] h-12">
                       <TableCell className="text-[13px] font-medium text-foreground">{offer.name}</TableCell>
                       <TableCell className="text-[13px] text-muted-foreground">{offer.products?.name}</TableCell>
-                      <TableCell className="text-[13px] font-medium text-foreground tabular-nums">{formatCents(offer.products?.price ?? 0)}</TableCell>
+                      <TableCell className="text-[13px] font-medium text-foreground tabular-nums">{formatCents(offer.products?.price ?? 0, offer.products?.currency ?? "eur")}</TableCell>
                       <TableCell>
                         <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium uppercase tracking-wide ${offer.page_url ? "pill-sent" : "text-muted-foreground bg-secondary"}`}>
                           {offer.page_url ? "Externa" : "Inline"}

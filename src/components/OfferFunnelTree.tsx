@@ -669,7 +669,7 @@ function FunnelCanvas({ root, offers }: { root: Offer; offers: Offer[] }) {
                   </span>
                   <div className="flex items-center gap-2 mt-2">
                     <Badge variant="secondary" className="text-[10px] px-2 py-0 h-5 font-bold tabular-nums">
-                      {formatCents(node.offer.products?.price ?? 0)}
+                      {formatCents(node.offer.products?.price ?? 0, node.offer.products?.currency ?? "eur")}
                     </Badge>
                     {node.offer.page_url && (
                       <span className="text-[9px] text-muted-foreground flex items-center gap-0.5">
