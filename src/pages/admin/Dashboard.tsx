@@ -75,14 +75,14 @@ function getDateRange(preset: FilterPreset, customFrom?: Date, customTo?: Date):
 }
 
 /* ── Tooltip ── */
-function ChartTooltip({ active, payload, label }: any) {
+function ChartTooltip({ active, payload, label, currency = "eur" }: any) {
   if (!active || !payload?.length) return null;
   return (
     <div className="card-elevated rounded-lg px-3.5 py-2.5">
       <p className="text-xs text-muted-foreground mb-1">{label}</p>
       {payload.map((entry: any, i: number) => (
         <p key={i} className="text-sm font-semibold text-foreground">
-          {formatCents(entry.value)}
+          {formatCents(entry.value, currency)}
         </p>
       ))}
     </div>
@@ -175,6 +175,7 @@ export default function Dashboard() {
       dayMap[day] = (dayMap[day] || 0) + (o as any).total_amount;
     }
     const chartData = Object.entries(dayMap).map(([day, value]) => ({ day, value }));
+    const chartCurrency = paidOrders[0]?.currency || "eur";
 
     return {
       productsCount: allData.productsCount,
@@ -189,6 +190,7 @@ export default function Dashboard() {
       recoveredCount,
       recentOrders: filteredOrders.slice(0, 10),
       chartData,
+      chartCurrency,
     };
   }, [allData, dateRange]);
 
@@ -300,8 +302,8 @@ export default function Dashboard() {
                 <BarChart data={stats.chartData} barCategoryGap="20%">
                   <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" />
                   <XAxis dataKey="day" tick={{ fontSize: 11, fill: "#52525b" }} axisLine={false} tickLine={false} />
-                  <YAxis tick={{ fontSize: 11, fill: "#52525b" }} axisLine={false} tickLine={false} tickFormatter={(v) => formatCents(v)} width={80} />
-                  <Tooltip content={<ChartTooltip />} cursor={{ fill: "rgba(255,255,255,0.02)" }} />
+                  <YAxis tick={{ fontSize: 11, fill: "#52525b" }} axisLine={false} tickLine={false} tickFormatter={(v) => formatCents(v, stats?.chartCurrency || "eur")} width={80} />
+                  <Tooltip content={<ChartTooltip currency={stats?.chartCurrency || "eur"} />} cursor={{ fill: "rgba(255,255,255,0.02)" }} />
                   <Bar dataKey="value" fill="#27272a" activeBar={{ fill: "#E04B00" }} radius={0} maxBarSize={40} />
                 </BarChart>
               </ResponsiveContainer>
@@ -335,8 +337,8 @@ export default function Dashboard() {
                   </defs>
                   <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" />
                   <XAxis dataKey="day" tick={{ fontSize: 11, fill: "#52525b" }} axisLine={false} tickLine={false} />
-                  <YAxis tick={{ fontSize: 11, fill: "#52525b" }} axisLine={false} tickLine={false} tickFormatter={(v) => formatCents(v)} width={80} />
-                  <Tooltip content={<ChartTooltip />} />
+                  <YAxis tick={{ fontSize: 11, fill: "#52525b" }} axisLine={false} tickLine={false} tickFormatter={(v) => formatCents(v, stats?.chartCurrency || "eur")} width={80} />
+                  <Tooltip content={<ChartTooltip currency={stats?.chartCurrency || "eur"} />} />
                   <Area type="monotone" dataKey="cumulative" stroke="#E04B00" strokeWidth={2} fill="url(#accentGrad)" />
                 </AreaChart>
               </ResponsiveContainer>
