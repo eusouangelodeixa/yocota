@@ -393,7 +393,7 @@ export default function Checkouts() {
                       </div>
                     )}
                     {availableBumpProducts.length > 0 && (
-                      <Popover>
+                      <Popover open={bumpPickerOpen} onOpenChange={setBumpPickerOpen}>
                         <PopoverTrigger asChild>
                           <Button type="button" variant="outline" className="w-full justify-start text-muted-foreground text-xs h-10">
                             <Plus className="mr-1.5 h-3.5 w-3.5" /> Adicionar order bump
