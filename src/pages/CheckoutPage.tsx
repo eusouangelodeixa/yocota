@@ -122,6 +122,13 @@ function CheckoutForm({ checkout: c, lang, t, detectedCountry }: { checkout: Che
     } catch {}
   }, []);
 
+  // Sync country when geolocation resolves (only if user hasn't manually changed it)
+  useEffect(() => {
+    if (detectedCountry && !countrySetByUser) {
+      setSelectedCountry(detectedCountry);
+    }
+  }, [detectedCountry, countrySetByUser]);
+
   const currency = c.product.currency || "eur";
 
   useEffect(() => {
