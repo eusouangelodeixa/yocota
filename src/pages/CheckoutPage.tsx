@@ -217,10 +217,10 @@ function CheckoutForm({ checkout: c, lang, t }: { checkout: CheckoutData; lang: 
   };
 
   const inputClass = (hasError: boolean) =>
-    `flex h-10 w-full rounded-lg border bg-white px-3 text-sm text-[#1a1a1a] placeholder:text-[#a3a3a3] focus:outline-none focus:ring-[3px] transition-all duration-150 ${
+    `flex h-10 w-full rounded-lg border bg-white px-3 text-sm text-[#111111] placeholder:text-[#8a8a8a] focus:outline-none focus:ring-[3px] transition-all duration-150 ${
       hasError
         ? "border-[#ef4444] focus:border-[#ef4444] focus:ring-[rgba(239,68,68,0.12)]"
-        : `border-[#d4d4d8]`
+        : `border-[#111111]`
     }`;
 
   const renderBumpCard = (bp: BumpProduct) => {
@@ -231,8 +231,8 @@ function CheckoutForm({ checkout: c, lang, t }: { checkout: CheckoutData; lang: 
         key={bp.id}
         className="rounded-[10px] border p-4 cursor-pointer transition-all duration-150"
         style={{
-          borderColor: isSelected ? pc : "#d4d4d8",
-          backgroundColor: isSelected ? pcBg : "#fafafa",
+          borderColor: isSelected ? pc : "#111111",
+          backgroundColor: isSelected ? pcBg : "#ffffff",
         }}
         onClick={() => toggleBump(bp.id)}
       >
@@ -241,7 +241,7 @@ function CheckoutForm({ checkout: c, lang, t }: { checkout: CheckoutData; lang: 
             className="h-4 w-4 shrink-0 rounded-sm border flex items-center justify-center transition-colors"
             style={{
               backgroundColor: isSelected ? pc : "transparent",
-              borderColor: isSelected ? pc : "#d4d4d8",
+              borderColor: isSelected ? pc : "#111111",
             }}
           >
             {isSelected && <CheckCircle2 className="h-3 w-3 text-white" />}
@@ -288,7 +288,7 @@ function CheckoutForm({ checkout: c, lang, t }: { checkout: CheckoutData; lang: 
       )}
 
       {/* Left panel - Product summary */}
-      <div className="hidden lg:flex lg:w-[45%] bg-[#fafafa] border-r border-[#e4e4e7] flex-col sticky top-0 h-screen overflow-y-auto">
+      <div className="hidden lg:flex lg:w-[45%] bg-white border-r border-[#111111] flex-col sticky top-0 h-screen overflow-y-auto">
         {c.banner_url && (
           <div className="w-full shrink-0">
             <img src={c.banner_url} alt="" className="w-full h-auto max-h-56 object-cover" crossOrigin="anonymous" />
@@ -297,12 +297,12 @@ function CheckoutForm({ checkout: c, lang, t }: { checkout: CheckoutData; lang: 
         <div className="flex-1 flex flex-col justify-center px-10 xl:px-16 py-12">
           <div className="max-w-md">
             {c.show_product_image && c.product.image_url && (
-              <img src={c.product.image_url} alt={c.product.name} className="w-20 h-20 rounded-[10px] object-cover mb-5 border border-[#e4e4e7]" crossOrigin="anonymous" />
+              <img src={c.product.image_url} alt={c.product.name} className="w-20 h-20 rounded-[10px] object-cover mb-5 border border-[#111111]" crossOrigin="anonymous" />
             )}
-            <h1 className="text-xl font-semibold text-[#1a1a1a] mb-2">{c.headline_text || c.product.name}</h1>
-            {c.product.description && <p className="text-sm text-[#71717a] leading-relaxed mb-8">{c.product.description}</p>}
-            <div className="text-4xl font-bold text-[#1a1a1a] tabular-nums mb-8">{formatCents(c.product.price, currency)}</div>
-            <div className="border-t border-[#e4e4e7]" />
+            <h1 className="text-xl font-semibold text-[#111111] mb-2">{c.headline_text || c.product.name}</h1>
+            {c.product.description && <p className="text-sm text-[#525252] leading-relaxed mb-8">{c.product.description}</p>}
+            <div className="text-4xl font-bold text-[#111111] tabular-nums mb-8">{formatCents(c.product.price, currency)}</div>
+            <div className="border-t border-[#111111]" />
 
             {c.bump_products.length > 0 && (
               <div className="mt-6 space-y-3">
@@ -310,10 +310,10 @@ function CheckoutForm({ checkout: c, lang, t }: { checkout: CheckoutData; lang: 
               </div>
             )}
 
-            <div className="mt-6 pt-4 border-t border-[#e4e4e7]">
+            <div className="mt-6 pt-4 border-t border-[#111111]">
               <div className="flex justify-between items-center">
-                <span className="text-sm text-[#71717a]">{t.total}</span>
-                <span className="text-2xl font-bold text-[#1a1a1a] tabular-nums">{formatCents(totalAmount(), currency)}</span>
+                <span className="text-sm text-[#525252]">{t.total}</span>
+                <span className="text-2xl font-bold text-[#111111] tabular-nums">{formatCents(totalAmount(), currency)}</span>
               </div>
             </div>
           </div>
@@ -321,11 +321,11 @@ function CheckoutForm({ checkout: c, lang, t }: { checkout: CheckoutData; lang: 
       </div>
 
       {/* Right panel - Form */}
-      <div className="flex-1 flex flex-col justify-center px-5 sm:px-8 lg:px-10 xl:px-16 py-8 lg:py-12">
+      <div className="flex-1 bg-white flex flex-col justify-center px-5 sm:px-8 lg:px-10 xl:px-16 py-8 lg:py-12">
         <div className="max-w-md w-full mx-auto">
           <div className="lg:hidden mb-6">
             {c.show_product_image && c.product.image_url && (
-              <img src={c.product.image_url} alt={c.product.name} className="w-16 h-16 rounded-[10px] object-cover mb-4 border border-[#e4e4e7]" crossOrigin="anonymous" />
+              <img src={c.product.image_url} alt={c.product.name} className="w-16 h-16 rounded-[10px] object-cover mb-4 border border-[#111111]" crossOrigin="anonymous" />
             )}
             <h1 className="text-lg font-semibold text-[#1a1a1a] mb-1">{c.headline_text || c.product.name}</h1>
             {c.product.description && <p className="text-xs text-[#71717a] leading-relaxed mb-3">{c.product.description}</p>}
@@ -335,17 +335,17 @@ function CheckoutForm({ checkout: c, lang, t }: { checkout: CheckoutData; lang: 
           <form onSubmit={handleSubmit} className="space-y-6">
             {/* Contact information section */}
             <div className="space-y-3">
-              <label className="text-[13px] font-medium text-[#1a1a1a]">{t.contactInfo}</label>
+              <label className="text-[13px] font-medium text-[#111111]">{t.contactInfo}</label>
               <div className="space-y-1.5">
-                <label className="text-xs font-medium text-[#525252]">{t.email}</label>
+                <label className="text-xs font-medium text-[#27272a]">{t.email}</label>
                 <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} onBlur={() => validateField("email", email)} placeholder={t.emailPlaceholder} required className={`checkout-input ${inputClass(!!fieldErrors.email)}`} />
                 {fieldErrors.email && <p className="text-[11px] text-[#ef4444] animate-in slide-in-from-top-1 duration-150">{fieldErrors.email}</p>}
               </div>
               <div className="space-y-1.5">
-                <label className="text-xs font-medium text-[#525252]">{t.whatsapp}</label>
+                <label className="text-xs font-medium text-[#27272a]">{t.whatsapp}</label>
                 <div className="flex gap-2">
                   <Select value={selectedCountry} onValueChange={setSelectedCountry}>
-                    <SelectTrigger className="checkout-select-trigger w-[110px] h-10 rounded-lg bg-white border-[#d4d4d8] text-[#1a1a1a] text-xs shrink-0">
+                    <SelectTrigger className="checkout-select-trigger w-[110px] h-10 rounded-lg bg-white border-[#111111] text-[#111111] text-xs shrink-0">
                       <SelectValue>{selectedEntry ? `${selectedEntry.flag} ${selectedEntry.code}` : "+55"}</SelectValue>
                     </SelectTrigger>
                     <SelectContent className="max-h-[280px]">
@@ -364,20 +364,20 @@ function CheckoutForm({ checkout: c, lang, t }: { checkout: CheckoutData; lang: 
 
             {/* Divider */}
             <div className="flex items-center gap-3">
-              <div className="flex-1 h-px bg-[#e4e4e7]" />
-              <span className="text-[11px] text-[#a3a3a3] whitespace-nowrap">{t.orPayWithCard}</span>
-              <div className="flex-1 h-px bg-[#e4e4e7]" />
+              <div className="flex-1 h-px bg-[#111111]" />
+              <span className="text-[11px] text-[#8a8a8a] whitespace-nowrap">{t.orPayWithCard}</span>
+              <div className="flex-1 h-px bg-[#111111]" />
             </div>
 
             {/* Card information section - grouped fields */}
             <div className="space-y-3">
-              <label className="text-[13px] font-medium text-[#1a1a1a]">{t.cardDetails}</label>
-              <div className="rounded-lg border border-[#d4d4d8] overflow-hidden">
-                <div className="checkout-card-field h-10 bg-white px-3 flex items-center transition-all duration-150 border-b border-[#d4d4d8]">
+              <label className="text-[13px] font-medium text-[#111111]">{t.cardDetails}</label>
+              <div className="rounded-lg border border-[#111111] overflow-hidden">
+                <div className="checkout-card-field h-10 bg-white px-3 flex items-center transition-all duration-150 border-b border-[#111111]">
                   <CardNumberElement options={{ style: CARD_STYLE, placeholder: t.cardNumber }} onChange={(e) => setCardError(e.error?.message || null)} className="w-full" />
                 </div>
                 <div className="grid grid-cols-2">
-                  <div className="checkout-card-field h-10 bg-white px-3 flex items-center transition-all duration-150 border-r border-[#d4d4d8]">
+                  <div className="checkout-card-field h-10 bg-white px-3 flex items-center transition-all duration-150 border-r border-[#111111]">
                     <CardExpiryElement options={{ style: CARD_STYLE, placeholder: t.expiry }} className="w-full" />
                   </div>
                   <div className="checkout-card-field h-10 bg-white px-3 flex items-center transition-all duration-150">
@@ -390,7 +390,7 @@ function CheckoutForm({ checkout: c, lang, t }: { checkout: CheckoutData; lang: 
 
             {/* Cardholder name */}
             <div className="space-y-1.5">
-              <label className="text-[13px] font-medium text-[#1a1a1a]">{t.cardholderName}</label>
+              <label className="text-[13px] font-medium text-[#111111]">{t.cardholderName}</label>
               <input value={customerName} onChange={(e) => setCustomerName(e.target.value)} onBlur={() => validateField("name", customerName)} placeholder={t.cardholderNamePlaceholder} required className={`checkout-input ${inputClass(!!fieldErrors.name)}`} />
               {fieldErrors.name && <p className="text-[11px] text-[#ef4444] animate-in slide-in-from-top-1 duration-150">{fieldErrors.name}</p>}
             </div>
@@ -420,7 +420,7 @@ function CheckoutForm({ checkout: c, lang, t }: { checkout: CheckoutData; lang: 
               )}
             </button>
 
-            <p className="text-[11px] text-[#a3a3a3] text-center">🔒 {t.securePayment}</p>
+            <p className="text-[11px] text-[#8a8a8a] text-center">🔒 {t.securePayment}</p>
           </form>
         </div>
       </div>
