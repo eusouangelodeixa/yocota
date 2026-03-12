@@ -292,6 +292,14 @@ export default function Checkouts() {
   const addBump = (productId: string) => {
     if (!productId || productId === "__none__") return;
 
+    // Validate currency match
+    const mainProduct = products?.find((p: any) => p.id === form.product_id);
+    const bumpProduct = products?.find((p: any) => p.id === productId);
+    if (mainProduct && bumpProduct && (mainProduct.currency || "eur") !== (bumpProduct.currency || "eur")) {
+      toast.error(`Moeda incompatível: o produto principal usa ${(mainProduct.currency || "eur").toUpperCase()} mas este bump usa ${(bumpProduct.currency || "eur").toUpperCase()}`);
+      return;
+    }
+
     let alreadyExists = false;
     setForm((prev) => {
       if (prev.order_bump_product_ids.includes(productId)) {
