@@ -54,13 +54,14 @@ function hexToRgba(hex: string, alpha: number): string {
   return `rgba(${r},${g},${b},${alpha})`;
 }
 
-function CheckoutForm({ checkout: c, lang, t }: { checkout: CheckoutData; lang: CheckoutLang; t: CheckoutTranslations }) {
+function CheckoutForm({ checkout: c, lang, t, detectedCountry }: { checkout: CheckoutData; lang: CheckoutLang; t: CheckoutTranslations; detectedCountry: string }) {
   const stripe = useStripe();
   const elements = useElements();
 
   const [customerName, setCustomerName] = useState("");
   const [email, setEmail] = useState("");
-  const [selectedCountry, setSelectedCountry] = useState("BR");
+  const [selectedCountry, setSelectedCountry] = useState(detectedCountry || "BR");
+  const [countrySetByUser, setCountrySetByUser] = useState(false);
   const [phone, setPhone] = useState("");
   const [selectedBumps, setSelectedBumps] = useState<Set<string>>(new Set());
   const [processing, setProcessing] = useState(false);
@@ -120,6 +121,13 @@ function CheckoutForm({ checkout: c, lang, t }: { checkout: CheckoutData; lang: 
       }
     } catch {}
   }, []);
+
+  // Sync country when geolocation resolves (only if user hasn't manually changed it)
+  useEffect(() => {
+    if (detectedCountry && !countrySetByUser) {
+      setSelectedCountry(detectedCountry);
+    }
+  }, [detectedCountry, countrySetByUser]);
 
   const currency = c.product.currency || "eur";
 
@@ -249,7 +257,7 @@ function CheckoutForm({ checkout: c, lang, t }: { checkout: CheckoutData; lang: 
           </div>
           <div className="flex-1 min-w-0">
             <p className="text-[13px] font-medium text-[#1a1a1a]">{bp.name}</p>
-            {displayDesc && <p className="text-[11px] text-[#71717a] mt-0.5 line-clamp-2">{displayDesc}</p>}
+            {displayDesc && <p className="text-[11px] text-[#71717a] mt-0.5">{displayDesc}</p>}
           </div>
           <span className="text-[13px] font-bold tabular-nums" style={{ color: pc }}>+{formatCents(bp.price, bp.currency || currency)}</span>
         </div>
@@ -345,7 +353,7 @@ function CheckoutForm({ checkout: c, lang, t }: { checkout: CheckoutData; lang: 
               <div className="space-y-1.5">
                 <label className="text-xs font-medium text-[#27272a]">{t.whatsapp}</label>
                 <div className="flex gap-2">
-                  <Select value={selectedCountry} onValueChange={setSelectedCountry}>
+                  <Select value={selectedCountry} onValueChange={(v) => { setSelectedCountry(v); setCountrySetByUser(true); }}>
                     <SelectTrigger className="checkout-select-trigger w-[110px] h-10 rounded-lg bg-white border-[#111111] text-[#111111] text-xs shrink-0">
                       <SelectValue>{selectedEntry ? `${selectedEntry.flag} ${selectedEntry.code}` : "+55"}</SelectValue>
                     </SelectTrigger>
@@ -432,6 +440,7 @@ export default function CheckoutPage() {
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
   const [detectedLang, setDetectedLang] = useState<CheckoutLang>("pt");
+  const [detectedCountry, setDetectedCountry] = useState("BR");
 
   useEffect(() => {
     async function load() {
@@ -481,6 +490,9 @@ export default function CheckoutPage() {
         const data = await res.json();
         if (data?.country_code) {
           setDetectedLang(getLangFromCountry(data.country_code));
+          const cc = data.country_code.toUpperCase();
+          const validCountry = COUNTRY_CODES.find((c) => c.country === cc);
+          if (validCountry) setDetectedCountry(cc);
         }
       } catch {
         try {
@@ -515,7 +527,7 @@ export default function CheckoutPage() {
 
   return (
     <Elements stripe={stripePromise} options={{ locale: stripeLocale as any }}>
-      <CheckoutForm checkout={checkout} lang={detectedLang} t={t} />
+      <CheckoutForm checkout={checkout} lang={detectedLang} t={t} detectedCountry={detectedCountry} />
     </Elements>
   );
 }
