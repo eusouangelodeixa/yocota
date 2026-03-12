@@ -85,10 +85,56 @@ serve(async (req) => {
       );
     } else if (action === "update") {
       if (product.stripe_product_id) {
+        // Update product metadata (name, description)
         await stripe.products.update(product.stripe_product_id, {
           name: product.name,
           description: product.description || undefined,
         });
+
+        // Check if price/currency changed — Stripe prices are immutable, so create a new one
+        if (product.stripe_price_id) {
+          const existingPrice = await stripe.prices.retrieve(product.stripe_price_id);
+          const priceChanged = existingPrice.unit_amount !== product.price || existingPrice.currency !== (product.currency || "eur");
+
+          if (priceChanged) {
+            // Create new price
+            const newPrice = await stripe.prices.create({
+              product: product.stripe_product_id,
+              unit_amount: product.price,
+              currency: product.currency || "eur",
+            });
+
+            // Deactivate old price
+            await stripe.prices.update(product.stripe_price_id, { active: false });
+
+            // Update DB with new price ID
+            await supabase
+              .from("products")
+              .update({ stripe_price_id: newPrice.id })
+              .eq("id", productId);
+          }
+        }
+      } else {
+        // No Stripe product yet — create it
+        const stripeProduct = await stripe.products.create({
+          name: product.name,
+          description: product.description || undefined,
+          metadata: { supabase_id: product.id },
+        });
+
+        const stripePrice = await stripe.prices.create({
+          product: stripeProduct.id,
+          unit_amount: product.price,
+          currency: product.currency || "eur",
+        });
+
+        await supabase
+          .from("products")
+          .update({
+            stripe_product_id: stripeProduct.id,
+            stripe_price_id: stripePrice.id,
+          })
+          .eq("id", productId);
       }
 
       return new Response(JSON.stringify({ success: true }), {
