@@ -494,6 +494,7 @@ export type Database = {
         Row: {
           checkout_id: string
           created_at: string
+          currency: string
           customer_id: string
           id: string
           status: Database["public"]["Enums"]["order_status"]
@@ -508,6 +509,7 @@ export type Database = {
         Insert: {
           checkout_id: string
           created_at?: string
+          currency?: string
           customer_id: string
           id?: string
           status?: Database["public"]["Enums"]["order_status"]
@@ -522,6 +524,7 @@ export type Database = {
         Update: {
           checkout_id?: string
           created_at?: string
+          currency?: string
           customer_id?: string
           id?: string
           status?: Database["public"]["Enums"]["order_status"]
