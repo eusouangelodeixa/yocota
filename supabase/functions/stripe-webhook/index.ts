@@ -182,8 +182,9 @@ serve(async (req) => {
           if (order) {
             await supabase.from("orders").update({ status: "refunded" }).eq("id", order.id);
 
-            await sendToUtmify(supabase, {
+            await sendToUtmify(supabase, stripe, {
               orderId: order.id,
+              paymentIntentId,
               status: "refunded",
               createdAt: order.created_at,
               approvedDate: order.created_at,
