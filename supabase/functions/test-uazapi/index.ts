@@ -194,6 +194,33 @@ serve(async (req) => {
       text: message,
     });
 
+    let postSendStatus: { status: number; ok: boolean; response: string; summary?: Record<string, unknown> } | null = null;
+    try {
+      const postResult = await callUaz(UAZAPI_URL, UAZAPI_TOKEN, "/instance/status", "GET");
+      let postSummary: Record<string, unknown> | undefined;
+      try {
+        const parsed = JSON.parse(postResult.text);
+        postSummary = {};
+        if (parsed?.instance?.status) postSummary.instanceStatus = parsed.instance.status;
+        if (parsed?.instance?.name) postSummary.instanceName = parsed.instance.name;
+      } catch {
+        // best effort
+      }
+
+      postSendStatus = {
+        status: postResult.status,
+        ok: postResult.ok,
+        response: maskSensitive(postResult.text).slice(0, 250),
+        summary: postSummary,
+      };
+    } catch (err: any) {
+      postSendStatus = {
+        status: 0,
+        ok: false,
+        response: `post_probe_error: ${err?.message || "unknown"}`,
+      };
+    }
+
     const responsePreview = sendResult.text.slice(0, 500);
     const lowerResponse = responsePreview.toLowerCase();
 
@@ -217,6 +244,7 @@ serve(async (req) => {
       urlSource,
       tokenSource,
       probes,
+      postSendStatus,
       rootCause,
       elapsedMs: Date.now() - startedAt,
       observedAt: new Date().toISOString(),
