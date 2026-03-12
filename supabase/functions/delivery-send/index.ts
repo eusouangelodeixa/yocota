@@ -49,17 +49,16 @@ serve(async (req) => {
       });
     }
 
-    // Check if delivery already exists (idempotency)
+    // Check if ANY delivery already exists for this order_item (idempotency - prevents duplicates)
     const { data: existingDelivery } = await supabase
       .from("deliveries")
       .select("id, status")
       .eq("order_item_id", order_item_id)
-      .eq("status", "sent")
       .maybeSingle();
 
     if (existingDelivery) {
-      console.log("Delivery already sent for order_item:", order_item_id);
-      return new Response(JSON.stringify({ success: true, already_sent: true }), {
+      console.log("Delivery already exists for order_item:", order_item_id, "status:", existingDelivery.status);
+      return new Response(JSON.stringify({ success: true, already_exists: true, status: existingDelivery.status }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
         status: 200,
       });
