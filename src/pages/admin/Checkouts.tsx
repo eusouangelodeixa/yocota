@@ -19,7 +19,7 @@ import { Textarea } from "@/components/ui/textarea";
 
 interface CheckoutForm {
   name: string; product_id: string; redirect_url: string; checkout_slug: string; first_offer_id: string;
-  primary_color: string; accent_color: string; bg_color: string; headline_text: string; cta_text: string;
+  primary_color: string; accent_color: string; bg_color: string; cta_button_color: string; headline_text: string; cta_text: string;
   banner_url: string; show_product_image: boolean; order_bump_product_ids: string[];
   order_bump_descriptions: Record<string, string>;
   countdown_enabled: boolean; countdown_duration: number; countdown_text: string;
