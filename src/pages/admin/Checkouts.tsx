@@ -14,12 +14,17 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sh
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { toast } from "sonner";
 import { slugify, formatCents } from "@/lib/formatters";
-import { Plus, Copy, Pencil, Trash2, Eye, Palette, X, GripVertical, Upload, ImageIcon, Loader2 } from "lucide-react";
+import { Plus, Copy, Pencil, Trash2, Eye, Palette, X, GripVertical, Upload, ImageIcon, Loader2, Zap, Users } from "lucide-react";
+import { Textarea } from "@/components/ui/textarea";
 
 interface CheckoutForm {
   name: string; product_id: string; redirect_url: string; checkout_slug: string; first_offer_id: string;
   primary_color: string; accent_color: string; bg_color: string; headline_text: string; cta_text: string;
   banner_url: string; show_product_image: boolean; order_bump_product_ids: string[];
+  countdown_enabled: boolean; countdown_duration: number; countdown_text: string;
+  countdown_bg_color: string; countdown_text_color: string;
+  social_proof_enabled: boolean; social_proof_messages: string; social_proof_interval: number;
+  social_proof_display_duration: number; social_proof_position: string;
 }
 
 const emptyForm: CheckoutForm = {
@@ -27,6 +32,10 @@ const emptyForm: CheckoutForm = {
   primary_color: "#2563eb", accent_color: "#1e40af", bg_color: "#f8fafc",
   headline_text: "", cta_text: "Finalizar compra", banner_url: "", show_product_image: true,
   order_bump_product_ids: [],
+  countdown_enabled: false, countdown_duration: 10, countdown_text: "Essa oferta expira em:",
+  countdown_bg_color: "#dc2626", countdown_text_color: "#ffffff",
+  social_proof_enabled: false, social_proof_messages: "", social_proof_interval: 15,
+  social_proof_display_duration: 5, social_proof_position: "bottom-left",
 };
 
 function OfferSelect({ value, onChange }: { value: string; onChange: (v: string) => void }) {
@@ -195,6 +204,12 @@ export default function Checkouts() {
         primary_color: form.primary_color, accent_color: form.accent_color, bg_color: form.bg_color,
         headline_text: form.headline_text || null, cta_text: form.cta_text || "Finalizar compra",
         banner_url: form.banner_url || null, show_product_image: form.show_product_image,
+        countdown_enabled: form.countdown_enabled, countdown_duration: form.countdown_duration,
+        countdown_text: form.countdown_text, countdown_bg_color: form.countdown_bg_color,
+        countdown_text_color: form.countdown_text_color, social_proof_enabled: form.social_proof_enabled,
+        social_proof_messages: form.social_proof_messages.split("\n").map(s => s.trim()).filter(Boolean),
+        social_proof_interval: form.social_proof_interval, social_proof_display_duration: form.social_proof_display_duration,
+        social_proof_position: form.social_proof_position,
       };
       let checkoutId: string;
       if (editingId) {
@@ -233,7 +248,8 @@ export default function Checkouts() {
   const openEdit = async (checkout: any) => {
     const bumpIds = await loadBumpsForCheckout(checkout.id);
     setEditingId(checkout.id);
-    setForm({ name: checkout.name, product_id: checkout.product_id, redirect_url: checkout.redirect_url, checkout_slug: checkout.checkout_slug, first_offer_id: checkout.first_offer_id ?? "", primary_color: checkout.primary_color || "#2563eb", accent_color: checkout.accent_color || "#1e40af", bg_color: checkout.bg_color || "#f8fafc", headline_text: checkout.headline_text ?? "", cta_text: checkout.cta_text || "Finalizar compra", banner_url: checkout.banner_url ?? "", show_product_image: checkout.show_product_image ?? true, order_bump_product_ids: bumpIds });
+    const spMessages = Array.isArray(checkout.social_proof_messages) ? (checkout.social_proof_messages as string[]).join("\n") : "";
+    setForm({ name: checkout.name, product_id: checkout.product_id, redirect_url: checkout.redirect_url, checkout_slug: checkout.checkout_slug, first_offer_id: checkout.first_offer_id ?? "", primary_color: checkout.primary_color || "#2563eb", accent_color: checkout.accent_color || "#1e40af", bg_color: checkout.bg_color || "#f8fafc", headline_text: checkout.headline_text ?? "", cta_text: checkout.cta_text || "Finalizar compra", banner_url: checkout.banner_url ?? "", show_product_image: checkout.show_product_image ?? true, order_bump_product_ids: bumpIds, countdown_enabled: checkout.countdown_enabled ?? false, countdown_duration: checkout.countdown_duration ?? 10, countdown_text: checkout.countdown_text ?? "Essa oferta expira em:", countdown_bg_color: checkout.countdown_bg_color ?? "#dc2626", countdown_text_color: checkout.countdown_text_color ?? "#ffffff", social_proof_enabled: checkout.social_proof_enabled ?? false, social_proof_messages: spMessages, social_proof_interval: checkout.social_proof_interval ?? 15, social_proof_display_duration: checkout.social_proof_display_duration ?? 5, social_proof_position: checkout.social_proof_position ?? "bottom-left" });
     setDialogOpen(true);
   };
 
@@ -266,9 +282,10 @@ export default function Checkouts() {
             <form onSubmit={(e) => { e.preventDefault(); saveMutation.mutate(form); }}>
               <Tabs value={activeTab} onValueChange={setActiveTab}>
                 <TabsList className="w-full mb-4 bg-secondary border border-border">
-                  <TabsTrigger value="info" className="flex-1 text-xs data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">Informações</TabsTrigger>
-                  <TabsTrigger value="design" className="flex-1 text-xs data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"><Palette className="mr-1.5 h-3 w-3" strokeWidth={1.5} />Personalização</TabsTrigger>
-                  <TabsTrigger value="preview" className="flex-1 text-xs data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"><Eye className="mr-1.5 h-3 w-3" strokeWidth={1.5} />Preview</TabsTrigger>
+                  <TabsTrigger value="info" className="flex-1 text-xs data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">Info</TabsTrigger>
+                  <TabsTrigger value="design" className="flex-1 text-xs data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"><Palette className="mr-1 h-3 w-3" strokeWidth={1.5} />Design</TabsTrigger>
+                  <TabsTrigger value="conversion" className="flex-1 text-xs data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"><Zap className="mr-1 h-3 w-3" strokeWidth={1.5} />Conversão</TabsTrigger>
+                  <TabsTrigger value="preview" className="flex-1 text-xs data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"><Eye className="mr-1 h-3 w-3" strokeWidth={1.5} />Preview</TabsTrigger>
                 </TabsList>
 
                 <TabsContent value="info" className="space-y-4">
@@ -336,6 +353,66 @@ export default function Checkouts() {
                     <div className="space-y-1.5"><Label className="text-xs text-muted-foreground">Texto do Botão (CTA)</Label><Input value={form.cta_text} onChange={(e) => setForm({ ...form, cta_text: e.target.value })} placeholder="Finalizar compra" /></div>
                   </div>
                   <div className="flex items-center gap-3"><Switch checked={form.show_product_image} onCheckedChange={(v) => setForm({ ...form, show_product_image: v })} /><Label className="text-xs text-muted-foreground">Mostrar imagem do produto</Label></div>
+                </TabsContent>
+
+                <TabsContent value="conversion" className="space-y-6">
+                  {/* Countdown Bar */}
+                  <div className="space-y-4 rounded-lg border border-border p-4">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <Zap className="h-4 w-4 text-primary" strokeWidth={1.5} />
+                        <Label className="text-sm font-semibold text-foreground">Barra de Urgência</Label>
+                      </div>
+                      <Switch checked={form.countdown_enabled} onCheckedChange={(v) => setForm({ ...form, countdown_enabled: v })} />
+                    </div>
+                    {form.countdown_enabled && (
+                      <div className="space-y-3 pt-2">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                          <div className="space-y-1.5"><Label className="text-xs text-muted-foreground">Texto da barra</Label><Input value={form.countdown_text} onChange={(e) => setForm({ ...form, countdown_text: e.target.value })} /></div>
+                          <div className="space-y-1.5"><Label className="text-xs text-muted-foreground">Duração (minutos)</Label><Input type="number" min={1} max={120} value={form.countdown_duration} onChange={(e) => setForm({ ...form, countdown_duration: parseInt(e.target.value) || 10 })} /></div>
+                        </div>
+                        <div className="grid grid-cols-2 gap-3">
+                          <div className="space-y-1.5">
+                            <Label className="text-xs text-muted-foreground">Cor de fundo</Label>
+                            <div className="flex gap-2 items-center"><input type="color" value={form.countdown_bg_color} onChange={(e) => setForm({ ...form, countdown_bg_color: e.target.value })} className="w-10 h-10 rounded-lg border border-border cursor-pointer bg-transparent" /><Input value={form.countdown_bg_color} onChange={(e) => setForm({ ...form, countdown_bg_color: e.target.value })} className="flex-1 text-xs" /></div>
+                          </div>
+                          <div className="space-y-1.5">
+                            <Label className="text-xs text-muted-foreground">Cor do texto</Label>
+                            <div className="flex gap-2 items-center"><input type="color" value={form.countdown_text_color} onChange={(e) => setForm({ ...form, countdown_text_color: e.target.value })} className="w-10 h-10 rounded-lg border border-border cursor-pointer bg-transparent" /><Input value={form.countdown_text_color} onChange={(e) => setForm({ ...form, countdown_text_color: e.target.value })} className="flex-1 text-xs" /></div>
+                          </div>
+                        </div>
+                        <div className="rounded-lg overflow-hidden border border-border">
+                          <div className="py-2 px-4 flex items-center justify-center gap-2 text-sm font-semibold" style={{ backgroundColor: form.countdown_bg_color, color: form.countdown_text_color }}>
+                            <Zap className="h-4 w-4" /><span>{form.countdown_text}</span><span className="tabular-nums font-bold text-base">09:58</span>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Social Proof */}
+                  <div className="space-y-4 rounded-lg border border-border p-4">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <Users className="h-4 w-4 text-primary" strokeWidth={1.5} />
+                        <Label className="text-sm font-semibold text-foreground">Prova Social</Label>
+                      </div>
+                      <Switch checked={form.social_proof_enabled} onCheckedChange={(v) => setForm({ ...form, social_proof_enabled: v })} />
+                    </div>
+                    {form.social_proof_enabled && (
+                      <div className="space-y-3 pt-2">
+                        <div className="space-y-1.5">
+                          <Label className="text-xs text-muted-foreground">Mensagens (uma por linha: Nome - Cidade)</Label>
+                          <Textarea value={form.social_proof_messages} onChange={(e) => setForm({ ...form, social_proof_messages: e.target.value })} placeholder={"Maria - São Paulo\nCarlos - Rio de Janeiro\nJuliana - Belo Horizonte"} rows={5} className="text-xs" />
+                        </div>
+                        <div className="grid grid-cols-3 gap-3">
+                          <div className="space-y-1.5"><Label className="text-xs text-muted-foreground">Intervalo (seg)</Label><Input type="number" min={5} max={120} value={form.social_proof_interval} onChange={(e) => setForm({ ...form, social_proof_interval: parseInt(e.target.value) || 15 })} /></div>
+                          <div className="space-y-1.5"><Label className="text-xs text-muted-foreground">Exibição (seg)</Label><Input type="number" min={2} max={30} value={form.social_proof_display_duration} onChange={(e) => setForm({ ...form, social_proof_display_duration: parseInt(e.target.value) || 5 })} /></div>
+                          <div className="space-y-1.5"><Label className="text-xs text-muted-foreground">Posição</Label><Select value={form.social_proof_position} onValueChange={(v) => setForm({ ...form, social_proof_position: v })}><SelectTrigger className="text-xs"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="bottom-left">Inferior esquerdo</SelectItem><SelectItem value="bottom-right">Inferior direito</SelectItem></SelectContent></Select></div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
                 </TabsContent>
 
                 <TabsContent value="preview">

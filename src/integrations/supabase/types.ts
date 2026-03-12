@@ -155,6 +155,11 @@ export type Database = {
           banner_url: string | null
           bg_color: string | null
           checkout_slug: string
+          countdown_bg_color: string
+          countdown_duration: number
+          countdown_enabled: boolean
+          countdown_text: string
+          countdown_text_color: string
           created_at: string
           cta_text: string | null
           first_offer_id: string | null
@@ -166,6 +171,11 @@ export type Database = {
           product_id: string
           redirect_url: string
           show_product_image: boolean | null
+          social_proof_display_duration: number
+          social_proof_enabled: boolean
+          social_proof_interval: number
+          social_proof_messages: Json
+          social_proof_position: string
         }
         Insert: {
           accent_color?: string | null
@@ -173,6 +183,11 @@ export type Database = {
           banner_url?: string | null
           bg_color?: string | null
           checkout_slug: string
+          countdown_bg_color?: string
+          countdown_duration?: number
+          countdown_enabled?: boolean
+          countdown_text?: string
+          countdown_text_color?: string
           created_at?: string
           cta_text?: string | null
           first_offer_id?: string | null
@@ -184,6 +199,11 @@ export type Database = {
           product_id: string
           redirect_url: string
           show_product_image?: boolean | null
+          social_proof_display_duration?: number
+          social_proof_enabled?: boolean
+          social_proof_interval?: number
+          social_proof_messages?: Json
+          social_proof_position?: string
         }
         Update: {
           accent_color?: string | null
@@ -191,6 +211,11 @@ export type Database = {
           banner_url?: string | null
           bg_color?: string | null
           checkout_slug?: string
+          countdown_bg_color?: string
+          countdown_duration?: number
+          countdown_enabled?: boolean
+          countdown_text?: string
+          countdown_text_color?: string
           created_at?: string
           cta_text?: string | null
           first_offer_id?: string | null
@@ -202,6 +227,11 @@ export type Database = {
           product_id?: string
           redirect_url?: string
           show_product_image?: boolean | null
+          social_proof_display_duration?: number
+          social_proof_enabled?: boolean
+          social_proof_interval?: number
+          social_proof_messages?: Json
+          social_proof_position?: string
         }
         Relationships: [
           {

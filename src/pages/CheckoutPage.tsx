@@ -11,6 +11,8 @@ import { toast } from "sonner";
 import { formatCents } from "@/lib/formatters";
 import { Loader2, Lock, CheckCircle2 } from "lucide-react";
 import { COUNTRY_CODES, COUNTRY_TO_DDI } from "@/lib/countryCodes";
+import { CheckoutCountdownBar } from "@/components/CheckoutCountdownBar";
+import { SalesNotificationPopup } from "@/components/SalesNotificationPopup";
 
 const stripePromise = loadStripe("pk_live_51T9VKyGfpSpNOdDI6GT8Bq78Kn7NagZZuB880xuOksJD8TPAfOFIZ762lhXVg3EbJIcf66uoOvdweVF4kjrkCU3700yfUxyd0d");
 
@@ -26,6 +28,16 @@ interface CheckoutData {
   show_product_image: boolean; first_offer_id: string | null;
   product: { id: string; name: string; description: string | null; price: number; currency: string; image_url: string | null };
   bump_products: BumpProduct[];
+  countdown_enabled: boolean;
+  countdown_duration: number;
+  countdown_text: string;
+  countdown_bg_color: string;
+  countdown_text_color: string;
+  social_proof_enabled: boolean;
+  social_proof_messages: string[];
+  social_proof_interval: number;
+  social_proof_display_duration: number;
+  social_proof_position: "bottom-left" | "bottom-right";
 }
 
 const CARD_STYLE = {
@@ -229,7 +241,25 @@ function CheckoutForm({ checkout: c }: { checkout: CheckoutData }) {
   };
 
   return (
-    <div className="min-h-screen flex flex-col lg:flex-row bg-[#09090b]">
+    <div className="min-h-screen flex flex-col bg-[#09090b]">
+      {c.countdown_enabled && (
+        <CheckoutCountdownBar
+          checkoutId={c.id}
+          durationMinutes={c.countdown_duration}
+          text={c.countdown_text}
+          bgColor={c.countdown_bg_color}
+          textColor={c.countdown_text_color}
+        />
+      )}
+      {c.social_proof_enabled && c.social_proof_messages.length > 0 && (
+        <SalesNotificationPopup
+          messages={c.social_proof_messages}
+          intervalSeconds={c.social_proof_interval}
+          displayDurationSeconds={c.social_proof_display_duration}
+          position={c.social_proof_position}
+        />
+      )}
+      <div className="flex-1 flex flex-col lg:flex-row">
       {c.banner_url && (
         <div className="lg:hidden w-full">
           <img src={c.banner_url} alt="" className="w-full h-auto max-h-48 object-cover" crossOrigin="anonymous" />
@@ -388,6 +418,7 @@ function CheckoutForm({ checkout: c }: { checkout: CheckoutData }) {
           </form>
         </div>
       </div>
+      </div>
     </div>
   );
 }
@@ -406,7 +437,7 @@ export default function CheckoutPage() {
       const { data: bumpsData, error: bumpsError } = await supabase.from("checkout_order_bumps").select("product_id, sort_order, products(id, name, price, currency)").eq("checkout_id", data.id).order("sort_order");
       console.log("Bumps query result:", { bumpsData, bumpsError });
       const bumpProducts: BumpProduct[] = ((bumpsData as any[]) || []).filter((b: any) => b.products).map((b: any) => ({ id: b.products.id, name: b.products.name, price: b.products.price, currency: b.products.currency || "eur" }));
-      setCheckout({ ...data, primary_color: data.primary_color || "#28d56a", accent_color: data.accent_color || "#1e40af", bg_color: data.bg_color || "#09090b", cta_text: data.cta_text || "Finalizar compra", show_product_image: data.show_product_image ?? true, first_offer_id: data.first_offer_id, product: data.products as any, bump_products: bumpProducts });
+      setCheckout({ ...data, primary_color: data.primary_color || "#28d56a", accent_color: data.accent_color || "#1e40af", bg_color: data.bg_color || "#09090b", cta_text: data.cta_text || "Finalizar compra", show_product_image: data.show_product_image ?? true, first_offer_id: data.first_offer_id, product: data.products as any, bump_products: bumpProducts, countdown_enabled: data.countdown_enabled ?? false, countdown_duration: data.countdown_duration ?? 10, countdown_text: data.countdown_text ?? "Essa oferta expira em:", countdown_bg_color: data.countdown_bg_color ?? "#dc2626", countdown_text_color: data.countdown_text_color ?? "#ffffff", social_proof_enabled: data.social_proof_enabled ?? false, social_proof_messages: (Array.isArray(data.social_proof_messages) ? data.social_proof_messages : []) as string[], social_proof_interval: data.social_proof_interval ?? 15, social_proof_display_duration: data.social_proof_display_duration ?? 5, social_proof_position: (data.social_proof_position as "bottom-left" | "bottom-right") ?? "bottom-left" });
       setLoading(false);
     }
     load();
