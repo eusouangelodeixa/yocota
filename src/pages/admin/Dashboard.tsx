@@ -75,14 +75,14 @@ function getDateRange(preset: FilterPreset, customFrom?: Date, customTo?: Date):
 }
 
 /* ── Tooltip ── */
-function ChartTooltip({ active, payload, label }: any) {
+function ChartTooltip({ active, payload, label, currency = "eur" }: any) {
   if (!active || !payload?.length) return null;
   return (
     <div className="card-elevated rounded-lg px-3.5 py-2.5">
       <p className="text-xs text-muted-foreground mb-1">{label}</p>
       {payload.map((entry: any, i: number) => (
         <p key={i} className="text-sm font-semibold text-foreground">
-          {formatCents(entry.value)}
+          {formatCents(entry.value, currency)}
         </p>
       ))}
     </div>

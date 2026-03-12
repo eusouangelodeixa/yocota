@@ -441,7 +441,7 @@ async function processSuccessfulPayment(
       utm_content: utmContent, utm_term: utmTerm,
     },
     totalAmountCents: totalAmount,
-    currency: checkout.products.currency || "eur",
+    currency: order.currency || checkout.products.currency || "eur",
   });
 
   console.log("Order created successfully:", order.id);
