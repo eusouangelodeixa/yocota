@@ -287,7 +287,7 @@ export default function Checkouts() {
                         {bumpProducts.map((bp: any, idx: number) => (
                           <div key={bp.id} className="flex items-center gap-3 rounded-lg border border-border bg-input px-3 py-2">
                             <GripVertical className="h-4 w-4 text-muted-foreground shrink-0" strokeWidth={1.5} />
-                            <div className="flex-1 min-w-0"><p className="text-[13px] font-medium truncate text-foreground">{bp.name}</p><p className="text-[11px] text-muted-foreground">{formatCents(bp.price, bp.currency || "brl")}</p></div>
+                            <div className="flex-1 min-w-0"><p className="text-[13px] font-medium truncate text-foreground">{bp.name}</p><p className="text-[11px] text-muted-foreground">{formatCents(bp.price, bp.currency || "eur")}</p></div>
                             <Badge variant="secondary" className="text-[10px] shrink-0">#{idx + 1}</Badge>
                             <Button type="button" variant="ghost" size="icon" className="h-7 w-7 shrink-0" onClick={() => removeBump(bp.id)}><X className="h-3.5 w-3.5 text-destructive" /></Button>
                           </div>
