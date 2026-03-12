@@ -524,12 +524,11 @@ export default function Settings() {
                       <div key={member.user_id} className="flex items-center justify-between py-2">
                         <div className="flex items-center gap-3">
                           <Avatar className="w-8 h-8">
-                            {member.avatar_url && <AvatarImage src={member.avatar_url} />}
                             <AvatarFallback className="bg-primary text-primary-foreground text-xs font-bold">
-                              {(member.display_name || "?")[0]?.toUpperCase()}
+                              {(member.email || "?")[0]?.toUpperCase()}
                             </AvatarFallback>
                           </Avatar>
-                          <span className="text-sm text-foreground">{member.display_name}</span>
+                          <span className="text-sm text-foreground">{member.email}</span>
                         </div>
                         {member.user_id !== user?.id && (
                           <Button
