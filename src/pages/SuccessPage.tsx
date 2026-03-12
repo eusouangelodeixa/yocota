@@ -21,75 +21,76 @@ export default function SuccessPage() {
 
   useEffect(() => {
     if (!checkoutId || !paymentIntentId) { setState("error"); return; }
+
+    // Fetch checkout config once upfront (parallel with first poll)
+    let checkoutData: { redirect_url: string; first_offer_id: string | null } | null = null;
+    const fetchCheckout = supabase.from("checkouts").select("redirect_url, first_offer_id").eq("id", checkoutId).single()
+      .then(({ data }) => { checkoutData = data; if (data?.redirect_url) setRedirectUrl(data.redirect_url); });
+
     let attempts = 0;
-    const maxAttempts = 60;
+    const maxAttempts = 40;
     const poll = async () => {
       attempts++;
-      // Try to find the order by payment_intent_id first, fallback to checkout_id
-      const { data: order } = await supabase
+      await fetchCheckout; // ensure checkout is loaded (resolves instantly after first call)
+
+      // Combined query: look for order + offer_session in parallel
+      const orderPromise = supabase
         .from("orders")
-        .select("id, checkout_id")
+        .select("id")
         .eq("stripe_payment_intent_id", paymentIntentId)
         .eq("status", "paid")
         .maybeSingle();
 
+      const { data: order } = await orderPromise;
+
       if (!order) {
         if (attempts >= maxAttempts) {
-          const { data: checkout } = await supabase.from("checkouts").select("redirect_url").eq("id", checkoutId).single();
-          if (checkout?.redirect_url) window.location.href = checkout.redirect_url;
+          if (checkoutData?.redirect_url) window.location.href = checkoutData.redirect_url;
           else setState("done");
           return;
         }
-        setTimeout(poll, 500); return;
-      }
-
-      // Order found as paid — now poll for offer_session (webhook may still be creating it)
-      const { data: checkout } = await supabase.from("checkouts").select("redirect_url, first_offer_id").eq("id", checkoutId).single();
-      setRedirectUrl(checkout?.redirect_url || "");
-
-      const hasOfferFunnel = !!checkout?.first_offer_id;
-
-      // If checkout has no offer funnel configured, skip waiting
-      if (!hasOfferFunnel) {
-        setState("done");
-        if (checkout?.redirect_url) setTimeout(() => { window.location.href = checkout.redirect_url; }, 3000);
+        // Faster polling initially (200ms for first 10, then 400ms)
+        setTimeout(poll, attempts <= 10 ? 200 : 400);
         return;
       }
 
-      // Poll for offer_session with retries (webhook may still be processing)
-      let offerAttempts = 0;
-      const maxOfferAttempts = 20; // 10 seconds max wait
-      const pollOffer = async () => {
-        offerAttempts++;
+      // Order found — check if there's an offer funnel
+      const hasOfferFunnel = !!checkoutData?.first_offer_id;
+      if (!hasOfferFunnel) {
+        setState("done");
+        if (checkoutData?.redirect_url) setTimeout(() => { window.location.href = checkoutData!.redirect_url; }, 3000);
+        return;
+      }
+
+      // Offer session is created right after the order in the webhook,
+      // so it should be available almost immediately. Quick retry loop.
+      for (let i = 0; i < 15; i++) {
         const { data: offerSession } = await supabase
           .from("offer_sessions")
-          .select("token, decision, offer_id")
+          .select("token, offer_id")
           .eq("order_id", order.id)
           .is("decision", null)
           .order("created_at", { ascending: true })
           .limit(1)
           .maybeSingle();
 
-        if (!offerSession?.token) {
-          if (offerAttempts >= maxOfferAttempts) {
-            // Give up waiting for offer session
-            setState("done");
-            if (checkout?.redirect_url) setTimeout(() => { window.location.href = checkout.redirect_url; }, 3000);
-            return;
+        if (offerSession?.token) {
+          const { data: offer } = await supabase.from("offers").select("page_url").eq("id", offerSession.offer_id).single();
+          if (offer?.page_url) {
+            window.location.href = `${offer.page_url}${offer.page_url.includes("?") ? "&" : "?"}offer_token=${offerSession.token}`;
+          } else {
+            setOfferToken(offerSession.token);
+            setState("offer-inline");
           }
-          setTimeout(pollOffer, 500);
           return;
         }
+        // Short wait — offer_session is inserted milliseconds after order
+        await new Promise(r => setTimeout(r, 300));
+      }
 
-        const { data: offer } = await supabase.from("offers").select("page_url").eq("id", offerSession.offer_id).single();
-        if (offer?.page_url) {
-          window.location.href = `${offer.page_url}${offer.page_url.includes("?") ? "&" : "?"}offer_token=${offerSession.token}`;
-        } else {
-          setOfferToken(offerSession.token);
-          setState("offer-inline");
-        }
-      };
-      pollOffer();
+      // Give up waiting for offer session
+      setState("done");
+      if (checkoutData?.redirect_url) setTimeout(() => { window.location.href = checkoutData!.redirect_url; }, 3000);
     };
     poll();
   }, [checkoutId, paymentIntentId]);
