@@ -288,7 +288,7 @@ function CheckoutForm({ checkout: c, lang, t }: { checkout: CheckoutData; lang: 
       )}
 
       {/* Left panel - Product summary */}
-      <div className="hidden lg:flex lg:w-[45%] bg-[#fafafa] border-r border-[#e4e4e7] flex-col sticky top-0 h-screen overflow-y-auto">
+      <div className="hidden lg:flex lg:w-[45%] bg-white border-r border-[#111111] flex-col sticky top-0 h-screen overflow-y-auto">
         {c.banner_url && (
           <div className="w-full shrink-0">
             <img src={c.banner_url} alt="" className="w-full h-auto max-h-56 object-cover" crossOrigin="anonymous" />
@@ -297,12 +297,12 @@ function CheckoutForm({ checkout: c, lang, t }: { checkout: CheckoutData; lang: 
         <div className="flex-1 flex flex-col justify-center px-10 xl:px-16 py-12">
           <div className="max-w-md">
             {c.show_product_image && c.product.image_url && (
-              <img src={c.product.image_url} alt={c.product.name} className="w-20 h-20 rounded-[10px] object-cover mb-5 border border-[#e4e4e7]" crossOrigin="anonymous" />
+              <img src={c.product.image_url} alt={c.product.name} className="w-20 h-20 rounded-[10px] object-cover mb-5 border border-[#111111]" crossOrigin="anonymous" />
             )}
-            <h1 className="text-xl font-semibold text-[#1a1a1a] mb-2">{c.headline_text || c.product.name}</h1>
-            {c.product.description && <p className="text-sm text-[#71717a] leading-relaxed mb-8">{c.product.description}</p>}
-            <div className="text-4xl font-bold text-[#1a1a1a] tabular-nums mb-8">{formatCents(c.product.price, currency)}</div>
-            <div className="border-t border-[#e4e4e7]" />
+            <h1 className="text-xl font-semibold text-[#111111] mb-2">{c.headline_text || c.product.name}</h1>
+            {c.product.description && <p className="text-sm text-[#525252] leading-relaxed mb-8">{c.product.description}</p>}
+            <div className="text-4xl font-bold text-[#111111] tabular-nums mb-8">{formatCents(c.product.price, currency)}</div>
+            <div className="border-t border-[#111111]" />
 
             {c.bump_products.length > 0 && (
               <div className="mt-6 space-y-3">
@@ -310,10 +310,10 @@ function CheckoutForm({ checkout: c, lang, t }: { checkout: CheckoutData; lang: 
               </div>
             )}
 
-            <div className="mt-6 pt-4 border-t border-[#e4e4e7]">
+            <div className="mt-6 pt-4 border-t border-[#111111]">
               <div className="flex justify-between items-center">
-                <span className="text-sm text-[#71717a]">{t.total}</span>
-                <span className="text-2xl font-bold text-[#1a1a1a] tabular-nums">{formatCents(totalAmount(), currency)}</span>
+                <span className="text-sm text-[#525252]">{t.total}</span>
+                <span className="text-2xl font-bold text-[#111111] tabular-nums">{formatCents(totalAmount(), currency)}</span>
               </div>
             </div>
           </div>
@@ -321,7 +321,7 @@ function CheckoutForm({ checkout: c, lang, t }: { checkout: CheckoutData; lang: 
       </div>
 
       {/* Right panel - Form */}
-      <div className="flex-1 flex flex-col justify-center px-5 sm:px-8 lg:px-10 xl:px-16 py-8 lg:py-12">
+      <div className="flex-1 bg-white flex flex-col justify-center px-5 sm:px-8 lg:px-10 xl:px-16 py-8 lg:py-12">
         <div className="max-w-md w-full mx-auto">
           <div className="lg:hidden mb-6">
             {c.show_product_image && c.product.image_url && (
