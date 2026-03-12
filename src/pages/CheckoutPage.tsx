@@ -371,16 +371,16 @@ function CheckoutForm({ checkout: c, lang, t }: { checkout: CheckoutData; lang: 
 
             {/* Card information section - grouped fields */}
             <div className="space-y-3">
-              <label className="text-[13px] font-medium text-[#fafafa]">{t.cardDetails}</label>
-              <div className="rounded-lg border border-[#27272a] overflow-hidden">
-                <div className="checkout-card-field h-10 bg-[#111113] px-3 flex items-center transition-all duration-150 border-b border-[#27272a]">
+              <label className="text-[13px] font-medium text-[#1a1a1a]">{t.cardDetails}</label>
+              <div className="rounded-lg border border-[#d4d4d8] overflow-hidden">
+                <div className="checkout-card-field h-10 bg-white px-3 flex items-center transition-all duration-150 border-b border-[#d4d4d8]">
                   <CardNumberElement options={{ style: CARD_STYLE, placeholder: t.cardNumber }} onChange={(e) => setCardError(e.error?.message || null)} className="w-full" />
                 </div>
                 <div className="grid grid-cols-2">
-                  <div className="checkout-card-field h-10 bg-[#111113] px-3 flex items-center transition-all duration-150 border-r border-[#27272a]">
+                  <div className="checkout-card-field h-10 bg-white px-3 flex items-center transition-all duration-150 border-r border-[#d4d4d8]">
                     <CardExpiryElement options={{ style: CARD_STYLE, placeholder: t.expiry }} className="w-full" />
                   </div>
-                  <div className="checkout-card-field h-10 bg-[#111113] px-3 flex items-center transition-all duration-150">
+                  <div className="checkout-card-field h-10 bg-white px-3 flex items-center transition-all duration-150">
                     <CardCvcElement options={{ style: CARD_STYLE, placeholder: t.cvc }} className="w-full" />
                   </div>
                 </div>
