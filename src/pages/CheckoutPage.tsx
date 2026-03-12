@@ -420,7 +420,6 @@ function CheckoutForm({ checkout: c }: { checkout: CheckoutData }) {
       </div>
       </div>
     </div>
-    </div>
   );
 }
 
