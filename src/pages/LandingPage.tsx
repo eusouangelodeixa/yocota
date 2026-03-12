@@ -506,10 +506,6 @@ const LandingPage = () => {
             <p className="cta-overline">Comece hoje mesmo</p>
             <h2 className="cta-headline">Seu checkout<br/>pronto em minutos</h2>
             <p className="cta-sub">Cadastre produtos, configure o funil, copie o link e comece a vender. Sem burocracia, sem código.</p>
-            <div className="cta-buttons">
-              <button className="btn-cta-primary" onClick={() => navigate('/login')}>Criar minha conta grátis</button>
-              <button className="btn-cta-ghost">Ver documentação</button>
-            </div>
           </section>
 
           <footer>
