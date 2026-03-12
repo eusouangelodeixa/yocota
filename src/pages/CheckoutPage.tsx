@@ -297,8 +297,9 @@ function CheckoutForm({ checkout: c }: { checkout: CheckoutData }) {
                       <div className={`h-4 w-4 shrink-0 rounded-sm border flex items-center justify-center transition-colors ${selectedBumps.has(bp.id) ? "bg-[#28d56a] border-[#28d56a]" : "border-[#27272a]"}`}>
                         {selectedBumps.has(bp.id) && <CheckCircle2 className="h-3 w-3 text-[#09090b]" />}
                       </div>
-                      <div className="flex-1">
+                      <div className="flex-1 min-w-0">
                         <p className="text-[13px] font-medium text-[#fafafa]">{bp.name}</p>
+                        {bp.description && <p className="text-[11px] text-[#71717a] mt-0.5 line-clamp-2">{bp.description}</p>}
                       </div>
                       <span className="text-[13px] font-bold text-[#28d56a] tabular-nums">+{formatCents(bp.price, bp.currency || currency)}</span>
                     </div>
