@@ -48,8 +48,9 @@ serve(async (req) => {
   const results: any[] = [];
 
   for (const order of orders) {
-    const currency = order.currency || order.order_items?.[0]?.products?.currency || "eur";
-    const currencyUpper = currency.toUpperCase();
+    const UTMIFY_SUPPORTED = new Set(["BRL", "USD", "EUR", "GBP", "ARS", "CAD", "COP", "MXN", "PYG", "CLP", "PEN", "PLN", "UAH", "CHF", "THB", "AUD"]);
+    const currencyRaw = (order.currency || order.order_items?.[0]?.products?.currency || "eur").toUpperCase();
+    const currencyUpper = UTMIFY_SUPPORTED.has(currencyRaw) ? currencyRaw : "EUR";
 
     const pad = (n: number) => n.toString().padStart(2, "0");
     const formatUtc = (iso: string) => {
