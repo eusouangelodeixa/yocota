@@ -241,7 +241,25 @@ function CheckoutForm({ checkout: c }: { checkout: CheckoutData }) {
   };
 
   return (
-    <div className="min-h-screen flex flex-col lg:flex-row bg-[#09090b]">
+    <div className="min-h-screen flex flex-col bg-[#09090b]">
+      {c.countdown_enabled && (
+        <CheckoutCountdownBar
+          checkoutId={c.id}
+          durationMinutes={c.countdown_duration}
+          text={c.countdown_text}
+          bgColor={c.countdown_bg_color}
+          textColor={c.countdown_text_color}
+        />
+      )}
+      {c.social_proof_enabled && c.social_proof_messages.length > 0 && (
+        <SalesNotificationPopup
+          messages={c.social_proof_messages}
+          intervalSeconds={c.social_proof_interval}
+          displayDurationSeconds={c.social_proof_display_duration}
+          position={c.social_proof_position}
+        />
+      )}
+      <div className="flex-1 flex flex-col lg:flex-row">
       {c.banner_url && (
         <div className="lg:hidden w-full">
           <img src={c.banner_url} alt="" className="w-full h-auto max-h-48 object-cover" crossOrigin="anonymous" />
