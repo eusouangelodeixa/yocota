@@ -259,13 +259,15 @@ export default function Settings() {
 
   // Team members (super admin only)
   const { data: teamMembers, isLoading: teamLoading } = useQuery({
-    queryKey: ["team_members"],
+    queryKey: ["team_members_v2"],
     enabled: isSuperAdmin,
     queryFn: async () => {
       const { data, error } = await supabase.functions.invoke("list-admins");
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
-      return data as { user_id: string; email: string }[];
+      // Ensure we return the array
+      const members = Array.isArray(data) ? data : [];
+      return members as { user_id: string; email: string }[];
     },
   });
 
@@ -281,7 +283,7 @@ export default function Settings() {
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
       toast.success("Administrador removido com sucesso!");
-      queryClient.invalidateQueries({ queryKey: ["team_members"] });
+      queryClient.invalidateQueries({ queryKey: ["team_members_v2"] });
     } catch (err: any) {
       toast.error(err.message);
     } finally {
@@ -298,7 +300,7 @@ export default function Settings() {
       if (data?.error) throw new Error(data.error);
       toast.success("Usuário convidado com sucesso!");
       setInviteForm({ email: "", password: "" });
-      queryClient.invalidateQueries({ queryKey: ["team_members"] });
+      queryClient.invalidateQueries({ queryKey: ["team_members_v2"] });
     } catch (err: any) {
       toast.error(err.message);
     } finally {
