@@ -325,11 +325,11 @@ function CheckoutForm({ checkout: c, lang, t }: { checkout: CheckoutData; lang: 
         <div className="max-w-md w-full mx-auto">
           <div className="lg:hidden mb-6">
             {c.show_product_image && c.product.image_url && (
-              <img src={c.product.image_url} alt={c.product.name} className="w-16 h-16 rounded-[10px] object-cover mb-4 border border-[#27272a]" crossOrigin="anonymous" />
+              <img src={c.product.image_url} alt={c.product.name} className="w-16 h-16 rounded-[10px] object-cover mb-4 border border-[#e4e4e7]" crossOrigin="anonymous" />
             )}
-            <h1 className="text-lg font-semibold text-[#fafafa] mb-1">{c.headline_text || c.product.name}</h1>
+            <h1 className="text-lg font-semibold text-[#1a1a1a] mb-1">{c.headline_text || c.product.name}</h1>
             {c.product.description && <p className="text-xs text-[#71717a] leading-relaxed mb-3">{c.product.description}</p>}
-            <div className="text-2xl font-bold text-[#fafafa] tabular-nums">{formatCents(c.product.price, currency)}</div>
+            <div className="text-2xl font-bold text-[#1a1a1a] tabular-nums">{formatCents(c.product.price, currency)}</div>
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-6">
