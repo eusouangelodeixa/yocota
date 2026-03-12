@@ -353,7 +353,7 @@ function CheckoutForm({ checkout: c, lang, t, detectedCountry }: { checkout: Che
               <div className="space-y-1.5">
                 <label className="text-xs font-medium text-[#27272a]">{t.whatsapp}</label>
                 <div className="flex gap-2">
-                  <Select value={selectedCountry} onValueChange={setSelectedCountry}>
+                  <Select value={selectedCountry} onValueChange={(v) => { setSelectedCountry(v); setCountrySetByUser(true); }}>
                     <SelectTrigger className="checkout-select-trigger w-[110px] h-10 rounded-lg bg-white border-[#111111] text-[#111111] text-xs shrink-0">
                       <SelectValue>{selectedEntry ? `${selectedEntry.flag} ${selectedEntry.code}` : "+55"}</SelectValue>
                     </SelectTrigger>
