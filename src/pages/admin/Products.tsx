@@ -11,7 +11,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
 import { formatCents, getCurrencyLabel, SUPPORTED_CURRENCIES, parsePriceToCents, isZeroDecimalCurrency } from "@/lib/formatters";
-import { Plus, Pencil, Upload, X, ImageIcon } from "lucide-react";
+import { Plus, Pencil, Upload, X, ImageIcon, Trash2 } from "lucide-react";
 
 type ProductType = "digital" | "physical" | "service";
 type DeliveryType = "whatsapp" | "email" | "none";
