@@ -143,16 +143,41 @@ serve(async (req) => {
       { name: "session-status", path: "/session/status" },
     ];
 
-    const probes: Array<{ name: string; status: number; ok: boolean; response: string }> = [];
+    const probes: Array<{
+      name: string;
+      status: number;
+      ok: boolean;
+      response: string;
+      summary?: Record<string, unknown>;
+    }> = [];
 
     for (const probe of probePaths) {
       try {
         const result = await callUaz(UAZAPI_URL, UAZAPI_TOKEN, probe.path, "GET");
+
+        let summary: Record<string, unknown> | undefined;
+        try {
+          const parsed = JSON.parse(result.text);
+          summary = {};
+
+          if (parsed?.instance?.status) summary.instanceStatus = parsed.instance.status;
+          if (parsed?.instance?.name) summary.instanceName = parsed.instance.name;
+          if (typeof parsed?.connected_instances === "number") {
+            summary.connectedInstances = parsed.connected_instances;
+          }
+          if (parsed?.status && typeof parsed.status === "string") {
+            summary.status = parsed.status;
+          }
+        } catch {
+          // best effort summary only
+        }
+
         probes.push({
           name: probe.name,
           status: result.status,
           ok: result.ok,
-          response: result.text.slice(0, 250),
+          response: maskSensitive(result.text).slice(0, 250),
+          summary,
         });
       } catch (err: any) {
         probes.push({
