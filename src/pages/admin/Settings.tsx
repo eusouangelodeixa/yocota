@@ -537,6 +537,17 @@ export default function Settings() {
                           </Avatar>
                           <span className="text-sm text-foreground">{member.display_name}</span>
                         </div>
+                        {member.user_id !== user?.id && (
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                            onClick={() => handleRemoveAdmin(member.user_id)}
+                            disabled={removingUserId === member.user_id}
+                          >
+                            {removingUserId === member.user_id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" strokeWidth={1.5} />}
+                          </Button>
+                        )}
                       </div>
                     ))}
                     {(!teamMembers || teamMembers.length === 0) && (
