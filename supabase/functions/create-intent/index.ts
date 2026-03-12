@@ -154,7 +154,14 @@ serve(async (req) => {
           .select("id, name, price, currency")
           .in("id", filteredBumpIds);
 
-        validBumpProducts = bumpProducts || [];
+        validBumpProducts = (bumpProducts || []).filter((bp: any) => {
+          const bpCurrency = (bp.currency || "eur").toLowerCase();
+          if (bpCurrency !== currency.toLowerCase()) {
+            console.warn(`[CREATE-INTENT] Skipping bump ${bp.id} (${bpCurrency}) - currency mismatch with main product (${currency})`);
+            return false;
+          }
+          return true;
+        });
         for (const bp of validBumpProducts) {
           totalAmount += bp.price;
         }

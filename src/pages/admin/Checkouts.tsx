@@ -336,7 +336,8 @@ export default function Checkouts() {
 
   const selectedProduct = products?.find((p: any) => p.id === form.product_id);
   const bumpProducts = (products || []).filter((p: any) => form.order_bump_product_ids.includes(p.id));
-  const availableBumpProducts = (products || []).filter((p: any) => p.id !== form.product_id && !form.order_bump_product_ids.includes(p.id));
+  const mainCurrency = selectedProduct?.currency || "eur";
+  const availableBumpProducts = (products || []).filter((p: any) => p.id !== form.product_id && !form.order_bump_product_ids.includes(p.id) && (p.currency || "eur") === mainCurrency);
 
   return (
     <div className="space-y-6">
