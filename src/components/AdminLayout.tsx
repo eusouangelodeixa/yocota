@@ -1,12 +1,13 @@
 import { Outlet, useLocation } from "react-router-dom";
 import { AdminSidebar } from "@/components/AdminSidebar";
-import { Menu } from "lucide-react";
+import { Menu, Sun, Moon } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { useState, useEffect } from "react";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { supabase } from "@/integrations/supabase/client";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
+import { useTheme } from "@/hooks/useTheme";
 
 const ROUTE_NAMES: Record<string, string> = {
   "/admin": "Dashboard",
