@@ -332,15 +332,10 @@ function CheckoutForm({ checkout: c, lang, t }: { checkout: CheckoutData; lang: 
             <div className="text-2xl font-bold text-[#fafafa] tabular-nums">{formatCents(c.product.price, currency)}</div>
           </div>
 
-          <p className="text-[11px] uppercase tracking-wider text-[#52525b] font-medium mb-6">{t.paymentInfo}</p>
-
-          <form onSubmit={handleSubmit} className="space-y-5">
-            <div className="space-y-4">
-              <div className="space-y-1.5">
-                <label className="text-xs font-medium text-[#a1a1aa]">{t.fullName}</label>
-                <input value={customerName} onChange={(e) => setCustomerName(e.target.value)} onBlur={() => validateField("name", customerName)} placeholder={t.fullNamePlaceholder} required className={`checkout-input ${inputClass(!!fieldErrors.name)}`} />
-                {fieldErrors.name && <p className="text-[11px] text-[#ef4444] animate-in slide-in-from-top-1 duration-150">{fieldErrors.name}</p>}
-              </div>
+          <form onSubmit={handleSubmit} className="space-y-6">
+            {/* Contact information section */}
+            <div className="space-y-3">
+              <label className="text-[13px] font-medium text-[#fafafa]">{t.contactInfo}</label>
               <div className="space-y-1.5">
                 <label className="text-xs font-medium text-[#a1a1aa]">{t.email}</label>
                 <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} onBlur={() => validateField("email", email)} placeholder={t.emailPlaceholder} required className={`checkout-input ${inputClass(!!fieldErrors.email)}`} />
@@ -367,20 +362,37 @@ function CheckoutForm({ checkout: c, lang, t }: { checkout: CheckoutData; lang: 
               </div>
             </div>
 
+            {/* Divider */}
+            <div className="flex items-center gap-3">
+              <div className="flex-1 h-px bg-[#27272a]" />
+              <span className="text-[11px] text-[#52525b] whitespace-nowrap">{t.orPayWithCard}</span>
+              <div className="flex-1 h-px bg-[#27272a]" />
+            </div>
+
+            {/* Card information section - grouped fields */}
             <div className="space-y-3">
-              <label className="text-xs font-medium text-[#a1a1aa]">{t.cardDetails}</label>
-              <div className="checkout-card-field h-10 rounded-lg bg-[#111113] border border-[#27272a] px-3 flex items-center transition-all duration-150">
-                <CardNumberElement options={{ style: CARD_STYLE, placeholder: t.cardNumber }} onChange={(e) => setCardError(e.error?.message || null)} className="w-full" />
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div className="checkout-card-field h-10 rounded-lg bg-[#111113] border border-[#27272a] px-3 flex items-center transition-all duration-150">
-                  <CardExpiryElement options={{ style: CARD_STYLE, placeholder: t.expiry }} className="w-full" />
+              <label className="text-[13px] font-medium text-[#fafafa]">{t.cardDetails}</label>
+              <div className="rounded-lg border border-[#27272a] overflow-hidden">
+                <div className="checkout-card-field h-10 bg-[#111113] px-3 flex items-center transition-all duration-150 border-b border-[#27272a]">
+                  <CardNumberElement options={{ style: CARD_STYLE, placeholder: t.cardNumber }} onChange={(e) => setCardError(e.error?.message || null)} className="w-full" />
                 </div>
-                <div className="checkout-card-field h-10 rounded-lg bg-[#111113] border border-[#27272a] px-3 flex items-center transition-all duration-150">
-                  <CardCvcElement options={{ style: CARD_STYLE, placeholder: t.cvc }} className="w-full" />
+                <div className="grid grid-cols-2">
+                  <div className="checkout-card-field h-10 bg-[#111113] px-3 flex items-center transition-all duration-150 border-r border-[#27272a]">
+                    <CardExpiryElement options={{ style: CARD_STYLE, placeholder: t.expiry }} className="w-full" />
+                  </div>
+                  <div className="checkout-card-field h-10 bg-[#111113] px-3 flex items-center transition-all duration-150">
+                    <CardCvcElement options={{ style: CARD_STYLE, placeholder: t.cvc }} className="w-full" />
+                  </div>
                 </div>
               </div>
               {cardError && <p className="text-xs text-[#ef4444]">{cardError}</p>}
+            </div>
+
+            {/* Cardholder name */}
+            <div className="space-y-1.5">
+              <label className="text-[13px] font-medium text-[#fafafa]">{t.cardholderName}</label>
+              <input value={customerName} onChange={(e) => setCustomerName(e.target.value)} onBlur={() => validateField("name", customerName)} placeholder={t.cardholderNamePlaceholder} required className={`checkout-input ${inputClass(!!fieldErrors.name)}`} />
+              {fieldErrors.name && <p className="text-[11px] text-[#ef4444] animate-in slide-in-from-top-1 duration-150">{fieldErrors.name}</p>}
             </div>
 
             {/* Mobile bumps */}

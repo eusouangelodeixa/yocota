@@ -2,8 +2,11 @@ export type CheckoutLang = "pt" | "en" | "es" | "fr" | "de" | "it" | "nl" | "pl"
 
 export interface CheckoutTranslations {
   paymentInfo: string;
+  contactInfo: string;
   fullName: string;
   fullNamePlaceholder: string;
+  cardholderName: string;
+  cardholderNamePlaceholder: string;
   email: string;
   emailPlaceholder: string;
   whatsapp: string;
@@ -12,6 +15,7 @@ export interface CheckoutTranslations {
   cardNumber: string;
   expiry: string;
   cvc: string;
+  orPayWithCard: string;
   securePayment: string;
   total: string;
   nameRequired: string;
@@ -29,16 +33,20 @@ export interface CheckoutTranslations {
 
 const pt: CheckoutTranslations = {
   paymentInfo: "Informações de pagamento",
+  contactInfo: "Informações de contacto",
   fullName: "Nome completo",
   fullNamePlaceholder: "Digite seu nome",
+  cardholderName: "Nome no cartão",
+  cardholderNamePlaceholder: "Nome completo no cartão",
   email: "Email",
   emailPlaceholder: "seu@email.com",
   whatsapp: "WhatsApp",
   phonePlaceholder: "(11) 99999-9999",
-  cardDetails: "Dados do cartão",
+  cardDetails: "Informações do cartão",
   cardNumber: "Número do cartão",
   expiry: "MM / AA",
   cvc: "CVC",
+  orPayWithCard: "Ou pague com cartão",
   securePayment: "Pagamento processado com segurança via Stripe",
   total: "Total",
   nameRequired: "Nome é obrigatório",
@@ -56,16 +64,20 @@ const pt: CheckoutTranslations = {
 
 const en: CheckoutTranslations = {
   paymentInfo: "Payment information",
+  contactInfo: "Contact information",
   fullName: "Full name",
   fullNamePlaceholder: "Enter your name",
+  cardholderName: "Cardholder name",
+  cardholderNamePlaceholder: "Full name on card",
   email: "Email",
   emailPlaceholder: "you@email.com",
   whatsapp: "WhatsApp",
   phonePlaceholder: "(555) 123-4567",
-  cardDetails: "Card details",
+  cardDetails: "Card information",
   cardNumber: "Card number",
   expiry: "MM / YY",
   cvc: "CVC",
+  orPayWithCard: "Or pay with card",
   securePayment: "Payment securely processed via Stripe",
   total: "Total",
   nameRequired: "Name is required",
@@ -83,16 +95,20 @@ const en: CheckoutTranslations = {
 
 const es: CheckoutTranslations = {
   paymentInfo: "Información de pago",
+  contactInfo: "Información de contacto",
   fullName: "Nombre completo",
   fullNamePlaceholder: "Ingrese su nombre",
+  cardholderName: "Nombre del titular",
+  cardholderNamePlaceholder: "Nombre completo en la tarjeta",
   email: "Correo electrónico",
   emailPlaceholder: "tu@email.com",
   whatsapp: "WhatsApp",
   phonePlaceholder: "(11) 99999-9999",
-  cardDetails: "Datos de la tarjeta",
+  cardDetails: "Información de la tarjeta",
   cardNumber: "Número de tarjeta",
   expiry: "MM / AA",
   cvc: "CVC",
+  orPayWithCard: "O pagar con tarjeta",
   securePayment: "Pago procesado de forma segura a través de Stripe",
   total: "Total",
   nameRequired: "El nombre es obligatorio",
@@ -110,16 +126,20 @@ const es: CheckoutTranslations = {
 
 const fr: CheckoutTranslations = {
   paymentInfo: "Informations de paiement",
+  contactInfo: "Informations de contact",
   fullName: "Nom complet",
   fullNamePlaceholder: "Entrez votre nom",
+  cardholderName: "Nom du titulaire",
+  cardholderNamePlaceholder: "Nom complet sur la carte",
   email: "E-mail",
   emailPlaceholder: "vous@email.com",
   whatsapp: "WhatsApp",
   phonePlaceholder: "06 12 34 56 78",
-  cardDetails: "Détails de la carte",
+  cardDetails: "Informations de la carte",
   cardNumber: "Numéro de carte",
   expiry: "MM / AA",
   cvc: "CVC",
+  orPayWithCard: "Ou payer par carte",
   securePayment: "Paiement sécurisé via Stripe",
   total: "Total",
   nameRequired: "Le nom est obligatoire",
@@ -137,16 +157,20 @@ const fr: CheckoutTranslations = {
 
 const de: CheckoutTranslations = {
   paymentInfo: "Zahlungsinformationen",
+  contactInfo: "Kontaktinformationen",
   fullName: "Vollständiger Name",
   fullNamePlaceholder: "Geben Sie Ihren Namen ein",
+  cardholderName: "Name des Karteninhabers",
+  cardholderNamePlaceholder: "Vollständiger Name auf der Karte",
   email: "E-Mail",
   emailPlaceholder: "ihre@email.com",
   whatsapp: "WhatsApp",
   phonePlaceholder: "0170 1234567",
-  cardDetails: "Kartendaten",
+  cardDetails: "Karteninformationen",
   cardNumber: "Kartennummer",
   expiry: "MM / JJ",
   cvc: "CVC",
+  orPayWithCard: "Oder mit Karte bezahlen",
   securePayment: "Zahlung sicher verarbeitet über Stripe",
   total: "Gesamt",
   nameRequired: "Name ist erforderlich",
@@ -164,16 +188,20 @@ const de: CheckoutTranslations = {
 
 const it: CheckoutTranslations = {
   paymentInfo: "Informazioni di pagamento",
+  contactInfo: "Informazioni di contatto",
   fullName: "Nome completo",
   fullNamePlaceholder: "Inserisci il tuo nome",
+  cardholderName: "Nome del titolare",
+  cardholderNamePlaceholder: "Nome completo sulla carta",
   email: "Email",
   emailPlaceholder: "tua@email.com",
   whatsapp: "WhatsApp",
   phonePlaceholder: "333 123 4567",
-  cardDetails: "Dati della carta",
+  cardDetails: "Informazioni della carta",
   cardNumber: "Numero della carta",
   expiry: "MM / AA",
   cvc: "CVC",
+  orPayWithCard: "Oppure paga con carta",
   securePayment: "Pagamento elaborato in sicurezza tramite Stripe",
   total: "Totale",
   nameRequired: "Il nome è obbligatorio",
@@ -191,16 +219,20 @@ const it: CheckoutTranslations = {
 
 const nl: CheckoutTranslations = {
   paymentInfo: "Betalingsgegevens",
+  contactInfo: "Contactgegevens",
   fullName: "Volledige naam",
   fullNamePlaceholder: "Voer uw naam in",
+  cardholderName: "Naam kaarthouder",
+  cardholderNamePlaceholder: "Volledige naam op de kaart",
   email: "E-mail",
   emailPlaceholder: "uw@email.com",
   whatsapp: "WhatsApp",
   phonePlaceholder: "06 12345678",
-  cardDetails: "Kaartgegevens",
+  cardDetails: "Kaartinformatie",
   cardNumber: "Kaartnummer",
   expiry: "MM / JJ",
   cvc: "CVC",
+  orPayWithCard: "Of betaal met kaart",
   securePayment: "Betaling veilig verwerkt via Stripe",
   total: "Totaal",
   nameRequired: "Naam is verplicht",
