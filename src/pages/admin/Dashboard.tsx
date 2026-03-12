@@ -185,7 +185,7 @@ export default function Dashboard() {
   }
 
   const kpis = [
-    { label: "RECEITA TOTAL", value: formatCents(stats?.revenue ?? 0, "brl"), change: null },
+    { label: "RECEITA TOTAL", value: formatCents(stats?.revenue ?? 0, "eur"), change: null },
     { label: "PEDIDOS PAGOS", value: stats?.totalOrders ?? 0, change: null },
     { label: "PRODUTOS ATIVOS", value: stats?.productsCount ?? 0, change: null },
     { label: "CHECKOUTS ATIVOS", value: stats?.checkoutsCount ?? 0, change: null },
