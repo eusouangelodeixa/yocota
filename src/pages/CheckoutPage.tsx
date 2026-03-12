@@ -362,12 +362,8 @@ function CheckoutForm({ checkout: c, lang, t }: { checkout: CheckoutData; lang: 
               </div>
             </div>
 
-            {/* Divider */}
-            <div className="flex items-center gap-3">
-              <div className="flex-1 h-px bg-[#111111]" />
-              <span className="text-[11px] text-[#8a8a8a] whitespace-nowrap">{t.orPayWithCard}</span>
-              <div className="flex-1 h-px bg-[#111111]" />
-            </div>
+
+
 
             {/* Card information section - grouped fields */}
             <div className="space-y-3">
