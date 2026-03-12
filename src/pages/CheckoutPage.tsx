@@ -61,6 +61,7 @@ function CheckoutForm({ checkout: c, lang, t, detectedCountry }: { checkout: Che
   const [customerName, setCustomerName] = useState("");
   const [email, setEmail] = useState("");
   const [selectedCountry, setSelectedCountry] = useState(detectedCountry || "BR");
+  const [countrySetByUser, setCountrySetByUser] = useState(false);
   const [phone, setPhone] = useState("");
   const [selectedBumps, setSelectedBumps] = useState<Set<string>>(new Set());
   const [processing, setProcessing] = useState(false);
