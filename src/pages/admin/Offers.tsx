@@ -77,12 +77,12 @@ export default function Offers() {
 
   const { data: products } = useQuery({
     queryKey: ["products-active"],
-    queryFn: async () => { const { data, error } = await supabase.from("products").select("id, name, price").eq("active", true).order("name"); if (error) throw error; return data; },
+    queryFn: async () => { const { data, error } = await supabase.from("products").select("id, name, price, currency").eq("active", true).order("name"); if (error) throw error; return data; },
   });
 
   const { data: offers, isLoading } = useQuery({
     queryKey: ["offers"],
-    queryFn: async () => { const { data, error } = await supabase.from("offers").select("*, products(name, price)").order("created_at", { ascending: false }); if (error) throw error; return data; },
+    queryFn: async () => { const { data, error } = await supabase.from("offers").select("*, products(name, price, currency)").order("created_at", { ascending: false }); if (error) throw error; return data; },
   });
 
   const saveMutation = useMutation({
@@ -126,7 +126,7 @@ export default function Offers() {
               <div className="space-y-1.5"><Label className="text-xs text-muted-foreground">Nome</Label><Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="Ex: Upsell Premium" required /></div>
               <div className="space-y-1.5">
                 <Label className="text-xs text-muted-foreground">Produto</Label>
-                <Select value={form.product_id} onValueChange={(v) => setForm({ ...form, product_id: v })}><SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger><SelectContent>{products?.map((p) => (<SelectItem key={p.id} value={p.id}>{p.name} — {formatCents(p.price)}</SelectItem>))}</SelectContent></Select>
+                <Select value={form.product_id} onValueChange={(v) => setForm({ ...form, product_id: v })}><SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger><SelectContent>{products?.map((p) => (<SelectItem key={p.id} value={p.id}>{p.name} — {formatCents(p.price, p.currency)}</SelectItem>))}</SelectContent></Select>
               </div>
               <div className="bg-input p-3 rounded-lg space-y-3 border border-border">
                 <p className="text-[11px] font-medium text-foreground uppercase tracking-wider">Página Externa (opcional)</p>
@@ -188,7 +188,7 @@ export default function Offers() {
                     <TableRow key={offer.id} className="border-border hover:bg-[rgba(255,255,255,0.02)] h-12">
                       <TableCell className="text-[13px] font-medium text-foreground">{offer.name}</TableCell>
                       <TableCell className="text-[13px] text-muted-foreground">{offer.products?.name}</TableCell>
-                      <TableCell className="text-[13px] font-medium text-foreground tabular-nums">{formatCents(offer.products?.price ?? 0)}</TableCell>
+                      <TableCell className="text-[13px] font-medium text-foreground tabular-nums">{formatCents(offer.products?.price ?? 0, offer.products?.currency ?? "eur")}</TableCell>
                       <TableCell>
                         <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium uppercase tracking-wide ${offer.page_url ? "pill-sent" : "text-muted-foreground bg-secondary"}`}>
                           {offer.page_url ? "Externa" : "Inline"}
