@@ -310,7 +310,7 @@ export default function Checkouts() {
                               onClick={() => { addBump(p.id); }}
                             >
                               <span className="truncate">{p.name}</span>
-                              <span className="text-[11px] text-muted-foreground shrink-0">{formatCents(p.price, p.currency || "brl")}</span>
+                              <span className="text-[11px] text-muted-foreground shrink-0">{formatCents(p.price, p.currency || "eur")}</span>
                             </button>
                           ))}
                         </PopoverContent>

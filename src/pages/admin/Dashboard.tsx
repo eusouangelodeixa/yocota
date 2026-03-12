@@ -383,7 +383,7 @@ export default function Dashboard() {
                         <div className="text-[13px] font-medium text-foreground">{order.customers?.name || "—"}</div>
                         <div className="text-[11px] text-muted-foreground">{order.customers?.email}</div>
                       </TableCell>
-                      <TableCell className="text-[13px] font-medium text-foreground tabular-nums">{formatCents(order.total_amount, "brl")}</TableCell>
+                      <TableCell className="text-[13px] font-medium text-foreground tabular-nums">{formatCents(order.total_amount, "eur")}</TableCell>
                       <TableCell>
                         <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium uppercase tracking-wide ${sp.cls}`}>
                           {sp.label}
