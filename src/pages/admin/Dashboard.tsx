@@ -175,6 +175,7 @@ export default function Dashboard() {
       dayMap[day] = (dayMap[day] || 0) + (o as any).total_amount;
     }
     const chartData = Object.entries(dayMap).map(([day, value]) => ({ day, value }));
+    const chartCurrency = paidOrders[0]?.currency || "eur";
 
     return {
       productsCount: allData.productsCount,
@@ -189,6 +190,7 @@ export default function Dashboard() {
       recoveredCount,
       recentOrders: filteredOrders.slice(0, 10),
       chartData,
+      chartCurrency,
     };
   }, [allData, dateRange]);
 
