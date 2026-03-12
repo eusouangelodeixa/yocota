@@ -335,7 +335,7 @@ function CheckoutForm({ checkout: c, lang, t }: { checkout: CheckoutData; lang: 
           <form onSubmit={handleSubmit} className="space-y-6">
             {/* Contact information section */}
             <div className="space-y-3">
-              <label className="text-[13px] font-medium text-[#fafafa]">{t.contactInfo}</label>
+              <label className="text-[13px] font-medium text-[#1a1a1a]">{t.contactInfo}</label>
               <div className="space-y-1.5">
                 <label className="text-xs font-medium text-[#a1a1aa]">{t.email}</label>
                 <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} onBlur={() => validateField("email", email)} placeholder={t.emailPlaceholder} required className={`checkout-input ${inputClass(!!fieldErrors.email)}`} />
