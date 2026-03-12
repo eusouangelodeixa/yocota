@@ -234,7 +234,7 @@ export default function Checkouts() {
       const payload: Record<string, any> = {
         name: form.name, product_id: form.product_id, checkout_slug: slug, redirect_url: form.redirect_url,
         order_bump_product_id: form.order_bump_product_ids[0] || null, first_offer_id: form.first_offer_id || null,
-        primary_color: form.primary_color, accent_color: form.accent_color, bg_color: form.bg_color,
+        primary_color: form.primary_color, accent_color: form.accent_color, bg_color: form.bg_color, cta_button_color: form.cta_button_color || null,
         headline_text: form.headline_text || null, cta_text: form.cta_text || "Finalizar compra",
         banner_url: form.banner_url || null, show_product_image: form.show_product_image,
         countdown_enabled: form.countdown_enabled, countdown_duration: form.countdown_duration,
