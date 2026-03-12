@@ -247,7 +247,7 @@ function SidebarPanel({
           <p className="text-[13px] font-medium text-foreground">{offer.products?.name ?? "—"}</p>
           <div className="flex items-center gap-1.5">
             <DollarSign className="h-3 w-3 text-muted-foreground" />
-            <span className="text-sm font-bold text-foreground tabular-nums">{formatCents(offer.products?.price ?? 0)}</span>
+            <span className="text-sm font-bold text-foreground tabular-nums">{formatCents(offer.products?.price ?? 0, offer.products?.currency ?? "eur")}</span>
           </div>
         </div>
 
