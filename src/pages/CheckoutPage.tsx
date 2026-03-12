@@ -432,6 +432,7 @@ export default function CheckoutPage() {
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
   const [detectedLang, setDetectedLang] = useState<CheckoutLang>("pt");
+  const [detectedCountry, setDetectedCountry] = useState("BR");
 
   useEffect(() => {
     async function load() {
