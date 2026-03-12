@@ -40,7 +40,7 @@ export default function SuccessPage() {
           else setState("done");
           return;
         }
-        setTimeout(poll, 1000); return;
+        setTimeout(poll, 500); return;
       }
       const { data: checkout } = await supabase.from("checkouts").select("redirect_url").eq("id", checkoutId).single();
       setRedirectUrl(checkout?.redirect_url || "");
