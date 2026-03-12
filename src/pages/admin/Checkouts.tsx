@@ -206,6 +206,7 @@ export default function Checkouts() {
   const [form, setForm] = useState<CheckoutForm>(emptyForm);
   const [activeTab, setActiveTab] = useState("info");
   const [previewSlug, setPreviewSlug] = useState<string | null>(null);
+  const [bumpPickerOpen, setBumpPickerOpen] = useState(false);
 
   const { data: products } = useQuery({
     queryKey: ["products-active"],
@@ -260,7 +261,7 @@ export default function Checkouts() {
         if (bumpError) throw bumpError;
       }
     },
-    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["checkouts"] }); setDialogOpen(false); setEditingId(null); setForm(emptyForm); setActiveTab("info"); toast.success(editingId ? "Checkout atualizado!" : "Checkout criado!"); },
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["checkouts"] }); setDialogOpen(false); setEditingId(null); setForm(emptyForm); setActiveTab("info"); setBumpPickerOpen(false); toast.success(editingId ? "Checkout atualizado!" : "Checkout criado!"); },
     onError: (e: Error) => toast.error(e.message),
   });
 
@@ -282,18 +283,48 @@ export default function Checkouts() {
     setEditingId(checkout.id);
     const spMessages = Array.isArray(checkout.social_proof_messages) ? (checkout.social_proof_messages as string[]).join("\n") : "";
     setForm({ name: checkout.name, product_id: checkout.product_id, redirect_url: checkout.redirect_url, checkout_slug: checkout.checkout_slug, first_offer_id: checkout.first_offer_id ?? "", primary_color: checkout.primary_color || "#2563eb", accent_color: checkout.accent_color || "#1e40af", bg_color: checkout.bg_color || "#f8fafc", headline_text: checkout.headline_text ?? "", cta_text: checkout.cta_text || "Finalizar compra", banner_url: checkout.banner_url ?? "", show_product_image: checkout.show_product_image ?? true, order_bump_product_ids: bumpIds, order_bump_descriptions: bumpDescs, countdown_enabled: checkout.countdown_enabled ?? false, countdown_duration: checkout.countdown_duration ?? 10, countdown_text: checkout.countdown_text ?? "Essa oferta expira em:", countdown_bg_color: checkout.countdown_bg_color ?? "#dc2626", countdown_text_color: checkout.countdown_text_color ?? "#ffffff", social_proof_enabled: checkout.social_proof_enabled ?? false, social_proof_messages: spMessages, social_proof_interval: checkout.social_proof_interval ?? 15, social_proof_display_duration: checkout.social_proof_display_duration ?? 5, social_proof_position: checkout.social_proof_position ?? "bottom-left" });
+    setBumpPickerOpen(false);
     setDialogOpen(true);
   };
 
-  const openNew = () => { setEditingId(null); setForm(emptyForm); setActiveTab("info"); setDialogOpen(true); };
+  const openNew = () => { setEditingId(null); setForm(emptyForm); setActiveTab("info"); setBumpPickerOpen(false); setDialogOpen(true); };
 
   const addBump = (productId: string) => {
     if (!productId || productId === "__none__") return;
-    if (form.order_bump_product_ids.includes(productId)) { toast.error("Este produto já está como order bump"); return; }
-    setForm({ ...form, order_bump_product_ids: [...form.order_bump_product_ids, productId] });
+
+    let alreadyExists = false;
+    setForm((prev) => {
+      if (prev.order_bump_product_ids.includes(productId)) {
+        alreadyExists = true;
+        return prev;
+      }
+
+      return {
+        ...prev,
+        order_bump_product_ids: [...prev.order_bump_product_ids, productId],
+      };
+    });
+
+    if (alreadyExists) {
+      toast.error("Este produto já está como order bump");
+      return;
+    }
+
+    setBumpPickerOpen(false);
   };
 
-  const removeBump = (productId: string) => { setForm({ ...form, order_bump_product_ids: form.order_bump_product_ids.filter((id) => id !== productId) }); };
+  const removeBump = (productId: string) => {
+    setForm((prev) => {
+      const nextDescriptions = { ...prev.order_bump_descriptions };
+      delete nextDescriptions[productId];
+
+      return {
+        ...prev,
+        order_bump_product_ids: prev.order_bump_product_ids.filter((id) => id !== productId),
+        order_bump_descriptions: nextDescriptions,
+      };
+    });
+  };
 
   const selectedProduct = products?.find((p: any) => p.id === form.product_id);
   const bumpProducts = (products || []).filter((p: any) => form.order_bump_product_ids.includes(p.id));
