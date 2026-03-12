@@ -105,7 +105,7 @@ export default function Dashboard() {
         supabase.from("products").select("id", { count: "exact", head: true }).eq("active", true),
         supabase.from("checkouts").select("id", { count: "exact", head: true }).eq("active", true),
         supabase.from("orders").select("id, total_amount, status, created_at, checkout_id, currency, customers(name, email)").order("created_at", { ascending: false }),
-        supabase.from("order_items").select("product_id, amount, type, products(name, currency)"),
+        supabase.from("order_items").select("order_id, product_id, amount, type, products(name, currency)"),
         supabase.from("abandoned_checkouts").select("id, recovered, created_at"),
         supabase.from("deliveries").select("id, status"),
       ]);
@@ -130,11 +130,15 @@ export default function Dashboard() {
     const paidOrders = filteredOrders.filter((o: any) => o.status === "paid");
     const revenue = paidOrders.reduce((sum: number, o: any) => sum + o.total_amount, 0);
 
-    const upsellRevenue = orderItems.filter((i: any) => i.type === "upsell").reduce((s: number, i: any) => s + i.amount, 0);
-    const bumpRevenue = orderItems.filter((i: any) => i.type === "bump").reduce((s: number, i: any) => s + i.amount, 0);
+    // Filter order items to only include those from paid orders in the date range
+    const paidOrderIds = new Set(paidOrders.map((o: any) => o.id));
+    const filteredItems = orderItems.filter((i: any) => paidOrderIds.has(i.order_id));
+
+    const upsellRevenue = filteredItems.filter((i: any) => i.type === "upsell").reduce((s: number, i: any) => s + i.amount, 0);
+    const bumpRevenue = filteredItems.filter((i: any) => i.type === "bump").reduce((s: number, i: any) => s + i.amount, 0);
 
     const productRevenue: Record<string, { name: string; revenue: number; count: number }> = {};
-    for (const item of orderItems) {
+    for (const item of filteredItems) {
       const pid = (item as any).product_id;
       const pname = (item as any).products?.name || "Desconhecido";
       if (!productRevenue[pid]) productRevenue[pid] = { name: pname, revenue: 0, count: 0 };
