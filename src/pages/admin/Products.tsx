@@ -112,11 +112,13 @@ export default function Products() {
       if (editingId) {
         const { error } = await supabase.from("products").update(payload as any).eq("id", editingId);
         if (error) throw error;
-        try { await supabase.functions.invoke("sync-product", { body: { productId: editingId, action: "update" } }); } catch {}
+        const { error: syncError } = await supabase.functions.invoke("sync-product", { body: { productId: editingId, action: "update" } });
+        if (syncError) console.error("Stripe sync error:", syncError);
       } else {
         const { data, error } = await supabase.from("products").insert(payload as any).select().single();
         if (error) throw error;
-        try { await supabase.functions.invoke("sync-product", { body: { productId: data.id, action: "create" } }); } catch {}
+        const { error: syncError } = await supabase.functions.invoke("sync-product", { body: { productId: data.id, action: "create" } });
+        if (syncError) toast.error("Produto criado, mas falha ao sincronizar com Stripe: " + (syncError.message || "erro desconhecido"));
       }
     },
     onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["products"] }); setDialogOpen(false); setEditingId(null); setForm(emptyForm); toast.success(editingId ? "Produto atualizado!" : "Produto criado!"); },

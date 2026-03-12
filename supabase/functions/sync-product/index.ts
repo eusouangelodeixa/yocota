@@ -67,7 +67,7 @@ serve(async (req) => {
       const stripePrice = await stripe.prices.create({
         product: stripeProduct.id,
         unit_amount: product.price,
-        currency: "eur",
+        currency: product.currency || "eur",
       });
 
       // Update product with Stripe IDs
