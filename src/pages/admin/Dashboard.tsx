@@ -202,13 +202,20 @@ export default function Dashboard() {
     );
   }
 
+  const formatByCurrency = (map: Record<string, number> | undefined) => {
+    if (!map || Object.keys(map).length === 0) return formatCents(0);
+    return Object.entries(map)
+      .map(([cur, amount]) => formatCents(amount, cur))
+      .join(" + ");
+  };
+
   const kpis = [
-    { label: "RECEITA TOTAL", value: formatCents(stats?.revenue ?? 0), change: null },
+    { label: "RECEITA TOTAL", value: formatByCurrency(stats?.revenueByCurrency), change: null },
     { label: "PEDIDOS PAGOS", value: stats?.totalOrders ?? 0, change: null },
     { label: "PRODUTOS ATIVOS", value: stats?.productsCount ?? 0, change: null },
     { label: "CHECKOUTS ATIVOS", value: stats?.checkoutsCount ?? 0, change: null },
-    { label: "RECEITA UPSELLS", value: formatCents(stats?.upsellRevenue ?? 0), change: null },
-    { label: "RECEITA BUMPS", value: formatCents(stats?.bumpRevenue ?? 0), change: null },
+    { label: "RECEITA UPSELLS", value: formatByCurrency(stats?.upsellByCurrency), change: null },
+    { label: "RECEITA BUMPS", value: formatByCurrency(stats?.bumpByCurrency), change: null },
     { label: "TAXA RECUPERAÇÃO", value: `${(stats?.recoveryRate ?? 0).toFixed(1)}%`, change: null },
     { label: "ABANDONOS", value: `${stats?.recoveredCount ?? 0}/${stats?.totalAbandoned ?? 0}`, change: null },
   ];
