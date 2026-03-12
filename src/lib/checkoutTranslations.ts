@@ -2,8 +2,11 @@ export type CheckoutLang = "pt" | "en" | "es" | "fr" | "de" | "it" | "nl" | "pl"
 
 export interface CheckoutTranslations {
   paymentInfo: string;
+  contactInfo: string;
   fullName: string;
   fullNamePlaceholder: string;
+  cardholderName: string;
+  cardholderNamePlaceholder: string;
   email: string;
   emailPlaceholder: string;
   whatsapp: string;
@@ -12,6 +15,7 @@ export interface CheckoutTranslations {
   cardNumber: string;
   expiry: string;
   cvc: string;
+  orPayWithCard: string;
   securePayment: string;
   total: string;
   nameRequired: string;
