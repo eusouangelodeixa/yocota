@@ -21,6 +21,7 @@ interface CheckoutForm {
   name: string; product_id: string; redirect_url: string; checkout_slug: string; first_offer_id: string;
   primary_color: string; accent_color: string; bg_color: string; headline_text: string; cta_text: string;
   banner_url: string; show_product_image: boolean; order_bump_product_ids: string[];
+  order_bump_descriptions: Record<string, string>;
   countdown_enabled: boolean; countdown_duration: number; countdown_text: string;
   countdown_bg_color: string; countdown_text_color: string;
   social_proof_enabled: boolean; social_proof_messages: string; social_proof_interval: number;
