@@ -403,7 +403,8 @@ function CheckoutForm({ checkout: c }: { checkout: CheckoutData }) {
 
             <button
               type="submit"
-              className="w-full h-12 bg-[#28d56a] text-[#09090b] font-bold text-sm rounded-lg hover:bg-[#22c55e] active:scale-[0.98] disabled:opacity-40 disabled:cursor-not-allowed transition-all duration-150 flex items-center justify-center"
+              className="w-full h-12 font-bold text-sm rounded-lg active:scale-[0.98] disabled:opacity-40 disabled:cursor-not-allowed transition-all duration-150 flex items-center justify-center"
+              style={{ backgroundColor: c.primary_color, color: '#fff' }}
               disabled={processing || success || !stripe || !customerName.trim() || !email.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || phone.replace(/\D/g, "").length < 8}
             >
               {success ? (
@@ -413,7 +414,7 @@ function CheckoutForm({ checkout: c }: { checkout: CheckoutData }) {
               ) : (
                 <>
                   <Lock className="mr-2 h-4 w-4" strokeWidth={1.5} />
-                  Pagar {formatCents(totalAmount(), currency)}
+                  {c.cta_text || "Finalizar compra"} — {formatCents(totalAmount(), currency)}
                 </>
               )}
             </button>
