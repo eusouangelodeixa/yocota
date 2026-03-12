@@ -262,16 +262,10 @@ export default function Settings() {
     queryKey: ["team_members"],
     enabled: isSuperAdmin,
     queryFn: async () => {
-      const { data, error } = await supabase.from("user_roles").select("user_id, role").eq("role", "admin");
+      const { data, error } = await supabase.functions.invoke("list-admins");
       if (error) throw error;
-      // Get profiles for each
-      const userIds = data.map((r: any) => r.user_id);
-      const { data: profiles, error: pErr } = await supabase.from("profiles").select("user_id, display_name, avatar_url").in("user_id", userIds);
-      if (pErr) throw pErr;
-      return data.map((r: any) => {
-        const p = profiles?.find((p: any) => p.user_id === r.user_id);
-        return { user_id: r.user_id, display_name: p?.display_name || "—", avatar_url: p?.avatar_url };
-      });
+      if (data?.error) throw new Error(data.error);
+      return data as { user_id: string; email: string }[];
     },
   });
 
