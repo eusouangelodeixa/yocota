@@ -14,6 +14,10 @@ type UazResponse = {
 
 const cleanBaseUrl = (url: string) => url.replace(/\/+$/, "");
 const normalizePhone = (phone: string) => (phone || "").replace(/\D/g, "");
+const maskSensitive = (content: string) =>
+  content
+    .replace(/("token"\s*:\s*")([^"]+)(")/gi, "$1***$3")
+    .replace(/("qrcode"\s*:\s*")([^"]*)(")/gi, "$1[redacted]$3");
 
 const detectCountry = (phone: string) => {
   if (phone.startsWith("55")) return "BR";
