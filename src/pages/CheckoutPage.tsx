@@ -42,7 +42,7 @@ interface CheckoutData {
 }
 
 const CARD_STYLE = {
-  base: { fontSize: "14px", color: "#fafafa", fontFamily: "Inter, system-ui, sans-serif", "::placeholder": { color: "#52525b" }, lineHeight: "40px" },
+  base: { fontSize: "14px", color: "#1a1a1a", fontFamily: "Inter, system-ui, sans-serif", "::placeholder": { color: "#a3a3a3" }, lineHeight: "40px" },
   invalid: { color: "#ef4444" },
 };
 
