@@ -11,7 +11,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
 import { formatCents, getCurrencyLabel, SUPPORTED_CURRENCIES, parsePriceToCents, isZeroDecimalCurrency } from "@/lib/formatters";
-import { Plus, Pencil, Upload, X, ImageIcon } from "lucide-react";
+import { Plus, Pencil, Upload, X, ImageIcon, Trash2 } from "lucide-react";
 
 type ProductType = "digital" | "physical" | "service";
 type DeliveryType = "whatsapp" | "email" | "none";
@@ -133,6 +133,27 @@ export default function Products() {
   const toggleActive = useMutation({
     mutationFn: async ({ id, active }: { id: string; active: boolean }) => { const { error } = await supabase.from("products").update({ active }).eq("id", id); if (error) throw error; },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["products"] }),
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: async (product: any) => {
+      // Archive on Stripe if synced
+      if (product.stripe_product_id) {
+        try {
+          await supabase.functions.invoke("sync-product", { body: { productId: product.id, action: "archive" } });
+        } catch (e) { console.error("Stripe archive error:", e); }
+      }
+      // Delete related checkout_order_bumps
+      await supabase.from("checkout_order_bumps").delete().eq("product_id", product.id);
+      // Delete the product
+      const { error } = await supabase.from("products").delete().eq("id", product.id);
+      if (error) {
+        if (error.code === "23503") throw new Error("Este produto está vinculado a pedidos existentes e não pode ser excluído. Desative-o em vez disso.");
+        throw error;
+      }
+    },
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["products"] }); toast.success("Produto excluído!"); },
+    onError: (e: Error) => toast.error(e.message),
   });
 
   const openEdit = (product: any) => {
@@ -277,9 +298,14 @@ export default function Products() {
                     )}
                   </TableCell>
                   <TableCell>
-                    <Button variant="ghost" size="icon" onClick={() => openEdit(product)} className="h-8 w-8 text-muted-foreground hover:text-foreground">
-                      <Pencil className="h-3.5 w-3.5" strokeWidth={1.5} />
-                    </Button>
+                    <div className="flex gap-0.5">
+                      <Button variant="ghost" size="icon" onClick={() => openEdit(product)} className="h-8 w-8 text-muted-foreground hover:text-foreground">
+                        <Pencil className="h-3.5 w-3.5" strokeWidth={1.5} />
+                      </Button>
+                      <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-destructive" title="Excluir" onClick={() => { if (confirm("Excluir este produto? Esta ação não pode ser desfeita.")) deleteMutation.mutate(product); }}>
+                        <Trash2 className="h-3.5 w-3.5" strokeWidth={1.5} />
+                      </Button>
+                    </div>
                   </TableCell>
                 </TableRow>
               ))
