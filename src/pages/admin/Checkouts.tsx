@@ -282,9 +282,10 @@ export default function Checkouts() {
             <form onSubmit={(e) => { e.preventDefault(); saveMutation.mutate(form); }}>
               <Tabs value={activeTab} onValueChange={setActiveTab}>
                 <TabsList className="w-full mb-4 bg-secondary border border-border">
-                  <TabsTrigger value="info" className="flex-1 text-xs data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">Informações</TabsTrigger>
-                  <TabsTrigger value="design" className="flex-1 text-xs data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"><Palette className="mr-1.5 h-3 w-3" strokeWidth={1.5} />Personalização</TabsTrigger>
-                  <TabsTrigger value="preview" className="flex-1 text-xs data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"><Eye className="mr-1.5 h-3 w-3" strokeWidth={1.5} />Preview</TabsTrigger>
+                  <TabsTrigger value="info" className="flex-1 text-xs data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">Info</TabsTrigger>
+                  <TabsTrigger value="design" className="flex-1 text-xs data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"><Palette className="mr-1 h-3 w-3" strokeWidth={1.5} />Design</TabsTrigger>
+                  <TabsTrigger value="conversion" className="flex-1 text-xs data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"><Zap className="mr-1 h-3 w-3" strokeWidth={1.5} />Conversão</TabsTrigger>
+                  <TabsTrigger value="preview" className="flex-1 text-xs data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"><Eye className="mr-1 h-3 w-3" strokeWidth={1.5} />Preview</TabsTrigger>
                 </TabsList>
 
                 <TabsContent value="info" className="space-y-4">
