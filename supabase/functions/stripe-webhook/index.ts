@@ -419,8 +419,9 @@ async function processSuccessfulPayment(
   }
 
   // Send to Utmify
-  await sendToUtmify(supabase, {
+  await sendToUtmify(supabase, stripe, {
     orderId: order.id,
+    paymentIntentId,
     status: "paid",
     createdAt: order.created_at,
     approvedDate: order.created_at,
