@@ -309,7 +309,7 @@ export default function Dashboard() {
                   </defs>
                   <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" />
                   <XAxis dataKey="day" tick={{ fontSize: 11, fill: "#52525b" }} axisLine={false} tickLine={false} />
-                  <YAxis tick={{ fontSize: 11, fill: "#52525b" }} axisLine={false} tickLine={false} tickFormatter={(v) => formatCents(v, "brl")} width={80} />
+                  <YAxis tick={{ fontSize: 11, fill: "#52525b" }} axisLine={false} tickLine={false} tickFormatter={(v) => formatCents(v, "eur")} width={80} />
                   <Tooltip content={<ChartTooltip />} />
                   <Area type="monotone" dataKey="cumulative" stroke="#E04B00" strokeWidth={2} fill="url(#accentGrad)" />
                 </AreaChart>
