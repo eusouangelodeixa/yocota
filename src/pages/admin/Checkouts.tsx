@@ -355,7 +355,66 @@ export default function Checkouts() {
                   <div className="flex items-center gap-3"><Switch checked={form.show_product_image} onCheckedChange={(v) => setForm({ ...form, show_product_image: v })} /><Label className="text-xs text-muted-foreground">Mostrar imagem do produto</Label></div>
                 </TabsContent>
 
-                <TabsContent value="preview">
+                <TabsContent value="conversion" className="space-y-6">
+                  {/* Countdown Bar */}
+                  <div className="space-y-4 rounded-lg border border-border p-4">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <Zap className="h-4 w-4 text-primary" strokeWidth={1.5} />
+                        <Label className="text-sm font-semibold text-foreground">Barra de Urgência</Label>
+                      </div>
+                      <Switch checked={form.countdown_enabled} onCheckedChange={(v) => setForm({ ...form, countdown_enabled: v })} />
+                    </div>
+                    {form.countdown_enabled && (
+                      <div className="space-y-3 pt-2">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                          <div className="space-y-1.5"><Label className="text-xs text-muted-foreground">Texto da barra</Label><Input value={form.countdown_text} onChange={(e) => setForm({ ...form, countdown_text: e.target.value })} /></div>
+                          <div className="space-y-1.5"><Label className="text-xs text-muted-foreground">Duração (minutos)</Label><Input type="number" min={1} max={120} value={form.countdown_duration} onChange={(e) => setForm({ ...form, countdown_duration: parseInt(e.target.value) || 10 })} /></div>
+                        </div>
+                        <div className="grid grid-cols-2 gap-3">
+                          <div className="space-y-1.5">
+                            <Label className="text-xs text-muted-foreground">Cor de fundo</Label>
+                            <div className="flex gap-2 items-center"><input type="color" value={form.countdown_bg_color} onChange={(e) => setForm({ ...form, countdown_bg_color: e.target.value })} className="w-10 h-10 rounded-lg border border-border cursor-pointer bg-transparent" /><Input value={form.countdown_bg_color} onChange={(e) => setForm({ ...form, countdown_bg_color: e.target.value })} className="flex-1 text-xs" /></div>
+                          </div>
+                          <div className="space-y-1.5">
+                            <Label className="text-xs text-muted-foreground">Cor do texto</Label>
+                            <div className="flex gap-2 items-center"><input type="color" value={form.countdown_text_color} onChange={(e) => setForm({ ...form, countdown_text_color: e.target.value })} className="w-10 h-10 rounded-lg border border-border cursor-pointer bg-transparent" /><Input value={form.countdown_text_color} onChange={(e) => setForm({ ...form, countdown_text_color: e.target.value })} className="flex-1 text-xs" /></div>
+                          </div>
+                        </div>
+                        <div className="rounded-lg overflow-hidden border border-border">
+                          <div className="py-2 px-4 flex items-center justify-center gap-2 text-sm font-semibold" style={{ backgroundColor: form.countdown_bg_color, color: form.countdown_text_color }}>
+                            <Zap className="h-4 w-4" /><span>{form.countdown_text}</span><span className="tabular-nums font-bold text-base">09:58</span>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Social Proof */}
+                  <div className="space-y-4 rounded-lg border border-border p-4">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <Users className="h-4 w-4 text-primary" strokeWidth={1.5} />
+                        <Label className="text-sm font-semibold text-foreground">Prova Social</Label>
+                      </div>
+                      <Switch checked={form.social_proof_enabled} onCheckedChange={(v) => setForm({ ...form, social_proof_enabled: v })} />
+                    </div>
+                    {form.social_proof_enabled && (
+                      <div className="space-y-3 pt-2">
+                        <div className="space-y-1.5">
+                          <Label className="text-xs text-muted-foreground">Mensagens (uma por linha: Nome - Cidade)</Label>
+                          <Textarea value={form.social_proof_messages} onChange={(e) => setForm({ ...form, social_proof_messages: e.target.value })} placeholder={"Maria - São Paulo\nCarlos - Rio de Janeiro\nJuliana - Belo Horizonte"} rows={5} className="text-xs" />
+                        </div>
+                        <div className="grid grid-cols-3 gap-3">
+                          <div className="space-y-1.5"><Label className="text-xs text-muted-foreground">Intervalo (seg)</Label><Input type="number" min={5} max={120} value={form.social_proof_interval} onChange={(e) => setForm({ ...form, social_proof_interval: parseInt(e.target.value) || 15 })} /></div>
+                          <div className="space-y-1.5"><Label className="text-xs text-muted-foreground">Exibição (seg)</Label><Input type="number" min={2} max={30} value={form.social_proof_display_duration} onChange={(e) => setForm({ ...form, social_proof_display_duration: parseInt(e.target.value) || 5 })} /></div>
+                          <div className="space-y-1.5"><Label className="text-xs text-muted-foreground">Posição</Label><Select value={form.social_proof_position} onValueChange={(v) => setForm({ ...form, social_proof_position: v })}><SelectTrigger className="text-xs"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="bottom-left">Inferior esquerdo</SelectItem><SelectItem value="bottom-right">Inferior direito</SelectItem></SelectContent></Select></div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </TabsContent>
+
                   <div className="py-2">
                     <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium mb-3">Preview em tempo real</p>
                     <CheckoutLivePreview form={form} product={selectedProduct} bumpProducts={bumpProducts} />
