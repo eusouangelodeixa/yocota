@@ -105,7 +105,7 @@ export default function Dashboard() {
         supabase.from("products").select("id", { count: "exact", head: true }).eq("active", true),
         supabase.from("checkouts").select("id", { count: "exact", head: true }).eq("active", true),
         supabase.from("orders").select("id, total_amount, status, created_at, checkout_id, currency, customers(name, email)").order("created_at", { ascending: false }),
-        supabase.from("order_items").select("product_id, amount, type, products(name, currency)"),
+        supabase.from("order_items").select("order_id, product_id, amount, type, products(name, currency)"),
         supabase.from("abandoned_checkouts").select("id, recovered, created_at"),
         supabase.from("deliveries").select("id, status"),
       ]);
