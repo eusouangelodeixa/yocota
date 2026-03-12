@@ -82,7 +82,7 @@ export default function Offers() {
 
   const { data: offers, isLoading } = useQuery({
     queryKey: ["offers"],
-    queryFn: async () => { const { data, error } = await supabase.from("offers").select("*, products(name, price)").order("created_at", { ascending: false }); if (error) throw error; return data; },
+    queryFn: async () => { const { data, error } = await supabase.from("offers").select("*, products(name, price, currency)").order("created_at", { ascending: false }); if (error) throw error; return data; },
   });
 
   const saveMutation = useMutation({
