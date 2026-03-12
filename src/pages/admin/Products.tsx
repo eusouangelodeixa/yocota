@@ -100,11 +100,16 @@ export default function Products() {
 
   const saveMutation = useMutation({
     mutationFn: async (form: ProductForm) => {
-      const priceInCents = parsePriceToCents(form.price, form.currency);
+      const normalizedCurrency = form.currency.trim().toLowerCase();
+      if (!SUPPORTED_CURRENCIES.includes(normalizedCurrency)) {
+        throw new Error("Moeda não suportada pela Stripe");
+      }
+
+      const priceInCents = parsePriceToCents(form.price, normalizedCurrency);
       if (isNaN(priceInCents) || priceInCents <= 0) throw new Error("Preço deve ser maior que zero");
       if (form.name.length < 3) throw new Error("Nome deve ter pelo menos 3 caracteres");
       const payload: Record<string, any> = {
-        name: form.name, description: form.description || null, price: priceInCents, currency: form.currency,
+        name: form.name, description: form.description || null, price: priceInCents, currency: normalizedCurrency,
         type: form.type, delivery_type: form.delivery_type,
         delivery_message: form.delivery_message || null, delivery_attachment: form.delivery_attachment || null,
         image_url: form.image_url || null,
@@ -176,10 +181,18 @@ export default function Products() {
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-1.5">
                     <Label className="text-xs text-muted-foreground">Moeda</Label>
-                    <Select value={form.currency} onValueChange={(v) => setForm({ ...form, currency: v })}>
-                      <SelectTrigger><SelectValue /></SelectTrigger>
-                      <SelectContent>{SUPPORTED_CURRENCIES.map((c) => (<SelectItem key={c} value={c}>{getCurrencyLabel(c)}</SelectItem>))}</SelectContent>
-                    </Select>
+                    <Input
+                      value={form.currency.toUpperCase()}
+                      onChange={(e) => setForm({ ...form, currency: e.target.value.toLowerCase() })}
+                      placeholder="Ex: EUR, USD, ZAR"
+                      list="stripe-supported-currencies"
+                      maxLength={3}
+                    />
+                    <datalist id="stripe-supported-currencies">
+                      {SUPPORTED_CURRENCIES.map((c) => (
+                        <option key={c} value={c.toUpperCase()}>{getCurrencyLabel(c)}</option>
+                      ))}
+                    </datalist>
                   </div>
                   <div className="space-y-1.5">
                     <Label className="text-xs text-muted-foreground">Preço</Label>
