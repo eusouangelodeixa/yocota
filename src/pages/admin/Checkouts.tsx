@@ -189,9 +189,12 @@ export default function Checkouts() {
     queryFn: async () => { const { data, error } = await supabase.from("checkouts").select("*, products!checkouts_product_id_fkey(name, price, currency, description, image_url)").order("created_at", { ascending: false }); if (error) throw error; return data; },
   });
 
-  const loadBumpsForCheckout = async (checkoutId: string): Promise<string[]> => {
-    const { data } = await supabase.from("checkout_order_bumps").select("product_id").eq("checkout_id", checkoutId).order("sort_order");
-    return data?.map((b: any) => b.product_id) || [];
+  const loadBumpsForCheckout = async (checkoutId: string): Promise<{ ids: string[]; descriptions: Record<string, string> }> => {
+    const { data } = await supabase.from("checkout_order_bumps").select("product_id, description").eq("checkout_id", checkoutId).order("sort_order");
+    const ids = data?.map((b: any) => b.product_id) || [];
+    const descriptions: Record<string, string> = {};
+    data?.forEach((b: any) => { if (b.description) descriptions[b.product_id] = b.description; });
+    return { ids, descriptions };
   };
 
   const saveMutation = useMutation({
