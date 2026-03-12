@@ -77,7 +77,7 @@ export default function Offers() {
 
   const { data: products } = useQuery({
     queryKey: ["products-active"],
-    queryFn: async () => { const { data, error } = await supabase.from("products").select("id, name, price").eq("active", true).order("name"); if (error) throw error; return data; },
+    queryFn: async () => { const { data, error } = await supabase.from("products").select("id, name, price, currency").eq("active", true).order("name"); if (error) throw error; return data; },
   });
 
   const { data: offers, isLoading } = useQuery({
