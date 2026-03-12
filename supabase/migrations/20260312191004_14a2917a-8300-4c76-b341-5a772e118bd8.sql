@@ -1,0 +1,1 @@
+ALTER TABLE public.orders ADD COLUMN currency text NOT NULL DEFAULT 'eur';
