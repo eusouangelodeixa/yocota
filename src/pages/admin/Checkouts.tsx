@@ -203,6 +203,12 @@ export default function Checkouts() {
         primary_color: form.primary_color, accent_color: form.accent_color, bg_color: form.bg_color,
         headline_text: form.headline_text || null, cta_text: form.cta_text || "Finalizar compra",
         banner_url: form.banner_url || null, show_product_image: form.show_product_image,
+        countdown_enabled: form.countdown_enabled, countdown_duration: form.countdown_duration,
+        countdown_text: form.countdown_text, countdown_bg_color: form.countdown_bg_color,
+        countdown_text_color: form.countdown_text_color, social_proof_enabled: form.social_proof_enabled,
+        social_proof_messages: form.social_proof_messages.split("\n").map(s => s.trim()).filter(Boolean),
+        social_proof_interval: form.social_proof_interval, social_proof_display_duration: form.social_proof_display_duration,
+        social_proof_position: form.social_proof_position,
       };
       let checkoutId: string;
       if (editingId) {
