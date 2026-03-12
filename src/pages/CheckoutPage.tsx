@@ -420,7 +420,7 @@ function CheckoutForm({ checkout: c, lang, t }: { checkout: CheckoutData; lang: 
               )}
             </button>
 
-            <p className="text-[11px] text-[#52525b] text-center">🔒 {t.securePayment}</p>
+            <p className="text-[11px] text-[#a3a3a3] text-center">🔒 {t.securePayment}</p>
           </form>
         </div>
       </div>
