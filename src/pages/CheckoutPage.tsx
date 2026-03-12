@@ -342,7 +342,7 @@ function CheckoutForm({ checkout: c, lang, t }: { checkout: CheckoutData; lang: 
                 {fieldErrors.email && <p className="text-[11px] text-[#ef4444] animate-in slide-in-from-top-1 duration-150">{fieldErrors.email}</p>}
               </div>
               <div className="space-y-1.5">
-                <label className="text-xs font-medium text-[#a1a1aa]">{t.whatsapp}</label>
+                <label className="text-xs font-medium text-[#525252]">{t.whatsapp}</label>
                 <div className="flex gap-2">
                   <Select value={selectedCountry} onValueChange={setSelectedCountry}>
                     <SelectTrigger className="checkout-select-trigger w-[110px] h-10 rounded-lg bg-[#111113] border-[#27272a] text-[#fafafa] text-xs shrink-0">
