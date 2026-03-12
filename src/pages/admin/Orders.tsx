@@ -16,7 +16,7 @@ export default function Orders() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("orders")
-        .select("*, customers(name, email), checkouts(name)")
+        .select("*, customers(name, email), checkouts(name), currency")
         .order("created_at", { ascending: false });
       if (error) throw error;
       return data;
