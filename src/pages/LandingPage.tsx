@@ -187,7 +187,7 @@ const LandingPage = () => {
           <section className="features-section" id="features">
             <div className="features-header reveal">
               <h2 className="features-headline">Tudo que você precisa para vender mais</h2>
-              <button className="btn-cta-sm" onClick={() => navigate('/login')}>Criar meu checkout</button>
+              
             </div>
 
             <div className="features-grid">
