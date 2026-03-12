@@ -1,12 +1,13 @@
 import { Outlet, useLocation } from "react-router-dom";
 import { AdminSidebar } from "@/components/AdminSidebar";
-import { Menu } from "lucide-react";
+import { Menu, Sun, Moon } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { useState, useEffect } from "react";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { supabase } from "@/integrations/supabase/client";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
+import { useTheme } from "@/hooks/useTheme";
 
 const ROUTE_NAMES: Record<string, string> = {
   "/admin": "Dashboard",
@@ -27,6 +28,7 @@ export function AdminLayout() {
   const isMobile = useIsMobile();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+  const { theme, toggleTheme } = useTheme();
 
   useEffect(() => {
     if (!user?.id) return;
@@ -59,6 +61,13 @@ export function AdminLayout() {
               <span className="text-foreground font-medium">{currentRoute}</span>
             </div>
             <div className="flex items-center gap-3">
+              <button
+                onClick={toggleTheme}
+                className="p-1.5 text-muted-foreground hover:text-foreground transition-colors duration-150 rounded-md hover:bg-accent"
+                title={theme === "dark" ? "Tema claro" : "Tema escuro"}
+              >
+                {theme === "dark" ? <Sun className="h-4.5 w-4.5" strokeWidth={1.5} /> : <Moon className="h-4.5 w-4.5" strokeWidth={1.5} />}
+              </button>
               <Avatar className="w-8 h-8">
                 {avatarUrl && <AvatarImage src={avatarUrl} alt={displayName} />}
                 <AvatarFallback className="bg-primary text-primary-foreground text-xs font-bold">
