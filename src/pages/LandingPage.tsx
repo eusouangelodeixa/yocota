@@ -178,7 +178,7 @@ const LandingPage = () => {
 
               <div className="hero-tagline-bar">
                 <p className="hero-tagline">Checkout profissional com funil de upsell one-click</p>
-                <button className="btn-cta-sm" onClick={() => navigate('/login')}>Começar agora</button>
+                
               </div>
             </div>
           </section>
@@ -187,7 +187,7 @@ const LandingPage = () => {
           <section className="features-section" id="features">
             <div className="features-header reveal">
               <h2 className="features-headline">Tudo que você precisa para vender mais</h2>
-              <button className="btn-cta-sm" onClick={() => navigate('/login')}>Criar meu checkout</button>
+              
             </div>
 
             <div className="features-grid">
