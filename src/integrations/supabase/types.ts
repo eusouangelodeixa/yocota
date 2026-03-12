@@ -164,6 +164,7 @@ export type Database = {
           countdown_text: string
           countdown_text_color: string
           created_at: string
+          cta_button_color: string | null
           cta_text: string | null
           first_offer_id: string | null
           headline_text: string | null
@@ -192,6 +193,7 @@ export type Database = {
           countdown_text?: string
           countdown_text_color?: string
           created_at?: string
+          cta_button_color?: string | null
           cta_text?: string | null
           first_offer_id?: string | null
           headline_text?: string | null
@@ -220,6 +222,7 @@ export type Database = {
           countdown_text?: string
           countdown_text_color?: string
           created_at?: string
+          cta_button_color?: string | null
           cta_text?: string | null
           first_offer_id?: string | null
           headline_text?: string | null
