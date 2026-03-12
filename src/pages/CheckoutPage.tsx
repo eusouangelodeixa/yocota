@@ -231,8 +231,8 @@ function CheckoutForm({ checkout: c, lang, t }: { checkout: CheckoutData; lang: 
         key={bp.id}
         className="rounded-[10px] border p-4 cursor-pointer transition-all duration-150"
         style={{
-          borderColor: isSelected ? pc : "#27272a",
-          backgroundColor: isSelected ? pcBg : "#18181b",
+          borderColor: isSelected ? pc : "#d4d4d8",
+          backgroundColor: isSelected ? pcBg : "#fafafa",
         }}
         onClick={() => toggleBump(bp.id)}
       >
@@ -241,13 +241,13 @@ function CheckoutForm({ checkout: c, lang, t }: { checkout: CheckoutData; lang: 
             className="h-4 w-4 shrink-0 rounded-sm border flex items-center justify-center transition-colors"
             style={{
               backgroundColor: isSelected ? pc : "transparent",
-              borderColor: isSelected ? pc : "#27272a",
+              borderColor: isSelected ? pc : "#d4d4d8",
             }}
           >
             {isSelected && <CheckCircle2 className="h-3 w-3 text-white" />}
           </div>
           <div className="flex-1 min-w-0">
-            <p className="text-[13px] font-medium text-[#fafafa]">{bp.name}</p>
+            <p className="text-[13px] font-medium text-[#1a1a1a]">{bp.name}</p>
             {displayDesc && <p className="text-[11px] text-[#71717a] mt-0.5 line-clamp-2">{displayDesc}</p>}
           </div>
           <span className="text-[13px] font-bold tabular-nums" style={{ color: pc }}>+{formatCents(bp.price, bp.currency || currency)}</span>
