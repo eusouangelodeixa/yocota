@@ -21,6 +21,7 @@ interface CheckoutForm {
   name: string; product_id: string; redirect_url: string; checkout_slug: string; first_offer_id: string;
   primary_color: string; accent_color: string; bg_color: string; headline_text: string; cta_text: string;
   banner_url: string; show_product_image: boolean; order_bump_product_ids: string[];
+  order_bump_descriptions: Record<string, string>;
   countdown_enabled: boolean; countdown_duration: number; countdown_text: string;
   countdown_bg_color: string; countdown_text_color: string;
   social_proof_enabled: boolean; social_proof_messages: string; social_proof_interval: number;
@@ -31,7 +32,7 @@ const emptyForm: CheckoutForm = {
   name: "", product_id: "", redirect_url: "", checkout_slug: "", first_offer_id: "",
   primary_color: "#2563eb", accent_color: "#1e40af", bg_color: "#f8fafc",
   headline_text: "", cta_text: "Finalizar compra", banner_url: "", show_product_image: true,
-  order_bump_product_ids: [],
+  order_bump_product_ids: [], order_bump_descriptions: {},
   countdown_enabled: false, countdown_duration: 10, countdown_text: "Essa oferta expira em:",
   countdown_bg_color: "#dc2626", countdown_text_color: "#ffffff",
   social_proof_enabled: false, social_proof_messages: "", social_proof_interval: 15,
@@ -188,9 +189,12 @@ export default function Checkouts() {
     queryFn: async () => { const { data, error } = await supabase.from("checkouts").select("*, products!checkouts_product_id_fkey(name, price, currency, description, image_url)").order("created_at", { ascending: false }); if (error) throw error; return data; },
   });
 
-  const loadBumpsForCheckout = async (checkoutId: string): Promise<string[]> => {
-    const { data } = await supabase.from("checkout_order_bumps").select("product_id").eq("checkout_id", checkoutId).order("sort_order");
-    return data?.map((b: any) => b.product_id) || [];
+  const loadBumpsForCheckout = async (checkoutId: string): Promise<{ ids: string[]; descriptions: Record<string, string> }> => {
+    const { data } = await supabase.from("checkout_order_bumps").select("product_id, description").eq("checkout_id", checkoutId).order("sort_order");
+    const ids = data?.map((b: any) => b.product_id) || [];
+    const descriptions: Record<string, string> = {};
+    data?.forEach((b: any) => { if (b.description) descriptions[b.product_id] = b.description; });
+    return { ids, descriptions };
   };
 
   const saveMutation = useMutation({
@@ -223,7 +227,7 @@ export default function Checkouts() {
       }
       await supabase.from("checkout_order_bumps").delete().eq("checkout_id", checkoutId);
       if (form.order_bump_product_ids.length > 0) {
-        const rows = form.order_bump_product_ids.map((pid, i) => ({ checkout_id: checkoutId, product_id: pid, sort_order: i }));
+        const rows = form.order_bump_product_ids.map((pid, i) => ({ checkout_id: checkoutId, product_id: pid, sort_order: i, description: form.order_bump_descriptions[pid] || null }));
         const { error: bumpError } = await supabase.from("checkout_order_bumps").insert(rows as any);
         if (bumpError) throw bumpError;
       }
@@ -246,10 +250,10 @@ export default function Checkouts() {
   const copyUrl = (slug: string) => { navigator.clipboard.writeText(`${window.location.origin}/checkout/${slug}`); toast.success("URL copiada!"); };
 
   const openEdit = async (checkout: any) => {
-    const bumpIds = await loadBumpsForCheckout(checkout.id);
+    const { ids: bumpIds, descriptions: bumpDescs } = await loadBumpsForCheckout(checkout.id);
     setEditingId(checkout.id);
     const spMessages = Array.isArray(checkout.social_proof_messages) ? (checkout.social_proof_messages as string[]).join("\n") : "";
-    setForm({ name: checkout.name, product_id: checkout.product_id, redirect_url: checkout.redirect_url, checkout_slug: checkout.checkout_slug, first_offer_id: checkout.first_offer_id ?? "", primary_color: checkout.primary_color || "#2563eb", accent_color: checkout.accent_color || "#1e40af", bg_color: checkout.bg_color || "#f8fafc", headline_text: checkout.headline_text ?? "", cta_text: checkout.cta_text || "Finalizar compra", banner_url: checkout.banner_url ?? "", show_product_image: checkout.show_product_image ?? true, order_bump_product_ids: bumpIds, countdown_enabled: checkout.countdown_enabled ?? false, countdown_duration: checkout.countdown_duration ?? 10, countdown_text: checkout.countdown_text ?? "Essa oferta expira em:", countdown_bg_color: checkout.countdown_bg_color ?? "#dc2626", countdown_text_color: checkout.countdown_text_color ?? "#ffffff", social_proof_enabled: checkout.social_proof_enabled ?? false, social_proof_messages: spMessages, social_proof_interval: checkout.social_proof_interval ?? 15, social_proof_display_duration: checkout.social_proof_display_duration ?? 5, social_proof_position: checkout.social_proof_position ?? "bottom-left" });
+    setForm({ name: checkout.name, product_id: checkout.product_id, redirect_url: checkout.redirect_url, checkout_slug: checkout.checkout_slug, first_offer_id: checkout.first_offer_id ?? "", primary_color: checkout.primary_color || "#2563eb", accent_color: checkout.accent_color || "#1e40af", bg_color: checkout.bg_color || "#f8fafc", headline_text: checkout.headline_text ?? "", cta_text: checkout.cta_text || "Finalizar compra", banner_url: checkout.banner_url ?? "", show_product_image: checkout.show_product_image ?? true, order_bump_product_ids: bumpIds, order_bump_descriptions: bumpDescs, countdown_enabled: checkout.countdown_enabled ?? false, countdown_duration: checkout.countdown_duration ?? 10, countdown_text: checkout.countdown_text ?? "Essa oferta expira em:", countdown_bg_color: checkout.countdown_bg_color ?? "#dc2626", countdown_text_color: checkout.countdown_text_color ?? "#ffffff", social_proof_enabled: checkout.social_proof_enabled ?? false, social_proof_messages: spMessages, social_proof_interval: checkout.social_proof_interval ?? 15, social_proof_display_duration: checkout.social_proof_display_duration ?? 5, social_proof_position: checkout.social_proof_position ?? "bottom-left" });
     setDialogOpen(true);
   };
 
@@ -300,13 +304,23 @@ export default function Checkouts() {
                   <div className="space-y-3">
                     <Label className="text-xs text-muted-foreground">Order Bumps</Label>
                     {bumpProducts.length > 0 && (
-                      <div className="space-y-2">
+                      <div className="space-y-3">
                         {bumpProducts.map((bp: any, idx: number) => (
-                          <div key={bp.id} className="flex items-center gap-3 rounded-lg border border-border bg-input px-3 py-2">
-                            <GripVertical className="h-4 w-4 text-muted-foreground shrink-0" strokeWidth={1.5} />
-                            <div className="flex-1 min-w-0"><p className="text-[13px] font-medium truncate text-foreground">{bp.name}</p><p className="text-[11px] text-muted-foreground">{formatCents(bp.price, bp.currency || "eur")}</p></div>
-                            <Badge variant="secondary" className="text-[10px] shrink-0">#{idx + 1}</Badge>
-                            <Button type="button" variant="ghost" size="icon" className="h-7 w-7 shrink-0" onClick={() => removeBump(bp.id)}><X className="h-3.5 w-3.5 text-destructive" /></Button>
+                          <div key={bp.id} className="rounded-lg border border-border bg-input px-3 py-3 space-y-2">
+                            <div className="flex items-center gap-3">
+                              <GripVertical className="h-4 w-4 text-muted-foreground shrink-0" strokeWidth={1.5} />
+                              <div className="flex-1 min-w-0"><p className="text-[13px] font-medium truncate text-foreground">{bp.name}</p><p className="text-[11px] text-muted-foreground">{formatCents(bp.price, bp.currency || "eur")}</p></div>
+                              <Badge variant="secondary" className="text-[10px] shrink-0">#{idx + 1}</Badge>
+                              <Button type="button" variant="ghost" size="icon" className="h-7 w-7 shrink-0" onClick={() => removeBump(bp.id)}><X className="h-3.5 w-3.5 text-destructive" /></Button>
+                            </div>
+                            <div className="pl-7">
+                              <Input
+                                value={form.order_bump_descriptions[bp.id] || ""}
+                                onChange={(e) => setForm({ ...form, order_bump_descriptions: { ...form.order_bump_descriptions, [bp.id]: e.target.value } })}
+                                placeholder="Copy do bump (ex: Adicione e economize 30%!)"
+                                className="text-xs h-8"
+                              />
+                            </div>
                           </div>
                         ))}
                       </div>

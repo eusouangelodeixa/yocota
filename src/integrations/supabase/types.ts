@@ -113,6 +113,7 @@ export type Database = {
         Row: {
           checkout_id: string
           created_at: string
+          description: string | null
           id: string
           product_id: string
           sort_order: number
@@ -120,6 +121,7 @@ export type Database = {
         Insert: {
           checkout_id: string
           created_at?: string
+          description?: string | null
           id?: string
           product_id: string
           sort_order?: number
@@ -127,6 +129,7 @@ export type Database = {
         Update: {
           checkout_id?: string
           created_at?: string
+          description?: string | null
           id?: string
           product_id?: string
           sort_order?: number
