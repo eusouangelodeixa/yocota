@@ -300,7 +300,7 @@ export default function Settings() {
       if (data?.error) throw new Error(data.error);
       toast.success("Usuário convidado com sucesso!");
       setInviteForm({ email: "", password: "" });
-      queryClient.invalidateQueries({ queryKey: ["team_members"] });
+      queryClient.invalidateQueries({ queryKey: ["team_members_v2"] });
     } catch (err: any) {
       toast.error(err.message);
     } finally {
