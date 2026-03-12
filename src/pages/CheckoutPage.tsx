@@ -217,10 +217,10 @@ function CheckoutForm({ checkout: c, lang, t }: { checkout: CheckoutData; lang: 
   };
 
   const inputClass = (hasError: boolean) =>
-    `flex h-10 w-full rounded-lg border bg-white px-3 text-sm text-[#1a1a1a] placeholder:text-[#a3a3a3] focus:outline-none focus:ring-[3px] transition-all duration-150 ${
+    `flex h-10 w-full rounded-lg border bg-white px-3 text-sm text-[#111111] placeholder:text-[#8a8a8a] focus:outline-none focus:ring-[3px] transition-all duration-150 ${
       hasError
         ? "border-[#ef4444] focus:border-[#ef4444] focus:ring-[rgba(239,68,68,0.12)]"
-        : `border-[#d4d4d8]`
+        : `border-[#111111]`
     }`;
 
   const renderBumpCard = (bp: BumpProduct) => {
