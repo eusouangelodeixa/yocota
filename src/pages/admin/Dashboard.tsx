@@ -128,20 +128,35 @@ export default function Dashboard() {
       isWithinInterval(new Date(o.created_at), { start: dateRange.from, end: dateRange.to })
     );
     const paidOrders = filteredOrders.filter((o: any) => o.status === "paid");
-    const revenue = paidOrders.reduce((sum: number, o: any) => sum + o.total_amount, 0);
+
+    // Group revenue by currency
+    const revenueByCurrency: Record<string, number> = {};
+    for (const o of paidOrders) {
+      const cur = (o as any).currency || "eur";
+      revenueByCurrency[cur] = (revenueByCurrency[cur] || 0) + (o as any).total_amount;
+    }
 
     // Filter order items to only include those from paid orders in the date range
     const paidOrderIds = new Set(paidOrders.map((o: any) => o.id));
+    const paidOrderCurrency: Record<string, string> = {};
+    for (const o of paidOrders) paidOrderCurrency[(o as any).id] = (o as any).currency || "eur";
     const filteredItems = orderItems.filter((i: any) => paidOrderIds.has(i.order_id));
 
-    const upsellRevenue = filteredItems.filter((i: any) => i.type === "upsell").reduce((s: number, i: any) => s + i.amount, 0);
-    const bumpRevenue = filteredItems.filter((i: any) => i.type === "bump").reduce((s: number, i: any) => s + i.amount, 0);
+    // Group upsell/bump revenue by currency
+    const upsellByCurrency: Record<string, number> = {};
+    const bumpByCurrency: Record<string, number> = {};
+    for (const item of filteredItems) {
+      const cur = paidOrderCurrency[(item as any).order_id] || "eur";
+      if ((item as any).type === "upsell") upsellByCurrency[cur] = (upsellByCurrency[cur] || 0) + (item as any).amount;
+      if ((item as any).type === "bump") bumpByCurrency[cur] = (bumpByCurrency[cur] || 0) + (item as any).amount;
+    }
 
-    const productRevenue: Record<string, { name: string; revenue: number; count: number }> = {};
+    const productRevenue: Record<string, { name: string; revenue: number; count: number; currency: string }> = {};
     for (const item of filteredItems) {
       const pid = (item as any).product_id;
       const pname = (item as any).products?.name || "Desconhecido";
-      if (!productRevenue[pid]) productRevenue[pid] = { name: pname, revenue: 0, count: 0 };
+      const pcur = (item as any).products?.currency || paidOrderCurrency[(item as any).order_id] || "eur";
+      if (!productRevenue[pid]) productRevenue[pid] = { name: pname, revenue: 0, count: 0, currency: pcur };
       productRevenue[pid].revenue += (item as any).amount;
       productRevenue[pid].count++;
     }
@@ -165,9 +180,9 @@ export default function Dashboard() {
       productsCount: allData.productsCount,
       checkoutsCount: allData.checkoutsCount,
       totalOrders: paidOrders.length,
-      revenue,
-      upsellRevenue,
-      bumpRevenue,
+      revenueByCurrency,
+      upsellByCurrency,
+      bumpByCurrency,
       topProducts,
       recoveryRate,
       totalAbandoned,
@@ -188,13 +203,20 @@ export default function Dashboard() {
     );
   }
 
+  const formatByCurrency = (map: Record<string, number> | undefined) => {
+    if (!map || Object.keys(map).length === 0) return formatCents(0);
+    return Object.entries(map)
+      .map(([cur, amount]) => formatCents(amount, cur))
+      .join(" + ");
+  };
+
   const kpis = [
-    { label: "RECEITA TOTAL", value: formatCents(stats?.revenue ?? 0), change: null },
+    { label: "RECEITA TOTAL", value: formatByCurrency(stats?.revenueByCurrency), change: null },
     { label: "PEDIDOS PAGOS", value: stats?.totalOrders ?? 0, change: null },
     { label: "PRODUTOS ATIVOS", value: stats?.productsCount ?? 0, change: null },
     { label: "CHECKOUTS ATIVOS", value: stats?.checkoutsCount ?? 0, change: null },
-    { label: "RECEITA UPSELLS", value: formatCents(stats?.upsellRevenue ?? 0), change: null },
-    { label: "RECEITA BUMPS", value: formatCents(stats?.bumpRevenue ?? 0), change: null },
+    { label: "RECEITA UPSELLS", value: formatByCurrency(stats?.upsellByCurrency), change: null },
+    { label: "RECEITA BUMPS", value: formatByCurrency(stats?.bumpByCurrency), change: null },
     { label: "TAXA RECUPERAÇÃO", value: `${(stats?.recoveryRate ?? 0).toFixed(1)}%`, change: null },
     { label: "ABANDONOS", value: `${stats?.recoveredCount ?? 0}/${stats?.totalAbandoned ?? 0}`, change: null },
   ];
@@ -348,7 +370,7 @@ export default function Dashboard() {
                             <p className="text-[11px] text-muted-foreground">{p.count} vendas</p>
                           </div>
                         </div>
-                        <span className="text-[13px] font-semibold text-primary tabular-nums">{formatCents(p.revenue)}</span>
+                        <span className="text-[13px] font-semibold text-primary tabular-nums">{formatCents(p.revenue, p.currency)}</span>
                       </div>
                       <div className="h-1 bg-secondary rounded-full overflow-hidden ml-7">
                         <div className="h-full bg-primary rounded-full transition-all duration-500" style={{ width: `${pct}%` }} />
