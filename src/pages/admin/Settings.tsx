@@ -283,7 +283,7 @@ export default function Settings() {
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
       toast.success("Administrador removido com sucesso!");
-      queryClient.invalidateQueries({ queryKey: ["team_members"] });
+      queryClient.invalidateQueries({ queryKey: ["team_members_v2"] });
     } catch (err: any) {
       toast.error(err.message);
     } finally {
