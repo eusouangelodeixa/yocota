@@ -135,6 +135,27 @@ export default function Products() {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["products"] }),
   });
 
+  const deleteMutation = useMutation({
+    mutationFn: async (product: any) => {
+      // Archive on Stripe if synced
+      if (product.stripe_product_id) {
+        try {
+          await supabase.functions.invoke("sync-product", { body: { productId: product.id, action: "archive" } });
+        } catch (e) { console.error("Stripe archive error:", e); }
+      }
+      // Delete related checkout_order_bumps
+      await supabase.from("checkout_order_bumps").delete().eq("product_id", product.id);
+      // Delete the product
+      const { error } = await supabase.from("products").delete().eq("id", product.id);
+      if (error) {
+        if (error.code === "23503") throw new Error("Este produto está vinculado a pedidos existentes e não pode ser excluído. Desative-o em vez disso.");
+        throw error;
+      }
+    },
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["products"] }); toast.success("Produto excluído!"); },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
   const openEdit = (product: any) => {
     setEditingId(product.id);
     const currency = product.currency || "eur";
