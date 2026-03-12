@@ -128,14 +128,28 @@ export default function Dashboard() {
       isWithinInterval(new Date(o.created_at), { start: dateRange.from, end: dateRange.to })
     );
     const paidOrders = filteredOrders.filter((o: any) => o.status === "paid");
-    const revenue = paidOrders.reduce((sum: number, o: any) => sum + o.total_amount, 0);
+
+    // Group revenue by currency
+    const revenueByCurrency: Record<string, number> = {};
+    for (const o of paidOrders) {
+      const cur = (o as any).currency || "eur";
+      revenueByCurrency[cur] = (revenueByCurrency[cur] || 0) + (o as any).total_amount;
+    }
 
     // Filter order items to only include those from paid orders in the date range
     const paidOrderIds = new Set(paidOrders.map((o: any) => o.id));
+    const paidOrderCurrency: Record<string, string> = {};
+    for (const o of paidOrders) paidOrderCurrency[(o as any).id] = (o as any).currency || "eur";
     const filteredItems = orderItems.filter((i: any) => paidOrderIds.has(i.order_id));
 
-    const upsellRevenue = filteredItems.filter((i: any) => i.type === "upsell").reduce((s: number, i: any) => s + i.amount, 0);
-    const bumpRevenue = filteredItems.filter((i: any) => i.type === "bump").reduce((s: number, i: any) => s + i.amount, 0);
+    // Group upsell/bump revenue by currency
+    const upsellByCurrency: Record<string, number> = {};
+    const bumpByCurrency: Record<string, number> = {};
+    for (const item of filteredItems) {
+      const cur = paidOrderCurrency[(item as any).order_id] || "eur";
+      if ((item as any).type === "upsell") upsellByCurrency[cur] = (upsellByCurrency[cur] || 0) + (item as any).amount;
+      if ((item as any).type === "bump") bumpByCurrency[cur] = (bumpByCurrency[cur] || 0) + (item as any).amount;
+    }
 
     const productRevenue: Record<string, { name: string; revenue: number; count: number }> = {};
     for (const item of filteredItems) {
