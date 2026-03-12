@@ -158,7 +158,7 @@ function CheckoutLivePreview({ form, product, bumpProducts }: { form: CheckoutFo
                   <div className="h-10 rounded-lg bg-[#111113] border border-[#27272a]" />
                 </div>
               </div>
-              <button className="w-full h-11 bg-primary text-primary-foreground font-bold text-xs rounded-lg cursor-default flex items-center justify-center gap-1.5">
+              <button className="w-full h-11 font-bold text-xs rounded-lg cursor-default flex items-center justify-center gap-1.5" style={{ backgroundColor: form.primary_color || '#2563eb', color: '#fff' }}>
                 🔒 {form.cta_text || "Finalizar compra"} {product ? formatCents(product.price, currency) : ""}
               </button>
               <p className="text-[10px] text-[#52525b] text-center">🔒 Pagamento processado com segurança via Stripe</p>

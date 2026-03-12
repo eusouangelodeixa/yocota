@@ -20,7 +20,7 @@ function useDocTitle(title: string) {
   useEffect(() => { document.title = title; return () => { document.title = "Yocota"; }; }, [title]);
 }
 
-interface BumpProduct { id: string; name: string; price: number; currency: string; }
+interface BumpProduct { id: string; name: string; description: string | null; price: number; currency: string; }
 interface CheckoutData {
   id: string; name: string; checkout_slug: string; redirect_url: string; product_id: string;
   primary_color: string; accent_color: string; bg_color: string;
@@ -297,8 +297,9 @@ function CheckoutForm({ checkout: c }: { checkout: CheckoutData }) {
                       <div className={`h-4 w-4 shrink-0 rounded-sm border flex items-center justify-center transition-colors ${selectedBumps.has(bp.id) ? "bg-[#28d56a] border-[#28d56a]" : "border-[#27272a]"}`}>
                         {selectedBumps.has(bp.id) && <CheckCircle2 className="h-3 w-3 text-[#09090b]" />}
                       </div>
-                      <div className="flex-1">
+                      <div className="flex-1 min-w-0">
                         <p className="text-[13px] font-medium text-[#fafafa]">{bp.name}</p>
+                        {bp.description && <p className="text-[11px] text-[#71717a] mt-0.5 line-clamp-2">{bp.description}</p>}
                       </div>
                       <span className="text-[13px] font-bold text-[#28d56a] tabular-nums">+{formatCents(bp.price, bp.currency || currency)}</span>
                     </div>
@@ -386,10 +387,13 @@ function CheckoutForm({ checkout: c }: { checkout: CheckoutData }) {
                 {c.bump_products.map((bp) => (
                   <div key={bp.id} className={`rounded-[10px] border p-3 cursor-pointer transition-all duration-150 ${selectedBumps.has(bp.id) ? "border-[#28d56a] bg-[rgba(40,213,106,0.06)]" : "border-[#27272a] bg-[#18181b]"}`} onClick={() => toggleBump(bp.id)}>
                     <div className="flex items-center gap-3">
-                      <div className={`h-4 w-4 shrink-0 rounded-sm border flex items-center justify-center transition-colors ${selectedBumps.has(bp.id) ? "bg-[#28d56a] border-[#28d56a]" : "border-[#27272a]"}`}>
+                     <div className={`h-4 w-4 shrink-0 rounded-sm border flex items-center justify-center transition-colors ${selectedBumps.has(bp.id) ? "bg-[#28d56a] border-[#28d56a]" : "border-[#27272a]"}`}>
                         {selectedBumps.has(bp.id) && <CheckCircle2 className="h-3 w-3 text-[#09090b]" />}
                       </div>
-                      <span className="text-[13px] font-medium text-[#fafafa] flex-1">{bp.name}</span>
+                      <div className="flex-1 min-w-0">
+                        <span className="text-[13px] font-medium text-[#fafafa]">{bp.name}</span>
+                        {bp.description && <p className="text-[11px] text-[#71717a] mt-0.5 line-clamp-2">{bp.description}</p>}
+                      </div>
                       <span className="text-[13px] font-bold text-[#28d56a] tabular-nums">+{formatCents(bp.price, bp.currency || currency)}</span>
                     </div>
                   </div>
@@ -399,7 +403,8 @@ function CheckoutForm({ checkout: c }: { checkout: CheckoutData }) {
 
             <button
               type="submit"
-              className="w-full h-12 bg-[#28d56a] text-[#09090b] font-bold text-sm rounded-lg hover:bg-[#22c55e] active:scale-[0.98] disabled:opacity-40 disabled:cursor-not-allowed transition-all duration-150 flex items-center justify-center"
+              className="w-full h-12 font-bold text-sm rounded-lg active:scale-[0.98] disabled:opacity-40 disabled:cursor-not-allowed transition-all duration-150 flex items-center justify-center"
+              style={{ backgroundColor: c.primary_color, color: '#fff' }}
               disabled={processing || success || !stripe || !customerName.trim() || !email.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || phone.replace(/\D/g, "").length < 8}
             >
               {success ? (
@@ -409,7 +414,7 @@ function CheckoutForm({ checkout: c }: { checkout: CheckoutData }) {
               ) : (
                 <>
                   <Lock className="mr-2 h-4 w-4" strokeWidth={1.5} />
-                  Pagar {formatCents(totalAmount(), currency)}
+                  {c.cta_text || "Finalizar compra"} — {formatCents(totalAmount(), currency)}
                 </>
               )}
             </button>
@@ -436,7 +441,8 @@ export default function CheckoutPage() {
       if (error || !data) { setNotFound(true); setLoading(false); return; }
       const { data: bumpsData, error: bumpsError } = await supabase.from("checkout_order_bumps").select("product_id, sort_order, products(id, name, price, currency)").eq("checkout_id", data.id).order("sort_order");
       console.log("Bumps query result:", { bumpsData, bumpsError });
-      const bumpProducts: BumpProduct[] = ((bumpsData as any[]) || []).filter((b: any) => b.products).map((b: any) => ({ id: b.products.id, name: b.products.name, price: b.products.price, currency: b.products.currency || "eur" }));
+      const { data: bumpsDataMulti } = await supabase.from("checkout_order_bumps").select("product_id, sort_order, products(id, name, description, price, currency)").eq("checkout_id", data.id).order("sort_order");
+      const bumpProducts: BumpProduct[] = ((bumpsDataMulti || bumpsData) as any[] || []).filter((b: any) => b.products).map((b: any) => ({ id: b.products.id, name: b.products.name, description: b.products.description || null, price: b.products.price, currency: b.products.currency || "eur" }));
       setCheckout({ ...data, primary_color: data.primary_color || "#28d56a", accent_color: data.accent_color || "#1e40af", bg_color: data.bg_color || "#09090b", cta_text: data.cta_text || "Finalizar compra", show_product_image: data.show_product_image ?? true, first_offer_id: data.first_offer_id, product: data.products as any, bump_products: bumpProducts, countdown_enabled: data.countdown_enabled ?? false, countdown_duration: data.countdown_duration ?? 10, countdown_text: data.countdown_text ?? "Essa oferta expira em:", countdown_bg_color: data.countdown_bg_color ?? "#dc2626", countdown_text_color: data.countdown_text_color ?? "#ffffff", social_proof_enabled: data.social_proof_enabled ?? false, social_proof_messages: (Array.isArray(data.social_proof_messages) ? data.social_proof_messages : []) as string[], social_proof_interval: data.social_proof_interval ?? 15, social_proof_display_duration: data.social_proof_display_duration ?? 5, social_proof_position: (data.social_proof_position as "bottom-left" | "bottom-right") ?? "bottom-left" });
       setLoading(false);
     }
