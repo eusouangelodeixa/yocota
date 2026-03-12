@@ -119,9 +119,9 @@ serve(async (req) => {
     // Build delivery message with variable substitution
     let message = product.delivery_message || `Olá {{nome}}! Aqui está seu acesso ao produto {{produto}}.`;
     message = message
-      .replace(/\{\{nome[)\}]{2}/g, customer.name || "")
-      .replace(/\{\{email[)\}]{2}/g, customer.email || "")
-      .replace(/\{\{produto[)\}]{2}/g, product.name || "");
+      .replace(/\{\{nome\}\}/g, customer.name || "")
+      .replace(/\{\{email\}\}/g, customer.email || "")
+      .replace(/\{\{produto\}\}/g, product.name || "");
 
     // If there's an attachment, append it
     if (product.delivery_attachment) {
