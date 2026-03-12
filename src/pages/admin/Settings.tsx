@@ -262,16 +262,10 @@ export default function Settings() {
     queryKey: ["team_members"],
     enabled: isSuperAdmin,
     queryFn: async () => {
-      const { data, error } = await supabase.from("user_roles").select("user_id, role").eq("role", "admin");
+      const { data, error } = await supabase.functions.invoke("list-admins");
       if (error) throw error;
-      // Get profiles for each
-      const userIds = data.map((r: any) => r.user_id);
-      const { data: profiles, error: pErr } = await supabase.from("profiles").select("user_id, display_name, avatar_url").in("user_id", userIds);
-      if (pErr) throw pErr;
-      return data.map((r: any) => {
-        const p = profiles?.find((p: any) => p.user_id === r.user_id);
-        return { user_id: r.user_id, display_name: p?.display_name || "—", avatar_url: p?.avatar_url };
-      });
+      if (data?.error) throw new Error(data.error);
+      return data as { user_id: string; email: string }[];
     },
   });
 
@@ -530,12 +524,11 @@ export default function Settings() {
                       <div key={member.user_id} className="flex items-center justify-between py-2">
                         <div className="flex items-center gap-3">
                           <Avatar className="w-8 h-8">
-                            {member.avatar_url && <AvatarImage src={member.avatar_url} />}
                             <AvatarFallback className="bg-primary text-primary-foreground text-xs font-bold">
-                              {(member.display_name || "?")[0]?.toUpperCase()}
+                              {(member.email || "?")[0]?.toUpperCase()}
                             </AvatarFallback>
                           </Avatar>
-                          <span className="text-sm text-foreground">{member.display_name}</span>
+                          <span className="text-sm text-foreground">{member.email}</span>
                         </div>
                         {member.user_id !== user?.id && (
                           <Button
