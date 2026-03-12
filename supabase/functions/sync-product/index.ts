@@ -141,6 +141,18 @@ serve(async (req) => {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
         status: 200,
       });
+    } else if (action === "archive") {
+      // Archive Stripe product (deactivates it and its prices)
+      if (product.stripe_product_id) {
+        if (product.stripe_price_id) {
+          try { await stripe.prices.update(product.stripe_price_id, { active: false }); } catch (e) { console.error("Price deactivation error:", e); }
+        }
+        await stripe.products.update(product.stripe_product_id, { active: false });
+      }
+      return new Response(JSON.stringify({ success: true }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 200,
+      });
     }
 
     return new Response(JSON.stringify({ error: "Invalid action" }), {
