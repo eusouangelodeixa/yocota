@@ -151,11 +151,12 @@ export default function Dashboard() {
       if ((item as any).type === "bump") bumpByCurrency[cur] = (bumpByCurrency[cur] || 0) + (item as any).amount;
     }
 
-    const productRevenue: Record<string, { name: string; revenue: number; count: number }> = {};
+    const productRevenue: Record<string, { name: string; revenue: number; count: number; currency: string }> = {};
     for (const item of filteredItems) {
       const pid = (item as any).product_id;
       const pname = (item as any).products?.name || "Desconhecido";
-      if (!productRevenue[pid]) productRevenue[pid] = { name: pname, revenue: 0, count: 0 };
+      const pcur = (item as any).products?.currency || paidOrderCurrency[(item as any).order_id] || "eur";
+      if (!productRevenue[pid]) productRevenue[pid] = { name: pname, revenue: 0, count: 0, currency: pcur };
       productRevenue[pid].revenue += (item as any).amount;
       productRevenue[pid].count++;
     }
