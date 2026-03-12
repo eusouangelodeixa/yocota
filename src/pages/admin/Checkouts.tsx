@@ -405,7 +405,7 @@ export default function Checkouts() {
                               key={p.id}
                               type="button"
                               className="w-full text-left px-3 py-2 text-[13px] rounded-md hover:bg-accent hover:text-accent-foreground transition-colors flex justify-between items-center gap-2"
-                              onClick={() => { addBump(p.id); }}
+                              onClick={() => addBump(p.id)}
                             >
                               <span className="truncate">{p.name}</span>
                               <span className="text-[11px] text-muted-foreground shrink-0">{formatCents(p.price, p.currency || "eur")}</span>
