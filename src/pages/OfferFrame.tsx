@@ -28,7 +28,7 @@ export default function OfferFrame() {
     async function loadSession() {
       if (!token) return;
       if (isPreview) {
-        const { data: offer, error: offerError } = await supabase.from("offers").select("id, name, product_id, products:product_id(name, description, price)").eq("id", token).maybeSingle();
+        const { data: offer, error: offerError } = await supabase.from("offers").select("id, name, product_id, products:product_id(name, description, price, currency)").eq("id", token).maybeSingle();
         if (offerError || !offer) { setError("Oferta não encontrada para preview"); setLoading(false); return; }
         setPreview({ name: offer.name, product: offer.products as any }); setLoading(false); return;
       }
