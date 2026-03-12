@@ -395,6 +395,10 @@ export default function Checkouts() {
                     <div className="space-y-1.5"><Label className="text-xs text-muted-foreground">Texto do Botão (CTA)</Label><Input value={form.cta_text} onChange={(e) => setForm({ ...form, cta_text: e.target.value })} placeholder="Finalizar compra" /></div>
                   </div>
                   <div className="flex items-center gap-3"><Switch checked={form.show_product_image} onCheckedChange={(v) => setForm({ ...form, show_product_image: v })} /><Label className="text-xs text-muted-foreground">Mostrar imagem do produto</Label></div>
+                  <div className="pt-4 border-t border-border">
+                    <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium mb-3">Preview em tempo real</p>
+                    <CheckoutLivePreview form={form} product={selectedProduct} bumpProducts={bumpProducts} />
+                  </div>
                 </TabsContent>
 
                 <TabsContent value="conversion" className="space-y-6">
