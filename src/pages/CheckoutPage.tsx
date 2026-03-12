@@ -72,6 +72,7 @@ function CheckoutForm({ checkout: c, lang, t }: { checkout: CheckoutData; lang: 
 
   // Dynamic colors from checkout config
   const pc = c.primary_color || "#2563eb";
+  const btnColor = (c as any).cta_button_color || pc;
   const pcRing = hexToRgba(pc, 0.15);
   const pcBg = hexToRgba(pc, 0.06);
 
