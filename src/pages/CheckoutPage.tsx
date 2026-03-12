@@ -257,7 +257,7 @@ function CheckoutForm({ checkout: c, lang, t }: { checkout: CheckoutData; lang: 
   };
 
   return (
-    <div className="min-h-screen flex flex-col" style={{ backgroundColor: c.bg_color || "#09090b" }}>
+    <div className="min-h-screen flex flex-col bg-white">
       <style>{`
         .checkout-input:focus { border-color: ${pc} !important; box-shadow: 0 0 0 3px ${pcRing} !important; }
         .checkout-card-field:focus-within { border-color: ${pc} !important; box-shadow: 0 0 0 3px ${pcRing} !important; }
