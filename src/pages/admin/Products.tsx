@@ -100,11 +100,16 @@ export default function Products() {
 
   const saveMutation = useMutation({
     mutationFn: async (form: ProductForm) => {
-      const priceInCents = parsePriceToCents(form.price, form.currency);
+      const normalizedCurrency = form.currency.trim().toLowerCase();
+      if (!SUPPORTED_CURRENCIES.includes(normalizedCurrency)) {
+        throw new Error("Moeda não suportada pela Stripe");
+      }
+
+      const priceInCents = parsePriceToCents(form.price, normalizedCurrency);
       if (isNaN(priceInCents) || priceInCents <= 0) throw new Error("Preço deve ser maior que zero");
       if (form.name.length < 3) throw new Error("Nome deve ter pelo menos 3 caracteres");
       const payload: Record<string, any> = {
-        name: form.name, description: form.description || null, price: priceInCents, currency: form.currency,
+        name: form.name, description: form.description || null, price: priceInCents, currency: normalizedCurrency,
         type: form.type, delivery_type: form.delivery_type,
         delivery_message: form.delivery_message || null, delivery_attachment: form.delivery_attachment || null,
         image_url: form.image_url || null,
