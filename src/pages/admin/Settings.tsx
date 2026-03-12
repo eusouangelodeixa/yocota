@@ -277,6 +277,23 @@ export default function Settings() {
 
   const [inviteForm, setInviteForm] = useState({ email: "", password: "" });
   const [inviting, setInviting] = useState(false);
+  const [removingUserId, setRemovingUserId] = useState<string | null>(null);
+
+  const handleRemoveAdmin = async (userId: string) => {
+    if (!confirm("Tem certeza que deseja remover este administrador? A conta será excluída.")) return;
+    setRemovingUserId(userId);
+    try {
+      const { data, error } = await supabase.functions.invoke("remove-admin", { body: { user_id: userId } });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      toast.success("Administrador removido com sucesso!");
+      queryClient.invalidateQueries({ queryKey: ["team_members"] });
+    } catch (err: any) {
+      toast.error(err.message);
+    } finally {
+      setRemovingUserId(null);
+    }
+  };
 
   const handleInvite = async () => {
     if (!inviteForm.email || !inviteForm.password) { toast.error("Preencha email e senha"); return; }
