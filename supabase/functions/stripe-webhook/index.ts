@@ -169,6 +169,57 @@ serve(async (req) => {
         break;
       }
 
+      case "charge.refunded": {
+        const charge = event.data.object as any;
+        const paymentIntentId = charge.payment_intent;
+        if (paymentIntentId) {
+          const { data: order } = await supabase
+            .from("orders")
+            .select("*, order_items(*, products(id, name, price, currency)), customers(name, email, phone)")
+            .eq("stripe_payment_intent_id", paymentIntentId)
+            .maybeSingle();
+
+          if (order) {
+            await supabase.from("orders").update({ status: "refunded" }).eq("id", order.id);
+
+            await sendToUtmify(supabase, {
+              orderId: order.id,
+              status: "refunded",
+              createdAt: order.created_at,
+              approvedDate: order.created_at,
+              refundedAt: new Date().toISOString(),
+              paymentMethod: "credit_card",
+              customer: {
+                name: order.customers?.name || "",
+                email: order.customers?.email || "",
+                phone: order.customers?.phone || null,
+                document: null,
+              },
+              products: (order.order_items || []).map((item: any) => ({
+                id: item.products?.id || item.product_id,
+                name: item.products?.name || "Product",
+                priceInCents: item.amount,
+                quantity: 1,
+              })),
+              trackingParameters: {
+                src: null, sck: null,
+                utm_source: order.utm_source, utm_campaign: order.utm_campaign,
+                utm_medium: order.utm_medium, utm_content: order.utm_content, utm_term: order.utm_term,
+              },
+              totalAmountCents: order.total_amount,
+              currency: order.order_items?.[0]?.products?.currency || "eur",
+            });
+
+            await supabase.from("audit_logs").insert({
+              event_type: "payment_refunded",
+              payload: { payment_intent_id: paymentIntentId, order_id: order.id },
+            });
+          }
+        }
+        console.log("Charge refunded:", charge.id);
+        break;
+      }
+
       default:
         console.log(`Unhandled event type: ${event.type}`);
     }
@@ -363,5 +414,131 @@ async function processSuccessfulPayment(
     }
   }
 
+  // Send to Utmify
+  await sendToUtmify(supabase, {
+    orderId: order.id,
+    status: "paid",
+    createdAt: order.created_at,
+    approvedDate: order.created_at,
+    refundedAt: null,
+    paymentMethod: "credit_card",
+    customer: {
+      name: customerName,
+      email: customerEmail,
+      phone: customerPhone || null,
+      document: null,
+    },
+    products: [
+      { id: checkout.products.id, name: checkout.products.name, priceInCents: checkout.products.price, quantity: 1 },
+      ...bumpProducts.map((bp: any) => ({ id: bp.id, name: bp.name || "Bump", priceInCents: bp.price, quantity: 1 })),
+    ],
+    trackingParameters: {
+      src: null, sck: null,
+      utm_source: utmSource, utm_campaign: utmCampaign, utm_medium: utmMedium,
+      utm_content: utmContent, utm_term: utmTerm,
+    },
+    totalAmountCents: totalAmount,
+    currency: checkout.products.currency || "eur",
+  });
+
   console.log("Order created successfully:", order.id);
+}
+
+// ── Utmify Integration ──────────────────────────────────────────────
+
+async function getUtmifyApiKey(supabase: any): Promise<string | null> {
+  const { data } = await supabase
+    .from("api_keys")
+    .select("key_value")
+    .eq("key_name", "UTMIFY_API_KEY")
+    .maybeSingle();
+  if (data?.key_value) return data.key_value;
+  return Deno.env.get("UTMIFY_API_KEY") || null;
+}
+
+function formatUtcDate(isoDate: string): string {
+  const d = new Date(isoDate);
+  const pad = (n: number) => n.toString().padStart(2, "0");
+  return `${d.getUTCFullYear()}-${pad(d.getUTCMonth() + 1)}-${pad(d.getUTCDate())} ${pad(d.getUTCHours())}:${pad(d.getUTCMinutes())}:${pad(d.getUTCSeconds())}`;
+}
+
+interface UtmifyParams {
+  orderId: string;
+  status: "waiting_payment" | "paid" | "refused" | "refunded" | "chargedback";
+  createdAt: string;
+  approvedDate: string | null;
+  refundedAt: string | null;
+  paymentMethod: "credit_card" | "boleto" | "pix" | "paypal" | "free_price";
+  customer: { name: string; email: string; phone: string | null; document: string | null };
+  products: { id: string; name: string; priceInCents: number; quantity: number }[];
+  trackingParameters: {
+    src: string | null; sck: string | null;
+    utm_source: string | null; utm_campaign: string | null; utm_medium: string | null;
+    utm_content: string | null; utm_term: string | null;
+  };
+  totalAmountCents: number;
+  currency: string;
+}
+
+async function sendToUtmify(supabase: any, params: UtmifyParams) {
+  const apiKey = await getUtmifyApiKey(supabase);
+  if (!apiKey) {
+    console.log("Utmify API key not configured, skipping");
+    return;
+  }
+
+  const currencyMap: Record<string, string> = {
+    eur: "EUR", usd: "USD", brl: "BRL", gbp: "GBP",
+  };
+  const currency = currencyMap[params.currency.toLowerCase()] || params.currency.toUpperCase();
+
+  const payload = {
+    orderId: params.orderId,
+    platform: "Yocota",
+    paymentMethod: params.paymentMethod,
+    status: params.status,
+    createdAt: formatUtcDate(params.createdAt),
+    approvedDate: params.approvedDate ? formatUtcDate(params.approvedDate) : null,
+    refundedAt: params.refundedAt ? formatUtcDate(params.refundedAt) : null,
+    customer: {
+      name: params.customer.name,
+      email: params.customer.email,
+      phone: params.customer.phone,
+      document: params.customer.document,
+    },
+    products: params.products.map((p) => ({
+      id: p.id,
+      name: p.name,
+      planId: null,
+      planName: null,
+      quantity: p.quantity,
+      priceInCents: p.priceInCents,
+    })),
+    trackingParameters: params.trackingParameters,
+    commission: {
+      totalPriceInCents: params.totalAmountCents,
+      gatewayFeeInCents: 0,
+      userCommissionInCents: params.totalAmountCents,
+      currency,
+    },
+  };
+
+  try {
+    const resp = await fetch("https://api.utmify.com.br/api-credentials/orders", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-api-token": apiKey,
+      },
+      body: JSON.stringify(payload),
+    });
+    const text = await resp.text();
+    if (!resp.ok) {
+      console.error("Utmify API error:", resp.status, text);
+    } else {
+      console.log("Utmify order sent:", params.orderId, params.status);
+    }
+  } catch (e) {
+    console.warn("Failed to send to Utmify:", e);
+  }
 }
