@@ -54,7 +54,7 @@ function hexToRgba(hex: string, alpha: number): string {
   return `rgba(${r},${g},${b},${alpha})`;
 }
 
-function CheckoutForm({ checkout: c, lang, t }: { checkout: CheckoutData; lang: CheckoutLang; t: CheckoutTranslations }) {
+function CheckoutForm({ checkout: c, lang, t, detectedCountry }: { checkout: CheckoutData; lang: CheckoutLang; t: CheckoutTranslations; detectedCountry: string }) {
   const stripe = useStripe();
   const elements = useElements();
 
