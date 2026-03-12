@@ -18,7 +18,7 @@ interface Offer {
   accept_next_offer_id: string | null;
   reject_next_offer_id: string | null;
   page_url?: string | null;
-  products?: { name: string; price: number } | null;
+  products?: { name: string; price: number; currency?: string } | null;
 }
 
 interface OfferFunnelTreeProps {
