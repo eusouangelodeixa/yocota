@@ -82,7 +82,7 @@ function ChartTooltip({ active, payload, label }: any) {
       <p className="text-xs text-muted-foreground mb-1">{label}</p>
       {payload.map((entry: any, i: number) => (
         <p key={i} className="text-sm font-semibold text-foreground">
-          {formatCents(entry.value, "brl")}
+          {formatCents(entry.value, "eur")}
         </p>
       ))}
     </div>
@@ -185,12 +185,12 @@ export default function Dashboard() {
   }
 
   const kpis = [
-    { label: "RECEITA TOTAL", value: formatCents(stats?.revenue ?? 0, "brl"), change: null },
+    { label: "RECEITA TOTAL", value: formatCents(stats?.revenue ?? 0, "eur"), change: null },
     { label: "PEDIDOS PAGOS", value: stats?.totalOrders ?? 0, change: null },
     { label: "PRODUTOS ATIVOS", value: stats?.productsCount ?? 0, change: null },
     { label: "CHECKOUTS ATIVOS", value: stats?.checkoutsCount ?? 0, change: null },
-    { label: "RECEITA UPSELLS", value: formatCents(stats?.upsellRevenue ?? 0, "brl"), change: null },
-    { label: "RECEITA BUMPS", value: formatCents(stats?.bumpRevenue ?? 0, "brl"), change: null },
+    { label: "RECEITA UPSELLS", value: formatCents(stats?.upsellRevenue ?? 0, "eur"), change: null },
+    { label: "RECEITA BUMPS", value: formatCents(stats?.bumpRevenue ?? 0, "eur"), change: null },
     { label: "TAXA RECUPERAÇÃO", value: `${(stats?.recoveryRate ?? 0).toFixed(1)}%`, change: null },
     { label: "ABANDONOS", value: `${stats?.recoveredCount ?? 0}/${stats?.totalAbandoned ?? 0}`, change: null },
   ];
@@ -274,7 +274,7 @@ export default function Dashboard() {
                 <BarChart data={stats.chartData} barCategoryGap="20%">
                   <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" />
                   <XAxis dataKey="day" tick={{ fontSize: 11, fill: "#52525b" }} axisLine={false} tickLine={false} />
-                  <YAxis tick={{ fontSize: 11, fill: "#52525b" }} axisLine={false} tickLine={false} tickFormatter={(v) => formatCents(v, "brl")} width={80} />
+                  <YAxis tick={{ fontSize: 11, fill: "#52525b" }} axisLine={false} tickLine={false} tickFormatter={(v) => formatCents(v, "eur")} width={80} />
                   <Tooltip content={<ChartTooltip />} cursor={{ fill: "rgba(255,255,255,0.02)" }} />
                   <Bar dataKey="value" fill="#27272a" activeBar={{ fill: "#E04B00" }} radius={0} maxBarSize={40} />
                 </BarChart>
@@ -309,7 +309,7 @@ export default function Dashboard() {
                   </defs>
                   <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" />
                   <XAxis dataKey="day" tick={{ fontSize: 11, fill: "#52525b" }} axisLine={false} tickLine={false} />
-                  <YAxis tick={{ fontSize: 11, fill: "#52525b" }} axisLine={false} tickLine={false} tickFormatter={(v) => formatCents(v, "brl")} width={80} />
+                  <YAxis tick={{ fontSize: 11, fill: "#52525b" }} axisLine={false} tickLine={false} tickFormatter={(v) => formatCents(v, "eur")} width={80} />
                   <Tooltip content={<ChartTooltip />} />
                   <Area type="monotone" dataKey="cumulative" stroke="#E04B00" strokeWidth={2} fill="url(#accentGrad)" />
                 </AreaChart>
@@ -344,7 +344,7 @@ export default function Dashboard() {
                             <p className="text-[11px] text-muted-foreground">{p.count} vendas</p>
                           </div>
                         </div>
-                        <span className="text-[13px] font-semibold text-primary tabular-nums">{formatCents(p.revenue, "brl")}</span>
+                        <span className="text-[13px] font-semibold text-primary tabular-nums">{formatCents(p.revenue, "eur")}</span>
                       </div>
                       <div className="h-1 bg-secondary rounded-full overflow-hidden ml-7">
                         <div className="h-full bg-primary rounded-full transition-all duration-500" style={{ width: `${pct}%` }} />
@@ -383,7 +383,7 @@ export default function Dashboard() {
                         <div className="text-[13px] font-medium text-foreground">{order.customers?.name || "—"}</div>
                         <div className="text-[11px] text-muted-foreground">{order.customers?.email}</div>
                       </TableCell>
-                      <TableCell className="text-[13px] font-medium text-foreground tabular-nums">{formatCents(order.total_amount, "brl")}</TableCell>
+                      <TableCell className="text-[13px] font-medium text-foreground tabular-nums">{formatCents(order.total_amount, "eur")}</TableCell>
                       <TableCell>
                         <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium uppercase tracking-wide ${sp.cls}`}>
                           {sp.label}

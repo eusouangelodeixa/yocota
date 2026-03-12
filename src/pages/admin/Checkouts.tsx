@@ -108,7 +108,7 @@ function CheckoutLivePreview({ form, product, bumpProducts }: { form: CheckoutFo
             )}
             <h3 className="text-base font-semibold text-[#fafafa] mb-1">{form.headline_text || product?.name || "Nome do Produto"}</h3>
             {product?.description && <p className="text-xs text-[#71717a] leading-relaxed mb-4">{product.description}</p>}
-            <div className="text-2xl font-bold text-[#fafafa] tabular-nums mb-4">{product ? formatCents(product.price, currency) : "R$ 0,00"}</div>
+            <div className="text-2xl font-bold text-[#fafafa] tabular-nums mb-4">{product ? formatCents(product.price, currency) : "€ 0,00"}</div>
             <div className="border-t border-[#27272a]" />
 
             {bumpProducts.length > 0 && (
@@ -125,7 +125,7 @@ function CheckoutLivePreview({ form, product, bumpProducts }: { form: CheckoutFo
 
             <div className="mt-4 pt-3 border-t border-[#27272a] flex justify-between items-center">
               <span className="text-xs text-[#a1a1aa]">Total</span>
-              <span className="text-lg font-bold text-[#fafafa] tabular-nums">{product ? formatCents(product.price, currency) : "R$ 0,00"}</span>
+              <span className="text-lg font-bold text-[#fafafa] tabular-nums">{product ? formatCents(product.price, currency) : "€ 0,00"}</span>
             </div>
           </div>
         </div>
@@ -287,7 +287,7 @@ export default function Checkouts() {
                         {bumpProducts.map((bp: any, idx: number) => (
                           <div key={bp.id} className="flex items-center gap-3 rounded-lg border border-border bg-input px-3 py-2">
                             <GripVertical className="h-4 w-4 text-muted-foreground shrink-0" strokeWidth={1.5} />
-                            <div className="flex-1 min-w-0"><p className="text-[13px] font-medium truncate text-foreground">{bp.name}</p><p className="text-[11px] text-muted-foreground">{formatCents(bp.price, bp.currency || "brl")}</p></div>
+                            <div className="flex-1 min-w-0"><p className="text-[13px] font-medium truncate text-foreground">{bp.name}</p><p className="text-[11px] text-muted-foreground">{formatCents(bp.price, bp.currency || "eur")}</p></div>
                             <Badge variant="secondary" className="text-[10px] shrink-0">#{idx + 1}</Badge>
                             <Button type="button" variant="ghost" size="icon" className="h-7 w-7 shrink-0" onClick={() => removeBump(bp.id)}><X className="h-3.5 w-3.5 text-destructive" /></Button>
                           </div>
@@ -310,7 +310,7 @@ export default function Checkouts() {
                               onClick={() => { addBump(p.id); }}
                             >
                               <span className="truncate">{p.name}</span>
-                              <span className="text-[11px] text-muted-foreground shrink-0">{formatCents(p.price, p.currency || "brl")}</span>
+                              <span className="text-[11px] text-muted-foreground shrink-0">{formatCents(p.price, p.currency || "eur")}</span>
                             </button>
                           ))}
                         </PopoverContent>
