@@ -7,10 +7,10 @@ import { Loader2 } from "lucide-react";
 interface SessionData {
   id: string; token: string; offer_id: string; order_id: string; customer_id: string;
   decision: string | null; expires_at: string;
-  offer: { id: string; name: string; product_id: string; page_url: string | null; products: { name: string; description: string | null; price: number } };
+  offer: { id: string; name: string; product_id: string; page_url: string | null; products: { name: string; description: string | null; price: number; currency: string } };
 }
 
-interface PreviewData { name: string; product: { name: string; description: string | null; price: number } }
+interface PreviewData { name: string; product: { name: string; description: string | null; price: number; currency: string } }
 
 export default function OfferFrame() {
   const { token } = useParams<{ token: string }>();
@@ -28,11 +28,11 @@ export default function OfferFrame() {
     async function loadSession() {
       if (!token) return;
       if (isPreview) {
-        const { data: offer, error: offerError } = await supabase.from("offers").select("id, name, product_id, products:product_id(name, description, price)").eq("id", token).maybeSingle();
+        const { data: offer, error: offerError } = await supabase.from("offers").select("id, name, product_id, products:product_id(name, description, price, currency)").eq("id", token).maybeSingle();
         if (offerError || !offer) { setError("Oferta não encontrada para preview"); setLoading(false); return; }
         setPreview({ name: offer.name, product: offer.products as any }); setLoading(false); return;
       }
-      const { data, error: fetchError } = await supabase.from("offer_sessions").select("id, token, offer_id, order_id, customer_id, decision, expires_at, offers:offer_id(id, name, product_id, page_url, products:product_id(name, description, price))").eq("token", token).maybeSingle();
+      const { data, error: fetchError } = await supabase.from("offer_sessions").select("id, token, offer_id, order_id, customer_id, decision, expires_at, offers:offer_id(id, name, product_id, page_url, products:product_id(name, description, price, currency))").eq("token", token).maybeSingle();
       if (fetchError || !data) { setError("Sessão de oferta não encontrada"); setLoading(false); return; }
       if (new Date(data.expires_at) < new Date()) { setError("Esta oferta expirou"); setLoading(false); return; }
       if (data.decision) { setResult({ decision: data.decision }); setLoading(false); return; }
@@ -84,7 +84,7 @@ export default function OfferFrame() {
             {preview.product.description && <p className="text-sm text-muted-foreground mt-1 line-clamp-3">{preview.product.description}</p>}
           </div>
           <div className="border-t border-border my-6" />
-          <div className="text-[32px] font-bold text-foreground tabular-nums">{formatCents(preview.product.price)}</div>
+          <div className="text-[32px] font-bold text-foreground tabular-nums">{formatCents(preview.product.price, preview.product.currency)}</div>
           <p className="text-[11px] text-muted-foreground">Cobrança automática no mesmo cartão</p>
           <div className="space-y-3 pt-2">
             <button className="w-full h-12 bg-primary text-primary-foreground font-bold text-sm rounded-lg opacity-50 cursor-not-allowed">Sim, quero!</button>
@@ -120,7 +120,7 @@ export default function OfferFrame() {
           {product.description && <p className="text-sm text-muted-foreground mt-1 line-clamp-3">{product.description}</p>}
         </div>
         <div className="border-t border-border" />
-        <div className="text-[32px] font-bold text-foreground tabular-nums">{formatCents(product.price)}</div>
+        <div className="text-[32px] font-bold text-foreground tabular-nums">{formatCents(product.price, product.currency)}</div>
         <p className="text-[11px] text-muted-foreground">Cobrança automática no mesmo cartão</p>
         <div className="space-y-3 pt-2">
           <button
