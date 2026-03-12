@@ -342,11 +342,12 @@ export default function Checkouts() {
                               <Button type="button" variant="ghost" size="icon" className="h-7 w-7 shrink-0" onClick={() => removeBump(bp.id)}><X className="h-3.5 w-3.5 text-destructive" /></Button>
                             </div>
                             <div className="pl-7">
-                              <Input
+                              <Textarea
                                 value={form.order_bump_descriptions[bp.id] || ""}
                                 onChange={(e) => setForm({ ...form, order_bump_descriptions: { ...form.order_bump_descriptions, [bp.id]: e.target.value } })}
                                 placeholder="Copy do bump (ex: Adicione e economize 30%!)"
-                                className="text-xs h-8"
+                                className="text-xs min-h-[60px] resize-y"
+                                maxLength={500}
                               />
                             </div>
                           </div>
