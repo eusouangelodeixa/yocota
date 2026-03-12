@@ -207,7 +207,7 @@ serve(async (req) => {
                 utm_medium: order.utm_medium, utm_content: order.utm_content, utm_term: order.utm_term,
               },
               totalAmountCents: order.total_amount,
-              currency: order.order_items?.[0]?.products?.currency || "eur",
+              currency: order.currency || order.order_items?.[0]?.products?.currency || "eur",
             });
 
             await supabase.from("audit_logs").insert({
