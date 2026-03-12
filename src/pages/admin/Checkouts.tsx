@@ -104,9 +104,17 @@ function BannerUpload({ value, onChange }: { value: string; onChange: (url: stri
 /* ── Checkout Live Preview (faithful recreation) ── */
 function CheckoutLivePreview({ form, product, bumpProducts }: { form: CheckoutForm; product: any; bumpProducts: any[] }) {
   const currency = product?.currency || "eur";
+  const pc = form.primary_color || "#2563eb";
+  const bgColor = form.bg_color || "#09090b";
 
   return (
-    <div className="w-full bg-[#09090b] rounded-[10px] border border-border overflow-hidden">
+    <div className="w-full rounded-[10px] border border-border overflow-hidden" style={{ backgroundColor: bgColor }}>
+      {/* Countdown bar preview */}
+      {form.countdown_enabled && (
+        <div className="py-1.5 px-4 flex items-center justify-center gap-2 text-xs font-semibold" style={{ backgroundColor: form.countdown_bg_color, color: form.countdown_text_color }}>
+          <Zap className="h-3 w-3" /><span>{form.countdown_text}</span><span className="tabular-nums font-bold">09:58</span>
+        </div>
+      )}
       <div className="flex flex-col lg:flex-row min-h-[480px]">
         {/* Left panel */}
         <div className="lg:w-[45%] bg-[#111113] border-b lg:border-b-0 lg:border-r border-[#27272a] p-6 lg:p-8 flex flex-col justify-center">
@@ -116,6 +124,9 @@ function CheckoutLivePreview({ form, product, bumpProducts }: { form: CheckoutFo
                 <img src={form.banner_url} alt="" className="w-full h-full object-cover" />
               </div>
             )}
+            {form.show_product_image && product?.image_url && (
+              <img src={product.image_url} alt="" className="w-14 h-14 rounded-lg object-cover mb-3 border border-[#27272a]" />
+            )}
             <h3 className="text-base font-semibold text-[#fafafa] mb-1">{form.headline_text || product?.name || "Nome do Produto"}</h3>
             {product?.description && <p className="text-xs text-[#71717a] leading-relaxed mb-4">{product.description}</p>}
             <div className="text-2xl font-bold text-[#fafafa] tabular-nums mb-4">{product ? formatCents(product.price, currency) : "€ 0,00"}</div>
@@ -123,13 +134,21 @@ function CheckoutLivePreview({ form, product, bumpProducts }: { form: CheckoutFo
 
             {bumpProducts.length > 0 && (
               <div className="mt-4 space-y-2">
-                {bumpProducts.map((bp) => (
-                  <div key={bp.id} className="rounded-[10px] border border-[#27272a] bg-[#18181b] p-3 flex items-center gap-2">
-                    <div className="w-3.5 h-3.5 rounded border border-[#27272a]" />
-                    <span className="text-[11px] font-medium text-[#fafafa] flex-1 truncate">{bp.name}</span>
-                    <span className="text-[11px] font-bold text-primary tabular-nums">+{formatCents(bp.price, bp.currency || currency)}</span>
-                  </div>
-                ))}
+                {bumpProducts.map((bp) => {
+                  const bumpCopy = form.order_bump_descriptions[bp.id] || bp.description;
+                  return (
+                    <div key={bp.id} className="rounded-[10px] border border-[#27272a] bg-[#18181b] p-3">
+                      <div className="flex items-center gap-2">
+                        <div className="w-3.5 h-3.5 rounded-sm border border-[#27272a] shrink-0" />
+                        <div className="flex-1 min-w-0">
+                          <span className="text-[11px] font-medium text-[#fafafa] truncate block">{bp.name}</span>
+                          {bumpCopy && <p className="text-[10px] text-[#71717a] mt-0.5 line-clamp-2">{bumpCopy}</p>}
+                        </div>
+                        <span className="text-[11px] font-bold tabular-nums shrink-0" style={{ color: pc }}>+{formatCents(bp.price, bp.currency || currency)}</span>
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
             )}
 
@@ -159,7 +178,7 @@ function CheckoutLivePreview({ form, product, bumpProducts }: { form: CheckoutFo
                   <div className="h-10 rounded-lg bg-[#111113] border border-[#27272a]" />
                 </div>
               </div>
-              <button className="w-full h-11 font-bold text-xs rounded-lg cursor-default flex items-center justify-center gap-1.5" style={{ backgroundColor: form.primary_color || '#2563eb', color: '#fff' }}>
+              <button className="w-full h-11 font-bold text-xs rounded-lg cursor-default flex items-center justify-center gap-1.5" style={{ backgroundColor: pc, color: '#fff' }}>
                 🔒 {form.cta_text || "Finalizar compra"} {product ? formatCents(product.price, currency) : ""}
               </button>
               <p className="text-[10px] text-[#52525b] text-center">🔒 Pagamento processado com segurança via Stripe</p>
