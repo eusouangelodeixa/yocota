@@ -469,6 +469,7 @@ function formatUtcDate(isoDate: string): string {
 
 interface UtmifyParams {
   orderId: string;
+  paymentIntentId: string | null;
   status: "waiting_payment" | "paid" | "refused" | "refunded" | "chargedback";
   createdAt: string;
   approvedDate: string | null;
@@ -485,17 +486,169 @@ interface UtmifyParams {
   currency: string;
 }
 
-async function sendToUtmify(supabase: any, params: UtmifyParams) {
+const UTMIFY_SUPPORTED_CURRENCIES = new Set([
+  "BRL", "USD", "EUR", "GBP", "ARS", "CAD", "COP", "MXN",
+  "PYG", "CLP", "PEN", "PLN", "UAH", "CHF", "THB", "AUD",
+]);
+
+async function getEurAmountFromBalanceTransaction(
+  stripe: Stripe,
+  paymentIntentId: string | null,
+): Promise<number | null> {
+  if (!paymentIntentId) return null;
+
+  try {
+    const pi = await stripe.paymentIntents.retrieve(paymentIntentId, {
+      expand: ["latest_charge.balance_transaction"],
+    } as any);
+
+    const latestCharge = pi.latest_charge;
+    if (!latestCharge || typeof latestCharge === "string") return null;
+
+    const balanceTxRaw = latestCharge.balance_transaction;
+    if (!balanceTxRaw) return null;
+
+    let balanceTx: Stripe.BalanceTransaction;
+    if (typeof balanceTxRaw === "string") {
+      balanceTx = await stripe.balanceTransactions.retrieve(balanceTxRaw);
+    } else {
+      balanceTx = balanceTxRaw;
+    }
+
+    if (balanceTx.currency?.toUpperCase() !== "EUR") return null;
+
+    const eurAmount = Math.abs(balanceTx.amount ?? 0);
+    return eurAmount > 0 ? eurAmount : null;
+  } catch (error) {
+    console.warn("Could not resolve EUR amount from balance transaction:", error);
+    return null;
+  }
+}
+
+async function getEurAmountFromStripeExchangeRate(
+  stripe: Stripe,
+  sourceCurrency: string,
+  sourceAmountInCents: number,
+): Promise<{ amountInCents: number; rate: number } | null> {
+  if (!sourceAmountInCents || sourceAmountInCents <= 0) return null;
+
+  try {
+    const fx = await stripe.exchangeRates.retrieve(sourceCurrency.toLowerCase());
+    const eurRate = fx?.rates?.eur;
+
+    if (typeof eurRate !== "number" || eurRate <= 0) return null;
+
+    const converted = Math.round(sourceAmountInCents * eurRate);
+    if (converted <= 0) return null;
+
+    return { amountInCents: converted, rate: eurRate };
+  } catch (error) {
+    console.warn("Could not resolve EUR amount from Stripe exchange rates:", error);
+    return null;
+  }
+}
+
+function convertProductsToTargetCurrency(
+  products: UtmifyParams["products"],
+  conversionRate: number,
+  targetTotalInCents: number,
+): UtmifyParams["products"] {
+  if (!products.length) return products;
+
+  const converted = products.map((product) => ({
+    ...product,
+    priceInCents: Math.max(0, Math.round(product.priceInCents * conversionRate)),
+  }));
+
+  let diff = targetTotalInCents - converted.reduce((sum, product) => sum + product.priceInCents, 0);
+  let guard = 0;
+
+  while (diff !== 0 && guard < 5000) {
+    const idx = guard % converted.length;
+    const delta = diff > 0 ? 1 : -1;
+    const next = converted[idx].priceInCents + delta;
+
+    if (next >= 0) {
+      converted[idx].priceInCents = next;
+      diff -= delta;
+    }
+
+    guard++;
+  }
+
+  return converted;
+}
+
+async function sendToUtmify(supabase: any, stripe: Stripe, params: UtmifyParams) {
   const apiKey = await getUtmifyApiKey(supabase);
   if (!apiKey) {
     console.log("Utmify API key not configured, skipping");
     return;
   }
 
-  // Utmify only supports these currencies
-  const UTMIFY_SUPPORTED = new Set(["BRL", "USD", "EUR", "GBP", "ARS", "CAD", "COP", "MXN", "PYG", "CLP", "PEN", "PLN", "UAH", "CHF", "THB", "AUD"]);
-  const currencyUpper = params.currency.toUpperCase();
-  const currency = UTMIFY_SUPPORTED.has(currencyUpper) ? currencyUpper : "EUR";
+  const sourceCurrency = (params.currency || "EUR").toUpperCase();
+  let targetCurrency = sourceCurrency;
+  let targetAmountInCents = params.totalAmountCents;
+  let productAmounts = params.products;
+
+  if (!UTMIFY_SUPPORTED_CURRENCIES.has(sourceCurrency)) {
+    let conversionRate = 0;
+
+    const amountFromBalance = await getEurAmountFromBalanceTransaction(stripe, params.paymentIntentId);
+    if (amountFromBalance && params.totalAmountCents > 0) {
+      targetCurrency = "EUR";
+      targetAmountInCents = amountFromBalance;
+      conversionRate = amountFromBalance / params.totalAmountCents;
+    } else {
+      const amountFromFx = await getEurAmountFromStripeExchangeRate(stripe, sourceCurrency, params.totalAmountCents);
+      if (amountFromFx) {
+        targetCurrency = "EUR";
+        targetAmountInCents = amountFromFx.amountInCents;
+        conversionRate = amountFromFx.rate;
+      }
+    }
+
+    if (targetCurrency !== "EUR" || conversionRate <= 0) {
+      console.error("Utmify skipped: unsupported currency without EUR conversion", {
+        orderId: params.orderId,
+        sourceCurrency,
+        totalAmountCents: params.totalAmountCents,
+      });
+
+      await supabase.from("audit_logs").insert({
+        event_type: "utmify_skipped_unsupported_currency",
+        payload: {
+          order_id: params.orderId,
+          payment_intent_id: params.paymentIntentId,
+          source_currency: sourceCurrency,
+          source_amount_in_cents: params.totalAmountCents,
+        },
+      });
+      return;
+    }
+
+    productAmounts = convertProductsToTargetCurrency(params.products, conversionRate, targetAmountInCents);
+
+    console.log("Utmify currency converted", {
+      orderId: params.orderId,
+      sourceCurrency,
+      sourceAmountInCents: params.totalAmountCents,
+      targetCurrency,
+      targetAmountInCents,
+    });
+
+    await supabase.from("audit_logs").insert({
+      event_type: "utmify_currency_converted",
+      payload: {
+        order_id: params.orderId,
+        payment_intent_id: params.paymentIntentId,
+        source_currency: sourceCurrency,
+        source_amount_in_cents: params.totalAmountCents,
+        target_currency: targetCurrency,
+        target_amount_in_cents: targetAmountInCents,
+      },
+    });
+  }
 
   const payload = {
     orderId: params.orderId,
@@ -511,7 +664,7 @@ async function sendToUtmify(supabase: any, params: UtmifyParams) {
       phone: params.customer.phone,
       document: params.customer.document,
     },
-    products: params.products.map((p) => ({
+    products: productAmounts.map((p) => ({
       id: p.id,
       name: p.name,
       planId: null,
@@ -521,10 +674,10 @@ async function sendToUtmify(supabase: any, params: UtmifyParams) {
     })),
     trackingParameters: params.trackingParameters,
     commission: {
-      totalPriceInCents: params.totalAmountCents,
+      totalPriceInCents: targetAmountInCents,
       gatewayFeeInCents: 0,
-      userCommissionInCents: params.totalAmountCents,
-      currency,
+      userCommissionInCents: targetAmountInCents,
+      currency: targetCurrency,
     },
   };
 
