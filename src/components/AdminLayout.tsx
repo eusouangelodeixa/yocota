@@ -61,6 +61,13 @@ export function AdminLayout() {
               <span className="text-foreground font-medium">{currentRoute}</span>
             </div>
             <div className="flex items-center gap-3">
+              <button
+                onClick={toggleTheme}
+                className="p-1.5 text-muted-foreground hover:text-foreground transition-colors duration-150 rounded-md hover:bg-accent"
+                title={theme === "dark" ? "Tema claro" : "Tema escuro"}
+              >
+                {theme === "dark" ? <Sun className="h-4.5 w-4.5" strokeWidth={1.5} /> : <Moon className="h-4.5 w-4.5" strokeWidth={1.5} />}
+              </button>
               <Avatar className="w-8 h-8">
                 {avatarUrl && <AvatarImage src={avatarUrl} alt={displayName} />}
                 <AvatarFallback className="bg-primary text-primary-foreground text-xs font-bold">
