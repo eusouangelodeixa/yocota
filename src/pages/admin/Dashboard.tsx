@@ -185,12 +185,12 @@ export default function Dashboard() {
   }
 
   const kpis = [
-    { label: "RECEITA TOTAL", value: formatCents(stats?.revenue ?? 0, "eur"), change: null },
+    { label: "RECEITA TOTAL", value: formatCents(stats?.revenue ?? 0), change: null },
     { label: "PEDIDOS PAGOS", value: stats?.totalOrders ?? 0, change: null },
     { label: "PRODUTOS ATIVOS", value: stats?.productsCount ?? 0, change: null },
     { label: "CHECKOUTS ATIVOS", value: stats?.checkoutsCount ?? 0, change: null },
-    { label: "RECEITA UPSELLS", value: formatCents(stats?.upsellRevenue ?? 0, "eur"), change: null },
-    { label: "RECEITA BUMPS", value: formatCents(stats?.bumpRevenue ?? 0, "eur"), change: null },
+    { label: "RECEITA UPSELLS", value: formatCents(stats?.upsellRevenue ?? 0), change: null },
+    { label: "RECEITA BUMPS", value: formatCents(stats?.bumpRevenue ?? 0), change: null },
     { label: "TAXA RECUPERAÇÃO", value: `${(stats?.recoveryRate ?? 0).toFixed(1)}%`, change: null },
     { label: "ABANDONOS", value: `${stats?.recoveredCount ?? 0}/${stats?.totalAbandoned ?? 0}`, change: null },
   ];
