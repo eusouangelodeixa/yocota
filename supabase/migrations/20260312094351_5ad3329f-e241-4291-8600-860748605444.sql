@@ -1,0 +1,1 @@
+ALTER TABLE public.checkout_order_bumps ADD COLUMN IF NOT EXISTS description text;
