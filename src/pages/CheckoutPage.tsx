@@ -335,17 +335,17 @@ function CheckoutForm({ checkout: c, lang, t }: { checkout: CheckoutData; lang: 
           <form onSubmit={handleSubmit} className="space-y-6">
             {/* Contact information section */}
             <div className="space-y-3">
-              <label className="text-[13px] font-medium text-[#1a1a1a]">{t.contactInfo}</label>
+              <label className="text-[13px] font-medium text-[#111111]">{t.contactInfo}</label>
               <div className="space-y-1.5">
-                <label className="text-xs font-medium text-[#525252]">{t.email}</label>
+                <label className="text-xs font-medium text-[#27272a]">{t.email}</label>
                 <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} onBlur={() => validateField("email", email)} placeholder={t.emailPlaceholder} required className={`checkout-input ${inputClass(!!fieldErrors.email)}`} />
                 {fieldErrors.email && <p className="text-[11px] text-[#ef4444] animate-in slide-in-from-top-1 duration-150">{fieldErrors.email}</p>}
               </div>
               <div className="space-y-1.5">
-                <label className="text-xs font-medium text-[#525252]">{t.whatsapp}</label>
+                <label className="text-xs font-medium text-[#27272a]">{t.whatsapp}</label>
                 <div className="flex gap-2">
                   <Select value={selectedCountry} onValueChange={setSelectedCountry}>
-                    <SelectTrigger className="checkout-select-trigger w-[110px] h-10 rounded-lg bg-white border-[#d4d4d8] text-[#1a1a1a] text-xs shrink-0">
+                    <SelectTrigger className="checkout-select-trigger w-[110px] h-10 rounded-lg bg-white border-[#111111] text-[#111111] text-xs shrink-0">
                       <SelectValue>{selectedEntry ? `${selectedEntry.flag} ${selectedEntry.code}` : "+55"}</SelectValue>
                     </SelectTrigger>
                     <SelectContent className="max-h-[280px]">
