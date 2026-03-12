@@ -128,15 +128,23 @@
 
 @layer utilities {
   .card-surface {
-    background: hsl(200 8% 11%);
-    border: 1px solid hsl(200 4% 16%);
+    background: hsl(var(--card));
+    border: 1px solid hsl(var(--border));
     box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.04), 0 2px 8px rgba(0, 0, 0, 0.5);
   }
 
+  .light .card-surface {
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+  }
+
   .card-elevated {
-    background: hsl(200 6% 9%);
-    border: 1px solid hsl(200 4% 16%);
+    background: hsl(var(--input));
+    border: 1px solid hsl(var(--border));
     box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.06), 0 8px 32px rgba(0, 0, 0, 0.6);
+  }
+
+  .light .card-elevated {
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
   }
 
   .shimmer {
