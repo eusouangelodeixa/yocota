@@ -231,8 +231,8 @@ function CheckoutForm({ checkout: c, lang, t }: { checkout: CheckoutData; lang: 
         key={bp.id}
         className="rounded-[10px] border p-4 cursor-pointer transition-all duration-150"
         style={{
-          borderColor: isSelected ? pc : "#d4d4d8",
-          backgroundColor: isSelected ? pcBg : "#fafafa",
+          borderColor: isSelected ? pc : "#111111",
+          backgroundColor: isSelected ? pcBg : "#ffffff",
         }}
         onClick={() => toggleBump(bp.id)}
       >
@@ -241,7 +241,7 @@ function CheckoutForm({ checkout: c, lang, t }: { checkout: CheckoutData; lang: 
             className="h-4 w-4 shrink-0 rounded-sm border flex items-center justify-center transition-colors"
             style={{
               backgroundColor: isSelected ? pc : "transparent",
-              borderColor: isSelected ? pc : "#d4d4d8",
+              borderColor: isSelected ? pc : "#111111",
             }}
           >
             {isSelected && <CheckCircle2 className="h-3 w-3 text-white" />}
