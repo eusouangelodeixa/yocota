@@ -9,9 +9,10 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
 import { formatCents } from "@/lib/formatters";
-import { Plus, Pencil, Trash2, GitBranch, Copy, Code, ExternalLink, Eye } from "lucide-react";
+import { Plus, Pencil, Trash2, GitBranch, Copy, Code, ExternalLink, Eye, Palette } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { OfferFunnelTree } from "@/components/OfferFunnelTree";
+import { OfferPopupEditor } from "@/components/OfferPopupEditor";
 
 interface OfferForm { name: string; product_id: string; page_url: string; iframe_id: string; accept_next_offer_id: string; reject_next_offer_id: string; }
 const emptyForm: OfferForm = { name: "", product_id: "", page_url: "", iframe_id: "", accept_next_offer_id: "", reject_next_offer_id: "" };
@@ -74,6 +75,7 @@ export default function Offers() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState<OfferForm>(emptyForm);
+  const [designOffer, setDesignOffer] = useState<any | null>(null);
 
   const { data: products } = useQuery({
     queryKey: ["products-active"],
@@ -82,7 +84,7 @@ export default function Offers() {
 
   const { data: offers, isLoading } = useQuery({
     queryKey: ["offers"],
-    queryFn: async () => { const { data, error } = await supabase.from("offers").select("*, products(name, price, currency)").order("created_at", { ascending: false }); if (error) throw error; return data; },
+    queryFn: async () => { const { data, error } = await supabase.from("offers").select("*, products(name, price, currency, description)").order("created_at", { ascending: false }); if (error) throw error; return data; },
   });
 
   const saveMutation = useMutation({
@@ -106,6 +108,24 @@ export default function Offers() {
   const openEdit = (offer: any) => { setEditingId(offer.id); setForm({ name: offer.name, product_id: offer.product_id, page_url: offer.page_url ?? "", iframe_id: offer.iframe_id ?? "", accept_next_offer_id: offer.accept_next_offer_id ?? "", reject_next_offer_id: offer.reject_next_offer_id ?? "" }); setDialogOpen(true); };
   const openNew = () => { setEditingId(null); setForm(emptyForm); setDialogOpen(true); };
   const getOfferName = (id: string | null) => { if (!id) return "—"; return offers?.find((o: any) => o.id === id)?.name ?? "Desconhecida"; };
+
+  // Design editor dialog
+  if (designOffer) {
+    return (
+      <div className="space-y-4">
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="text-lg font-bold text-foreground">Design do Popup — {designOffer.name}</h2>
+            <p className="text-[13px] text-muted-foreground">Personalize a aparência e conteúdo do popup de oferta.</p>
+          </div>
+          <Button variant="outline" size="sm" className="h-9 border-border text-xs" onClick={() => setDesignOffer(null)}>← Voltar para lista</Button>
+        </div>
+        <div className="card-surface rounded-[10px] p-5">
+          <OfferPopupEditor offer={designOffer} onClose={() => setDesignOffer(null)} />
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -175,7 +195,7 @@ export default function Offers() {
                   <TableHead className="text-[11px] uppercase tracking-wider text-muted-foreground font-medium">Modo</TableHead>
                   <TableHead className="text-[11px] uppercase tracking-wider text-muted-foreground font-medium">Se Aceitar</TableHead>
                   <TableHead className="text-[11px] uppercase tracking-wider text-muted-foreground font-medium">Se Recusar</TableHead>
-                  <TableHead className="w-32 text-[11px] uppercase tracking-wider text-muted-foreground font-medium">Ações</TableHead>
+                  <TableHead className="w-36 text-[11px] uppercase tracking-wider text-muted-foreground font-medium">Ações</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -198,6 +218,9 @@ export default function Offers() {
                       <TableCell className="text-[11px] text-muted-foreground">{getOfferName(offer.reject_next_offer_id)}</TableCell>
                       <TableCell>
                         <div className="flex gap-0.5">
+                          <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-foreground" title="Design do popup" onClick={() => setDesignOffer(offer)}>
+                            <Palette className="h-3.5 w-3.5" strokeWidth={1.5} />
+                          </Button>
                           <EmbedCodeDialog offer={offer} />
                           <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-foreground" title="Preview" asChild><a href={`/offer-frame/${offer.id}?preview=1`} target="_blank" rel="noopener noreferrer"><Eye className="h-3.5 w-3.5" strokeWidth={1.5} /></a></Button>
                           <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-foreground" onClick={() => openEdit(offer)}><Pencil className="h-3.5 w-3.5" strokeWidth={1.5} /></Button>
