@@ -1,0 +1,1 @@
+ALTER TABLE public.offers ADD COLUMN popup_style jsonb NOT NULL DEFAULT '{}'::jsonb;

@@ -407,6 +407,7 @@ export type Database = {
           iframe_id: string | null
           name: string
           page_url: string | null
+          popup_style: Json
           product_id: string
           reject_next_offer_id: string | null
         }
@@ -417,6 +418,7 @@ export type Database = {
           iframe_id?: string | null
           name: string
           page_url?: string | null
+          popup_style?: Json
           product_id: string
           reject_next_offer_id?: string | null
         }
@@ -427,6 +429,7 @@ export type Database = {
           iframe_id?: string | null
           name?: string
           page_url?: string | null
+          popup_style?: Json
           product_id?: string
           reject_next_offer_id?: string | null
         }
