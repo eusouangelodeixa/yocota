@@ -38,7 +38,7 @@ serve(async (req) => {
       }
     }
     if (!debitoToken) debitoToken = Deno.env.get("DEBITO_API_TOKEN") || "";
-    if (!mpesaWalletId) mpesaWalletId = Deno.env.get("DEBITO_MPESA_WALLET_ID") || "616644";
+    if (!mpesaWalletId) mpesaWalletId = Deno.env.get("DEBITO_MPESA_WALLET_ID") || "376544";
     if (!emolaWalletId) emolaWalletId = Deno.env.get("DEBITO_EMOLA_WALLET_ID") || "217265";
 
     const params = await req.json();
@@ -67,7 +67,33 @@ serve(async (req) => {
       const finalAmount = totalAmountCents / 100;
       const wallet_id = wallet_type === "mpesa" ? mpesaWalletId : emolaWalletId;
       const uniqueRef = `YCT-${Math.random().toString(36).substring(2, 8).toUpperCase()}`;
+
+      // 1. Save Customer FIRST (before API call)
+      step = "Salvando Dados no Supabase (Customer)";
+      const { data: customer, error: custError } = await supabase.from("customers").upsert({
+        email: customer_email.toLowerCase(), 
+        name: customer_name, 
+        phone: customer_phone,
+        last_wallet_number: msisdn.replace(/\D/g, ""),
+        last_wallet_type: wallet_type
+      }, { onConflict: 'email' }).select().single();
+      if (custError || !customer) throw new Error("Falha ao salvar/encontrar cliente.");
+
+      // 2. Create Order FIRST with pending status (before API call)
+      step = "Salvando Dados no Supabase (Order)";
+      const { data: order, error: ordError } = await supabase.from("orders").insert({
+        checkout_id: checkout.id, customer_id: customer.id, total_amount: totalAmountCents, currency: "MZN", status: "pending", 
+        debito_reference: null, provider_order_id: uniqueRef, payment_provider: "debito",
+        selected_bumps: selected_bump_ids || [],
+        utm_source: utm_data?.utm_source, utm_medium: utm_data?.utm_medium, utm_campaign: utm_data?.utm_campaign
+      }).select().single();
+      if (ordError || !order) throw new Error("Falha ao criar pedido no banco.");
+      console.log(`Pedido criado: ${order.id}, Ref: ${uniqueRef}`);
       
+      // 3. Call Débito API — Await fully to respect synchronous behavior
+      // The M-Pesa C2B API is synchronous and holds the connection until the user enters the PIN.
+      // Deno Deploy kills background processes if we return early, so we MUST await it.
+      // The frontend already shows the "pending" modal before making this request.
       step = "Chamada API Débito";
       console.log(`Enviando para Débito: ${wallet_type}, Valor: ${finalAmount}`);
       
@@ -79,169 +105,249 @@ serve(async (req) => {
 
       const endpoint = `${DEBITO_API_URL}/wallets/${wallet_id}/c2b/${wallet_type}`;
       console.log(`Endpoint: ${endpoint}, Token: ${debitoToken ? debitoToken.substring(0, 8) + '...' : 'EMPTY'}`);
-      const debitoRes = await fetch(endpoint, {
-        method: "POST",
-        headers: { "Authorization": `Bearer ${debitoToken}`, "Content-Type": "application/json", "Accept": "application/json" },
-        body: JSON.stringify(payload),
-      });
-
-      const responseText = await debitoRes.text();
-      let debitoData: any;
+      
       try {
-        debitoData = JSON.parse(responseText);
-      } catch {
-        console.error("Débito API returned non-JSON:", responseText.substring(0, 200));
-        throw new Error(`Erro de comunicação com a API de pagamento (HTTP ${debitoRes.status})`);
+        const debitoRes = await fetch(endpoint, {
+          method: "POST",
+          headers: { "Authorization": `Bearer ${debitoToken}`, "Content-Type": "application/json", "Accept": "application/json" },
+          body: JSON.stringify(payload),
+        });
+
+        const responseText = await debitoRes.text();
+        let debitoData: any;
+        try {
+          debitoData = JSON.parse(responseText);
+        } catch {
+          console.error("Débito API returned non-JSON:", responseText.substring(0, 200));
+          // If we receive a 504 Gateway Timeout HTML page, it means the user took too long to put the PIN.
+          if (!debitoRes.ok || debitoRes.status === 504) {
+            throw new Error(`Timeout ou erro de comunicação com a API de pagamento (HTTP ${debitoRes.status}) - Provavelmente o tempo limite para inserir o PIN expirou.`);
+          }
+          throw new Error(`Resposta inválida da API de pagamento (HTTP ${debitoRes.status})`);
+        }
+
+        if (!debitoRes.ok) {
+          console.error("Erro na API Débito:", debitoData);
+          await supabase.from("orders").update({ status: "failed" }).eq("id", order.id);
+          throw new Error(debitoData.message || `Erro ${debitoRes.status} na Débito`);
+        }
+
+        // Successfully received the response from Débito!
+        // M-Pesa usually responds with SUCCESSFUL if paid directly, eMola responds with PROCESSING.
+        const currentStatus = (debitoData.status || "").toUpperCase();
+        console.log(`Debito API respondeu com status: ${currentStatus}`);
+
+        const finalDebitoRef = debitoData.debito_reference || debitoData.reference || uniqueRef;
+        const updatePayload: any = { debito_reference: finalDebitoRef, provider_order_id: finalDebitoRef };
+        if (["SUCCESS", "PAID", "COMPLETED", "SUCCESSFUL"].includes(currentStatus)) {
+          updatePayload.status = "paid";
+        }
+        
+        await supabase.from("orders").update(updatePayload).eq("id", order.id);
+
+        if (updatePayload.status === "paid" && checkout.first_offer_id) {
+          const { data: existingOffer } = await supabase.from("offer_sessions").select("id").eq("order_id", order.id).maybeSingle();
+          if (!existingOffer) {
+            await supabase.from("offer_sessions").insert({ offer_id: checkout.first_offer_id, order_id: order.id, customer_id: customer.id, debito_reference: finalDebitoRef });
+          }
+        }
+
+        console.log(`Sucesso! Pedido ID: ${order.id}, Ref Débito: ${finalDebitoRef}`);
+        
+        return new Response(JSON.stringify({ 
+          success: true, 
+          debito_reference: finalDebitoRef, 
+          order_id: order.id,
+          status: updatePayload.status === "paid" ? "SUCCESS" : "PENDING"
+        }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 200,
+        });
+
+      } catch (fetchErr: any) {
+        // Here we catch network errors or our manual non-JSON timeout throw
+        console.error("Erro real na chamada Débito:", fetchErr.message);
+        await supabase.from("orders").update({ status: "failed" }).eq("id", order.id);
+        throw fetchErr;
       }
-      if (!debitoRes.ok) {
-        console.error("Erro na API Débito:", debitoData);
-        throw new Error(debitoData.message || `Erro ${debitoRes.status} na Débito`);
-      }
-
-      step = "Salvando Dados no Supabase (Customer)";
-      const { data: customer, error: custError } = await supabase.from("customers").upsert({
-        email: customer_email.toLowerCase(), 
-        name: customer_name, 
-        phone: customer_phone,
-        last_wallet_number: msisdn.replace(/\D/g, ""),
-        last_wallet_type: wallet_type
-      }, { onConflict: 'email' }).select().single();
-      if (custError || !customer) throw new Error("Falha ao salvar/encontrar cliente.");
-
-      step = "Salvando Dados no Supabase (Order)";
-      const { data: order, error: ordError } = await supabase.from("orders").insert({
-        checkout_id: checkout.id, customer_id: customer.id, total_amount: totalAmountCents, currency: "MZN", status: "pending", 
-        debito_reference: debitoData.debito_reference, provider_order_id: uniqueRef, payment_provider: "debito",
-        selected_bumps: selected_bump_ids || [], // Guardando para processar após o pagamento
-        utm_source: utm_data?.utm_source, utm_medium: utm_data?.utm_medium, utm_campaign: utm_data?.utm_campaign
-      }).select().single();
-      if (ordError || !order) throw new Error("Falha ao criar pedido no banco.");
-
-      console.log(`Sucesso! Pedido ID: ${order.id}, Ref Débito: ${debitoData.debito_reference}`);
-      return new Response(JSON.stringify({ success: true, debito_reference: debitoData.debito_reference, order_id: order.id }), {
-        headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 200,
-      });
 
     } else if (action === "status") {
       const { debito_reference } = params;
-      const statusRes = await fetch(`${DEBITO_API_URL}/transactions/${debito_reference}/status`, {
-        headers: { "Authorization": `Bearer ${debitoToken}`, "Accept": "application/json" },
-      });
-      const statusText = await statusRes.text();
-      let statusData: any;
-      try {
-        statusData = JSON.parse(statusText);
-      } catch {
-        console.error("Débito status API returned non-JSON:", statusText.substring(0, 200));
-        throw new Error(`Erro de comunicação com a API de pagamento (HTTP ${statusRes.status})`);
-      }
-      const currentStatus = (statusData.status || "").toUpperCase();
       
-      if (["SUCCESS", "PAID", "COMPLETED"].includes(currentStatus)) {
-        statusData.status = "SUCCESS"; // Normaliza para o frontend
-        // 1. Busca o pedido para processar itens e entregas
-        const { data: order } = await supabase.from("orders")
-          .select("*, checkouts(product_id)")
-          .eq("debito_reference", debito_reference)
-          .maybeSingle();
+      // 1. Always check database first — webhook may have already updated the order
+      const { data: dbOrder } = await supabase.from("orders")
+        .select("*, checkouts(product_id, first_offer_id)")
+        .or(`debito_reference.eq.${debito_reference},provider_order_id.eq.${debito_reference}`)
+        .maybeSingle();
+      
+      // If order is already paid in DB (via webhook), process deliveries and return SUCCESS
+      if (dbOrder?.status === "paid") {
+        console.log("Order já pago no DB (via webhook):", dbOrder.id);
+        
+        // Ensure offer session exists if applicable
+        if (dbOrder.checkouts?.first_offer_id && dbOrder.customer_id) {
+          const { data: existingOffer } = await supabase.from("offer_sessions").select("id").eq("order_id", dbOrder.id).maybeSingle();
+          if (!existingOffer) {
+            await supabase.from("offer_sessions").insert({ offer_id: dbOrder.checkouts.first_offer_id, order_id: dbOrder.id, customer_id: dbOrder.customer_id, debito_reference });
+          }
+        }
 
-        if (order && order.status !== "paid") {
-          console.log("Processando Sucesso de Checkout Principal:", order.id);
-
-          // Atualiza status do pedido para pago
-          await supabase.from("orders").update({ status: "paid" }).eq("id", order.id);
-
-          // Guard against duplicate processing: check if order_items already exist
-          const { data: existingItems } = await supabase.from("order_items").select("id").eq("order_id", order.id).limit(1);
-          if (existingItems && existingItems.length > 0) {
-            console.log("Order items already exist for order:", order.id, "— skipping duplicate processing");
-          } else {
-            // Lista de itens a processar para entrega
-            const productsToRegister: { id: string; type: "main" | "bump" | "upsell" }[] = [
-              { id: order.checkouts.product_id, type: "main" }
-            ];
-
-            // Adiciona os Bumps à lista de registo
-            const selectedBumps = order.selected_bumps as string[];
-            if (selectedBumps && selectedBumps.length > 0) {
-              selectedBumps.forEach(bumpId => productsToRegister.push({ id: bumpId, type: "bump" }));
-            }
-
-            // Regista cada item e dispara entrega
-            for (const item of productsToRegister) {
-              const { data: newItem } = await supabase.from("order_items").insert({
-                order_id: order.id,
-                product_id: item.id,
-                amount: 0, // O valor já foi capturado no total_amount da order
-                type: item.type
-              }).select().single();
-
-              if (newItem) {
-                try {
-                  const deliveryUrl = `${Deno.env.get("SUPABASE_URL")}/functions/v1/delivery-send`;
-                  await fetch(deliveryUrl, {
-                    method: "POST",
-                    headers: {
-                      "Content-Type": "application/json",
-                      "Authorization": `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}`,
-                    },
-                    body: JSON.stringify({ order_id: order.id, order_item_id: newItem.id }),
-                  });
-                } catch (e) {
-                  console.warn(`Falha ao disparar entrega para item ${newItem.id}:`, e);
-                }
-              }
+        // Process deliveries if not yet done
+        const { data: existingItems } = await supabase.from("order_items").select("id").eq("order_id", dbOrder.id).limit(1);
+        if (!existingItems || existingItems.length === 0) {
+          const productsToRegister: { id: string; type: "main" | "bump" | "upsell" }[] = [
+            { id: dbOrder.checkouts.product_id, type: "main" }
+          ];
+          const selectedBumps = dbOrder.selected_bumps as string[];
+          if (selectedBumps && selectedBumps.length > 0) {
+            selectedBumps.forEach(bumpId => productsToRegister.push({ id: bumpId, type: "bump" }));
+          }
+          for (const item of productsToRegister) {
+            const { data: newItem } = await supabase.from("order_items").insert({
+              order_id: dbOrder.id, product_id: item.id, amount: 0, type: item.type
+            }).select().single();
+            if (newItem) {
+              try {
+                await fetch(`${Deno.env.get("SUPABASE_URL")}/functions/v1/delivery-send`, {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json", "Authorization": `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}` },
+                  body: JSON.stringify({ order_id: dbOrder.id, order_item_id: newItem.id }),
+                });
+              } catch (e) { console.warn(`Falha entrega item ${newItem.id}:`, e); }
             }
           }
         }
         
-        // 2. Verifica se é uma referência de Upsell (Lógica já robusta)
-        const { data: upsellSession } = await supabase
-          .from("offer_sessions")
-          .select("*, offers(*, products(*))")
-          .eq("debito_reference", debito_reference)
-          .is("decision", null)
-          .maybeSingle();
+        return new Response(JSON.stringify({ status: "SUCCESS" }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      
+      // If order is failed in DB
+      if (dbOrder?.status === "failed") {
+        return new Response(JSON.stringify({ status: "FAILED" }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      
+      // 2. Order is still pending — try Débito API if we have a real debito_reference
+      const realRef = dbOrder?.debito_reference;
+      if (realRef) {
+        // We have a real Débito reference — check with their API
+        try {
+          const statusRes = await fetch(`${DEBITO_API_URL}/transactions/${realRef}/status`, {
+            headers: { "Authorization": `Bearer ${debitoToken}`, "Accept": "application/json" },
+          });
+          const statusText = await statusRes.text();
+          let statusData: any;
+          try { statusData = JSON.parse(statusText); } catch { statusData = {}; }
+          
+          const currentStatus = (statusData.status || "").toUpperCase();
+          
+          if (["SUCCESS", "PAID", "COMPLETED", "SUCCESSFUL"].includes(currentStatus)) {
+            // Update order to paid
+            if (dbOrder && dbOrder.status !== "paid") {
+              await supabase.from("orders").update({ status: "paid" }).eq("id", dbOrder.id);
+              
+              // Create offer session if needed
+              if (dbOrder.checkouts?.first_offer_id && dbOrder.customer_id) {
+                const { data: existingOffer } = await supabase.from("offer_sessions").select("id").eq("order_id", dbOrder.id).maybeSingle();
+                if (!existingOffer) {
+                  await supabase.from("offer_sessions").insert({ offer_id: dbOrder.checkouts.first_offer_id, order_id: dbOrder.id, customer_id: dbOrder.customer_id, debito_reference: realRef });
+                }
+              }
 
-        if (upsellSession) {
-          console.log("Processando Sucesso de Upsell:", upsellSession.id);
-          const product = upsellSession.offers.products;
-
-          const { data: upsellItem } = await supabase.from("order_items").insert({
-            order_id: upsellSession.order_id,
-            product_id: product.id,
-            amount: product.price,
-            type: "upsell"
-          }).select().single();
-
-          const { data: orderData } = await supabase.from("orders").select("total_amount").eq("id", upsellSession.order_id).single();
-          if (orderData) {
-            await supabase.from("orders").update({ total_amount: orderData.total_amount + product.price }).eq("id", upsellSession.order_id);
-          }
-
-          await supabase.from("offer_sessions").update({ 
-            decision: "accepted", 
-            decided_at: new Date().toISOString() 
-          }).eq("id", upsellSession.id);
-
-          if (upsellItem) {
-            try {
-              const deliveryUrl = `${Deno.env.get("SUPABASE_URL")}/functions/v1/delivery-send`;
-              await fetch(deliveryUrl, {
-                method: "POST",
-                headers: {
-                  "Content-Type": "application/json",
-                  "Authorization": `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}`,
-                },
-                body: JSON.stringify({ order_id: upsellSession.order_id, order_item_id: upsellItem.id }),
-              });
-            } catch (e) {
-              console.warn("Falha ao disparar entrega do Upsell:", e);
+              // Process deliveries
+              const { data: existingItems } = await supabase.from("order_items").select("id").eq("order_id", dbOrder.id).limit(1);
+              if (!existingItems || existingItems.length === 0) {
+                const productsToRegister: { id: string; type: "main" | "bump" | "upsell" }[] = [
+                  { id: dbOrder.checkouts.product_id, type: "main" }
+                ];
+                const selectedBumps = dbOrder.selected_bumps as string[];
+                if (selectedBumps && selectedBumps.length > 0) {
+                  selectedBumps.forEach(bumpId => productsToRegister.push({ id: bumpId, type: "bump" }));
+                }
+                for (const item of productsToRegister) {
+                  const { data: newItem } = await supabase.from("order_items").insert({
+                    order_id: dbOrder.id, product_id: item.id, amount: 0, type: item.type
+                  }).select().single();
+                  if (newItem) {
+                    try {
+                      await fetch(`${Deno.env.get("SUPABASE_URL")}/functions/v1/delivery-send`, {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json", "Authorization": `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}` },
+                        body: JSON.stringify({ order_id: dbOrder.id, order_item_id: newItem.id }),
+                      });
+                    } catch (e) { console.warn(`Falha entrega item ${newItem.id}:`, e); }
+                  }
+                }
+              }
             }
+            
+            return new Response(JSON.stringify({ status: "SUCCESS" }), {
+              headers: { ...corsHeaders, "Content-Type": "application/json" },
+            });
+          } else if (["FAILED", "EXPIRED", "CANCELLED"].includes(currentStatus)) {
+            if (dbOrder) await supabase.from("orders").update({ status: "failed" }).eq("id", dbOrder.id);
+            return new Response(JSON.stringify({ status: "FAILED" }), {
+              headers: { ...corsHeaders, "Content-Type": "application/json" },
+            });
           }
+        } catch (e) {
+          console.warn("Erro ao consultar status na API Débito:", e);
         }
       }
-      return new Response(JSON.stringify(statusData), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      
+      // 3. Still pending (M-Pesa waiting for PIN, or no debito_reference yet)
+      // Check upsell sessions too
+      const { data: upsellSession } = await supabase
+        .from("offer_sessions")
+        .select("*, offers(*, products(*))")
+        .eq("debito_reference", debito_reference)
+        .is("decision", null)
+        .maybeSingle();
+
+      if (upsellSession) {
+        // Check upsell status via Débito API
+        try {
+          const statusRes = await fetch(`${DEBITO_API_URL}/transactions/${debito_reference}/status`, {
+            headers: { "Authorization": `Bearer ${debitoToken}`, "Accept": "application/json" },
+          });
+          const statusData = await statusRes.json();
+          const currentStatus = (statusData.status || "").toUpperCase();
+          
+          if (["SUCCESS", "PAID", "COMPLETED", "SUCCESSFUL"].includes(currentStatus)) {
+            const product = upsellSession.offers.products;
+            const { data: upsellItem } = await supabase.from("order_items").insert({
+              order_id: upsellSession.order_id, product_id: product.id, amount: product.price, type: "upsell"
+            }).select().single();
+            
+            const { data: orderData } = await supabase.from("orders").select("total_amount").eq("id", upsellSession.order_id).single();
+            if (orderData) {
+              await supabase.from("orders").update({ total_amount: orderData.total_amount + product.price }).eq("id", upsellSession.order_id);
+            }
+            await supabase.from("offer_sessions").update({ decision: "accepted", decided_at: new Date().toISOString() }).eq("id", upsellSession.id);
+            
+            if (upsellItem) {
+              try {
+                await fetch(`${Deno.env.get("SUPABASE_URL")}/functions/v1/delivery-send`, {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json", "Authorization": `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}` },
+                  body: JSON.stringify({ order_id: upsellSession.order_id, order_item_id: upsellItem.id }),
+                });
+              } catch (e) { console.warn("Falha entrega upsell:", e); }
+            }
+            
+            return new Response(JSON.stringify({ status: "SUCCESS" }), {
+              headers: { ...corsHeaders, "Content-Type": "application/json" },
+            });
+          }
+        } catch (e) { console.warn("Erro status upsell:", e); }
+      }
+      
+      // Return pending — frontend will keep polling
+      return new Response(JSON.stringify({ status: "PENDING" }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
     }
 
     throw new Error("Ação inválida");

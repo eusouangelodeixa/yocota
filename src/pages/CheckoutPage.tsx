@@ -110,7 +110,7 @@ function CheckoutForm({ checkout: c, lang, t, detectedCountry }: { checkout: Che
             setOrderStatus("paid");
             clearInterval(pollInterval);
             setTimeout(() => {
-              const successUrl = c.first_offer_id ? `/success/${c.id}?order_id=${lastOrderDetails.id}` : `${c.redirect_url}${c.redirect_url.includes("?") ? "&" : "?"}order_id=${lastOrderDetails.id}&debito_reference=${lastOrderDetails.ref}`;
+              const successUrl = c.first_offer_id ? `/success/${c.id}?order_id=${lastOrderDetails.id}&debito_reference=${lastOrderDetails.ref}` : `${c.redirect_url}${c.redirect_url.includes("?") ? "&" : "?"}order_id=${lastOrderDetails.id}&debito_reference=${lastOrderDetails.ref}`;
               window.location.href = successUrl;
             }, 800);
           } else if (statusData?.status === "FAILED") {
@@ -146,16 +146,31 @@ function CheckoutForm({ checkout: c, lang, t, detectedCountry }: { checkout: Che
       setModalCountdown(120);
       
       try {
-        console.log("Iniciando Invoke para process-debito-payment...");
-        const { data: debitoData, error: debitoError } = await supabase.functions.invoke("process-debito-payment", {
-          body: { action: "initiate", checkout_id: c.id, customer_name: customerName, customer_email: email, customer_phone: fullPhone, wallet_type: walletType, msisdn, selected_bump_ids: bumpIdsArray, utm_data: utms, amount: totalAmount() / 100 }
+        console.log("Iniciando fetch nativo para process-debito-payment para evitar bloqueio do Supabase...");
+        const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+        const supabaseAnonKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+
+        const response = await fetch(`${supabaseUrl}/functions/v1/process-debito-payment`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${supabaseAnonKey}`,
+          },
+          body: JSON.stringify({ 
+            action: "initiate", checkout_id: c.id, customer_name: customerName, 
+            customer_email: email, customer_phone: fullPhone, wallet_type: walletType, 
+            msisdn, selected_bump_ids: bumpIdsArray, utm_data: utms, amount: totalAmount() / 100 
+          })
         });
 
-        if (debitoError) {
-          console.error("Erro no Invoke:", debitoError);
-          setShowPaymentModal(false);
-          throw new Error(`Falha na comunicação: ${debitoError.message}`);
+        if (!response.ok) {
+          if (response.status === 504 || response.status === 502) {
+            throw new Error(`A operadora (${walletType}) não está a responder no momento (timeout). Verifique se o telemóvel tem sinal e tente de novo.`);
+          }
+          throw new Error(`Falha técnica no servidor de pagamentos: Erro ${response.status}`);
         }
+
+        const debitoData = await response.json();
 
         if (!debitoData?.success) {
           console.error("Erro retornado pela função:", debitoData?.error);
@@ -163,10 +178,22 @@ function CheckoutForm({ checkout: c, lang, t, detectedCountry }: { checkout: Che
           throw new Error(debitoData?.error || "Ocorreu um erro ao processar o pagamento.");
         }
 
-        setLastOrderDetails({ id: debitoData.order_id, ref: debitoData.debito_reference });
+        if (debitoData?.status === "SUCCESS") {
+          setOrderStatus("paid");
+          setTimeout(() => {
+            if (c.first_offer_id) {
+              window.location.href = `/success/${c.id}?order_id=${debitoData.order_id}&debito_reference=${debitoData.debito_reference}`;
+            } else {
+              const base = c.redirect_url.startsWith("http") ? c.redirect_url : `https://${c.redirect_url}`;
+              window.location.href = `${base}${base.includes("?") ? "&" : "?"}order_id=${debitoData.order_id}&debito_reference=${debitoData.debito_reference}`;
+            }
+          }, 800);
+        } else {
+          setLastOrderDetails({ id: debitoData.order_id, ref: debitoData.debito_reference });
+        }
       } catch (err: any) {
         console.error("Catch no CheckoutPage:", err);
-        toast.error("Compra cancelada", { duration: 5000 });
+        toast.error(err.message || "Compra cancelada", { duration: 5000 });
         setShowPaymentModal(false);
       } finally {
         setProcessing(false);
@@ -186,9 +213,15 @@ function CheckoutForm({ checkout: c, lang, t, detectedCountry }: { checkout: Che
       });
       if (stripeError) throw new Error(stripeError.message);
       if (paymentIntent?.status === "succeeded") {
-        setTimeout(() => { window.location.href = c.first_offer_id ? `/success/${c.id}?pi=${paymentIntent.id}` : c.redirect_url; }, 800);
+        setTimeout(() => {
+          if (c.first_offer_id) {
+            window.location.href = `/success/${c.id}?payment_intent_id=${paymentIntent.id}&order_id=${intentData.order_id}`;
+          } else {
+            window.location.href = c.redirect_url.startsWith("http") ? c.redirect_url : `https://${c.redirect_url}`;
+          }
+        }, 800);
       }
-    } catch (err: any) { console.error("Stripe error:", err); toast.error("Compra cancelada"); } finally { setProcessing(false); }
+    } catch (err: any) { console.error("Stripe error:", err); toast.error(err.message || "Compra cancelada"); } finally { setProcessing(false); }
   };
 
   const currencyStr = isMZN ? "MTn" : c.product.currency;

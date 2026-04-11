@@ -16,9 +16,9 @@ import { OfferPopupEditor } from "@/components/OfferPopupEditor";
 
 interface OfferForm { name: string; product_id: string; page_url: string; iframe_id: string; accept_next_offer_id: string; reject_next_offer_id: string; }
 const emptyForm: OfferForm = { name: "", product_id: "", page_url: "", iframe_id: "", accept_next_offer_id: "", reject_next_offer_id: "" };
-
 function EmbedCodeDialog({ offer }: { offer: any }) {
-  const appUrl = window.location.origin;
+  const appUrl = import.meta.env.VITE_FRONTEND_URL || window.location.origin;
+  const isLocalhost = appUrl.includes("localhost") || appUrl.includes("127.0.0.1");
   const iframeId = offer.iframe_id || "offer-iframe-" + offer.id.slice(0, 8);
   const embedCode = `<!-- Iframe de Oferta: ${offer.name} -->\n<div id="offer-container-${iframeId}" style="width:100%;min-height:500px;">\n  <iframe id="${iframeId}" style="width:100%;min-height:500px;border:none;" title="Oferta Especial" allow="payment" loading="lazy"></iframe>\n</div>\n<script>\n(function() {\n  var params = new URLSearchParams(window.location.search);\n  var token = params.get('offer_token');\n  var iframe = document.getElementById('${iframeId}');\n  var container = document.getElementById('offer-container-${iframeId}');\n  if (token) { iframe.src = '${appUrl}/offer-frame/' + token; } else { container.style.display = 'none'; }\n  window.addEventListener('message', function(event) {\n    if (event.data && event.data.type === 'offer-complete') {\n      var nextToken = event.data.nextToken;\n      var nextPageUrl = event.data.nextPageUrl;\n      if (nextPageUrl && nextToken) { window.location.href = nextPageUrl + (nextPageUrl.indexOf('?') > -1 ? '&' : '?') + 'offer_token=' + nextToken; }\n      else if (nextToken) { iframe.src = '${appUrl}/offer-frame/' + nextToken; }\n      else { container.innerHTML = '<div style="text-align:center;padding:40px;"><h3>Obrigado!</h3></div>'; }\n    }\n  });\n})();\n</script>`;
   const previewUrl = `${appUrl}/offer-frame/${offer.id}?preview=1`;
@@ -33,6 +33,18 @@ function EmbedCodeDialog({ offer }: { offer: any }) {
           <DialogTitle className="text-base">Código do Iframe — {offer.name}</DialogTitle>
           <p className="text-[13px] text-muted-foreground">Cole este código na sua página de vendas externa.</p>
         </DialogHeader>
+        
+        {isLocalhost && (
+          <div className="bg-[#f59e0b]/10 border border-[#f59e0b]/20 p-3 rounded-lg mb-2">
+            <p className="text-[12px] text-[#f59e0b] font-medium leading-tight">
+              ⚠️ Aviso: Está a gerar este código num ambiente Local.
+            </p>
+            <p className="text-[11px] text-[#f59e0b]/80 mt-1">
+              O iframe vai tentar carregar `http://localhost...`. Se colar isto numa página da web segura (`https://`), o browser vai bloquear por razões de segurança (Mixed Content). Use o código de um ambiente publicado.
+            </p>
+          </div>
+        )}
+
         <div className="space-y-4">
           <div className="space-y-1.5">
             <Label className="text-xs text-muted-foreground">Preview (testar visual)</Label>

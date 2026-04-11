@@ -422,7 +422,7 @@ export default function Settings() {
               <SecretInput label="Débito API Token" value={apiKeys.debito_api_token} onChange={(v) => setApiKeys((f) => ({ ...f, debito_api_token: v }))} placeholder="Iniciado com eyJ0eXAi..." />
               <div className="space-y-1.5">
                 <Label className="text-xs font-medium text-muted-foreground">ID Carteira M-Pesa</Label>
-                <Input value={apiKeys.debito_mpesa_wallet} onChange={(e) => setApiKeys((f) => ({ ...f, debito_mpesa_wallet: e.target.value }))} placeholder="616644" className="h-10 text-xs font-mono" />
+                <Input value={apiKeys.debito_mpesa_wallet} onChange={(e) => setApiKeys((f) => ({ ...f, debito_mpesa_wallet: e.target.value }))} placeholder="376544" className="h-10 text-xs font-mono" />
               </div>
               <div className="space-y-1.5">
                 <Label className="text-xs font-medium text-muted-foreground">ID Carteira eMola</Label>

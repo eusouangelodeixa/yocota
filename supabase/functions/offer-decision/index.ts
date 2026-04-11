@@ -153,7 +153,7 @@ serve(async (req) => {
           }
         }
         if (!debitoToken) debitoToken = Deno.env.get("DEBITO_API_TOKEN") || "";
-        if (!mpesaWalletId) mpesaWalletId = Deno.env.get("DEBITO_MPESA_WALLET_ID") || "616644";
+        if (!mpesaWalletId) mpesaWalletId = Deno.env.get("DEBITO_MPESA_WALLET_ID") || "376544";
         if (!emolaWalletId) emolaWalletId = Deno.env.get("DEBITO_EMOLA_WALLET_ID") || "217265";
 
         const msisdn = customer.last_wallet_number.replace(/\D/g, "");

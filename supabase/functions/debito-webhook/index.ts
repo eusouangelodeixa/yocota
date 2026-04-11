@@ -73,6 +73,15 @@ serve(async (req) => {
 
         console.log(`Order ${order.id} marked as paid via webhook`);
 
+        // Create offer session if needed
+        const { data: checkout } = await supabase.from("checkouts").select("first_offer_id").eq("id", order.checkout_id).single();
+        if (checkout?.first_offer_id && order.customer_id) {
+          const { data: existingOffer } = await supabase.from("offer_sessions").select("id").eq("order_id", order.id).maybeSingle();
+          if (!existingOffer) {
+            await supabase.from("offer_sessions").insert({ offer_id: checkout.first_offer_id, order_id: order.id, customer_id: order.customer_id, debito_reference: finalRef });
+          }
+        }
+
         // 4. Trigger delivery for each item
         if (order.order_items && order.order_items.length > 0) {
           for (const item of order.order_items) {

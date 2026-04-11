@@ -13,6 +13,7 @@ export default function SuccessPage() {
   const [searchParams] = useSearchParams();
   const paymentIntentId = searchParams.get("payment_intent_id");
   const debitoReference = searchParams.get("debito_reference");
+  const urlOrderId = searchParams.get("order_id");
 
   const [state, setState] = useState<"loading" | "offer-inline" | "done" | "error">("loading");
   const [redirectUrl, setRedirectUrl] = useState<string>("");
@@ -21,39 +22,39 @@ export default function SuccessPage() {
   useDocTitle("Pagamento confirmado");
 
   useEffect(() => {
-    if (!checkoutId || (!paymentIntentId && !debitoReference)) { setState("error"); return; }
+    if (!checkoutId || (!paymentIntentId && !debitoReference && !urlOrderId)) { setState("error"); return; }
+
+    const formatAbsoluteUrl = (url: string) => url.startsWith("http") ? url : `https://${url}`;
 
     // Fetch checkout config once upfront (parallel with first poll)
     let checkoutData: { redirect_url: string; first_offer_id: string | null } | null = null;
     const fetchCheckout = supabase.from("checkouts").select("redirect_url, first_offer_id").eq("id", checkoutId).single()
-      .then(({ data }) => { checkoutData = data; if (data?.redirect_url) setRedirectUrl(data.redirect_url); });
+      .then(({ data }) => { 
+        checkoutData = data; 
+        if (data?.redirect_url) setRedirectUrl(formatAbsoluteUrl(data.redirect_url)); 
+      });
 
     let attempts = 0;
-    const maxAttempts = 40;
+    const maxAttempts = 20;
     const poll = async () => {
       attempts++;
       await fetchCheckout; // ensure checkout is loaded (resolves instantly after first call)
 
-      // Combined query: look for order + offer_session in parallel
-      let orderId: string | null = null;
-      if (paymentIntentId) {
+      let orderId: string | null = urlOrderId || null;
+      
+      // Fallback: Se não trouxe order_id na URL (ex: Stripe redirecionou direto sem ele), tenta buscar pelo intent
+      if (!orderId && paymentIntentId) {
         const { data: order } = await supabase.from("orders").select("id").eq("stripe_payment_intent_id", paymentIntentId).eq("status", "paid").maybeSingle();
         orderId = order?.id || null;
-      } else if (debitoReference) {
-        const { data: statusData } = await supabase.functions.invoke("process-debito-payment", { body: { action: "status", debito_reference: debitoReference } });
-        if (statusData?.status === "SUCCESS" || statusData?.status === "PAID") {
-          const { data: order } = await supabase.from("orders").select("id").eq("debito_reference", debitoReference).eq("status", "paid").maybeSingle();
-          orderId = order?.id || null;
-        }
       }
 
       if (!orderId) {
         if (attempts >= maxAttempts) {
-          if (checkoutData?.redirect_url) window.location.href = checkoutData.redirect_url;
+          if (checkoutData?.redirect_url) window.location.href = formatAbsoluteUrl(checkoutData.redirect_url);
           else setState("done");
           return;
         }
-        setTimeout(poll, debitoReference ? 2000 : (attempts <= 10 ? 200 : 400));
+        setTimeout(poll, 1000); // Polling ameno (1s) apenas se não houver order_id imediato
         return;
       }
 
