@@ -1,0 +1,375 @@
+openapi: 3.0.3
+info:
+    title: 'Débito API Documentation'
+    description: ''
+    version: 1.0.0
+servers:
+    - url: 'http://localhost:9000'
+tags:
+    - name: Authentication
+      description: ''
+    - name: 'Card Transactions'
+      description: ''
+    - name: 'eMola Transactions'
+      description: ''
+    - name: 'M-Pesa Transactions'
+      description: ''
+    - name: 'Transaction Queries'
+      description: ''
+
+paths:
+    /api/v1/register:
+        post:
+            summary: 'Registar Novo Utilizador'
+            operationId: registarNovoUtilizador
+            description: 'Cria uma nova conta de utilizador e retorna credenciais de autenticação.'
+            parameters: []
+            responses: {}
+            tags:
+                - Authentication
+            security: []
+    /api/v1/login:
+        post:
+            summary: 'Obter Token'
+            operationId: obterToken
+            description: 'Autentica um utilizador com email e password, retornando um Personal Access Token (PAT).'
+            parameters: []
+            responses: {}
+            tags:
+                - Authentication
+            security: []
+    '/api/v1/wallets/{wallet_id}/card-payment':
+        post:
+            summary: 'Pagamento com Cartão'
+            operationId: pagamentoComCarto
+            description: 'Permite a um utilizador autenticado iniciar um pagamento direto usando cartão de crédito/débito via Mastercard Payment Gateway.'
+            parameters: []
+            responses: {}
+            tags:
+                - 'Card Transactions'
+            requestBody:
+                required: true
+                content:
+                    application/json:
+                        schema:
+                            type: object
+                            properties:
+                                amount:
+                                    type: number
+                                    description: 'Must be at least 1.'
+                                    example: 73
+                                reference_description:
+                                    type: string
+                                    description: 'Must not be greater than 100 characters.'
+                                    example: mqeopfuudtdsufvyvddqa
+                                first_name:
+                                    type: string
+                                    description: 'Must not be greater than 100 characters.'
+                                    example: mniihfqcoynlazghdtqtq
+                                    nullable: true
+                                last_name:
+                                    type: string
+                                    description: 'Must not be greater than 100 characters.'
+                                    example: xbajwbpilpmufinllwloa
+                                    nullable: true
+                                email:
+                                    type: string
+                                    description: 'Must be a valid email address. Must not be greater than 150 characters.'
+                                    example: dwill@example.org
+                                    nullable: true
+                                phone:
+                                    type: string
+                                    description: 'Must not be greater than 30 characters.'
+                                    example: smsjuryvojcybzvrbyick
+                                    nullable: true
+                                callback_url:
+                                    type: string
+                                    description: 'Must be a valid URL. Must not be greater than 255 characters.'
+                                    example: 'https://lemke.com/voluptatem-dignissimos-error-sit-labore-quos-ea-rerum-repudiandae.html'
+                                    nullable: true
+                            required:
+                                - amount
+                                - reference_description
+        parameters:
+            - in: path
+              name: wallet_id
+              description: 'The ID of the wallet.'
+              example: 122767
+              required: true
+              schema:
+                  type: integer
+    '/api/v1/wallets/{wallet_id}/c2b/mpesa':
+        post:
+            summary: 'Pagamento C2B M-Pesa'
+            operationId: pagamentoC2BMPesa
+            description: 'Permite a um utilizador autenticado iniciar um pedido de pagamento M-Pesa de Cliente para Negócio.'
+            parameters: []
+            responses: {}
+            tags:
+                - 'M-Pesa Transactions'
+        parameters:
+            - in: path
+              name: wallet_id
+              description: 'The ID of the wallet.'
+              example: 122767
+              required: true
+              schema:
+                  type: integer
+    '/api/v1/wallets/{wallet_id}/b2c/mpesa':
+        post:
+            summary: 'Pagamento B2C M-Pesa'
+            operationId: pagamentoB2CMPesa
+            description: 'Permite a um utilizador autenticado (com subscrição e permissão apropriada) iniciar um pagamento M-Pesa de Negócio para Cliente.'
+            parameters: []
+            responses: {}
+            tags:
+                - 'M-Pesa Transactions'
+        parameters:
+            - in: path
+              name: wallet_id
+              description: 'The ID of the wallet.'
+              example: 122767
+              required: true
+              schema:
+                  type: integer
+    '/api/v1/transactions/{debito_reference}/status':
+        get:
+            summary: 'Status da transação'
+            operationId: statusDaTransao
+            description: 'Permite a um utilizador autenticado consultar o status de uma transação previamente iniciada usando a referência Debito.'
+            parameters: []
+            responses:
+                401:
+                    description: ''
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                example:
+                                    message: Unauthenticated.
+                                properties:
+                                    message:
+                                        type: string
+                                        example: Unauthenticated.
+            tags:
+                - 'Transaction Queries'
+        parameters:
+            - in: path
+              name: debito_reference
+              description: ''
+              example: consequatur
+              required: true
+              schema:
+                  type: string
+    '/api/v1/wallets/{wallet_id}/c2b/emola':
+        post:
+            summary: 'Pagamento C2B eMola (Cliente → Negócio)'
+            operationId: pagamentoC2BEMolaClienteNegcio
+            description: "Permite a um utilizador autenticado iniciar um pedido de pagamento via eMola (C2B).\nEste endpoint valida e cria uma transação Débito e encaminha para o provedor eMola."
+            parameters: []
+            responses:
+                200:
+                    description: ''
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                example:
+                                    message: 'Transação iniciada com sucesso'
+                                    debito_reference: SFDS8K7M2N4P6Q9R3T5X1DBT
+                                    status: PENDING
+                                    transaction_id: 12345
+                                    provider_reference: null
+                                    provider_response_code: null
+                                properties:
+                                    message:
+                                        type: string
+                                        example: 'Transação iniciada com sucesso'
+                                    debito_reference:
+                                        type: string
+                                        example: SFDS8K7M2N4P6Q9R3T5X1DBT
+                                    status:
+                                        type: string
+                                        example: PENDING
+                                    transaction_id:
+                                        type: integer
+                                        example: 12345
+                                    provider_reference:
+                                        type: string
+                                        example: null
+                                    provider_response_code:
+                                        type: string
+                                        example: null
+                400:
+                    description: ''
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                example:
+                                    message: 'Erro de validação ou negócio'
+                                    errors:
+                                        amount:
+                                            - 'O campo amount é obrigatório'
+                                properties:
+                                    message:
+                                        type: string
+                                        example: 'Erro de validação ou negócio'
+                                    errors:
+                                        type: object
+                                        properties:
+                                            amount:
+                                                type: array
+                                                example:
+                                                    - 'O campo amount é obrigatório'
+                                                items:
+                                                    type: string
+                403:
+                    description: ''
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                example:
+                                    message: 'Acesso não autorizado ou carteira inativa'
+                                properties:
+                                    message:
+                                        type: string
+                                        example: 'Acesso não autorizado ou carteira inativa'
+            tags:
+                - 'eMola Transactions'
+            requestBody:
+                required: true
+                content:
+                    application/json:
+                        schema:
+                            type: object
+                            properties:
+                                msisdn:
+                                    type: string
+                                    description: 'Número do cliente (format: 84xxxxxxx)'
+                                    example: '841234567'
+                                amount:
+                                    type: number
+                                    description: 'Valor da transação (MZN)'
+                                    example: 100.0
+                                reference_description:
+                                    type: string
+                                    description: 'Descrição da referência (3-32 chars)'
+                                    example: 'Pagamento de serviço'
+                                internal_notes:
+                                    type: string
+                                    description: 'nullable Notas internas'
+                                    example: "Observação opcional\n\n### Regras importantes\n- `msisdn` deve respeitar o formato nacional (ex.: 84xxxxxxx para eMola).\n- `amount` deve ser numérico e >= 1 (máx configurado: 50000)."
+                            required:
+                                - msisdn
+                                - amount
+                                - reference_description
+        parameters:
+            - in: path
+              name: wallet_id
+              description: 'The ID of the wallet.'
+              example: 122767
+              required: true
+              schema:
+                  type: integer
+    '/api/v1/wallets/{wallet_id}/b2c/emola':
+        post:
+            summary: 'Pagamento B2C eMola (Negócio → Cliente)'
+            operationId: pagamentoB2CEMolaNegcioCliente
+            description: "Permite a um utilizador autenticado (com subscrição B2C válida) iniciar um pagamento eMola para um cliente.\nOs parâmetros são os mesmos do C2B; o provedor e a carteira devem estar habilitados para B2C."
+            parameters: []
+            responses:
+                200:
+                    description: ''
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                example:
+                                    message: 'Transação B2C iniciada com sucesso'
+                                    debito_reference: A7K9X2B4M5N8P3Q6R1T4DBT
+                                    status: PENDING
+                                    transaction_id: 22345
+                                    provider_reference: null
+                                    provider_response_code: null
+                                properties:
+                                    message:
+                                        type: string
+                                        example: 'Transação B2C iniciada com sucesso'
+                                    debito_reference:
+                                        type: string
+                                        example: A7K9X2B4M5N8P3Q6R1T4DBT
+                                    status:
+                                        type: string
+                                        example: PENDING
+                                    transaction_id:
+                                        type: integer
+                                        example: 22345
+                                    provider_reference:
+                                        type: string
+                                        example: null
+                                    provider_response_code:
+                                        type: string
+                                        example: null
+                400:
+                    description: ''
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                example:
+                                    message: 'Erro de validação ou negócio'
+                                    errors:
+                                        msisdn:
+                                            - 'Formato inválido'
+                                properties:
+                                    message:
+                                        type: string
+                                        example: 'Erro de validação ou negócio'
+                                    errors:
+                                        type: object
+                                        properties:
+                                            msisdn:
+                                                type: array
+                                                example:
+                                                    - 'Formato inválido'
+                                                items:
+                                                    type: string
+            tags:
+                - 'eMola Transactions'
+            requestBody:
+                required: true
+                content:
+                    application/json:
+                        schema:
+                            type: object
+                            properties:
+                                msisdn:
+                                    type: string
+                                    description: 'Número do cliente destinatário'
+                                    example: '841234567'
+                                amount:
+                                    type: number
+                                    description: 'Valor a enviar (MZN)'
+                                    example: 50.0
+                                reference_description:
+                                    type: string
+                                    description: 'Descrição da referência'
+                                    example: 'Pagamento de vencimento'
+                                internal_notes:
+                                    type: string
+                                    description: 'nullable Notas internas'
+                                    example: 'Pagamento referente ao mês de Maio'
+                            required:
+                                - msisdn
+                                - amount
+                                - reference_description
+        parameters:
+            - in: path
+              name: wallet_id
+              description: 'The ID of the wallet.'
+              example: 122767
+              required: true
+              schema:
+                  type: integer

@@ -95,6 +95,7 @@ export default function Dashboard() {
   const [customFrom, setCustomFrom] = useState<Date>();
   const [customTo, setCustomTo] = useState<Date>();
   const [calendarOpen, setCalendarOpen] = useState(false);
+  const [selectedCurrency, setSelectedCurrency] = useState<"MZN" | "USD" | "EUR" | "BRL">("MZN");
 
   const dateRange = useMemo(() => getDateRange(preset, customFrom, customTo), [preset, customFrom, customTo]);
 
@@ -124,9 +125,13 @@ export default function Dashboard() {
     if (!allData) return null;
     const { orders, orderItems, abandoned } = allData;
 
-    const filteredOrders = orders.filter((o: any) =>
-      isWithinInterval(new Date(o.created_at), { start: dateRange.from, end: dateRange.to })
-    );
+    const filteredOrders = orders.filter((o: any) => {
+      const dateMatch = isWithinInterval(new Date(o.created_at), { start: dateRange.from, end: dateRange.to });
+      if (!dateMatch) return false;
+      
+      const currency = (o.currency || "eur").toUpperCase();
+      return currency === selectedCurrency;
+    });
     const paidOrders = filteredOrders.filter((o: any) => o.status === "paid");
 
     // Group revenue by currency
@@ -175,7 +180,7 @@ export default function Dashboard() {
       dayMap[day] = (dayMap[day] || 0) + (o as any).total_amount;
     }
     const chartData = Object.entries(dayMap).map(([day, value]) => ({ day, value }));
-    const chartCurrency = paidOrders[0]?.currency || "eur";
+    const chartCurrency = selectedCurrency;
 
     return {
       productsCount: allData.productsCount,
@@ -192,7 +197,7 @@ export default function Dashboard() {
       chartData,
       chartCurrency,
     };
-  }, [allData, dateRange]);
+  }, [allData, dateRange, selectedCurrency]);
 
   if (isLoading) {
     return (
@@ -205,20 +210,20 @@ export default function Dashboard() {
     );
   }
 
-  const formatByCurrency = (map: Record<string, number> | undefined) => {
-    if (!map || Object.keys(map).length === 0) return formatCents(0);
+  const formatByCurrency = (map: Record<string, number> | undefined, fallback: string = "EUR") => {
+    if (!map || Object.keys(map).length === 0) return formatCents(0, fallback);
     return Object.entries(map)
       .map(([cur, amount]) => formatCents(amount, cur))
       .join(" + ");
   };
 
   const kpis = [
-    { label: "RECEITA TOTAL", value: formatByCurrency(stats?.revenueByCurrency), change: null },
+    { label: "RECEITA TOTAL", value: formatByCurrency(stats?.revenueByCurrency, selectedCurrency), change: null },
     { label: "PEDIDOS PAGOS", value: stats?.totalOrders ?? 0, change: null },
     { label: "PRODUTOS ATIVOS", value: stats?.productsCount ?? 0, change: null },
     { label: "CHECKOUTS ATIVOS", value: stats?.checkoutsCount ?? 0, change: null },
-    { label: "RECEITA UPSELLS", value: formatByCurrency(stats?.upsellByCurrency), change: null },
-    { label: "RECEITA BUMPS", value: formatByCurrency(stats?.bumpByCurrency), change: null },
+    { label: "RECEITA UPSELLS", value: formatByCurrency(stats?.upsellByCurrency, selectedCurrency), change: null },
+    { label: "RECEITA BUMPS", value: formatByCurrency(stats?.bumpByCurrency, selectedCurrency), change: null },
     { label: "TAXA RECUPERAÇÃO", value: `${(stats?.recoveryRate ?? 0).toFixed(1)}%`, change: null },
     { label: "ABANDONOS", value: `${stats?.recoveredCount ?? 0}/${stats?.totalAbandoned ?? 0}`, change: null },
   ];
@@ -227,7 +232,24 @@ export default function Dashboard() {
     <div className="space-y-6">
       {/* Header + Filter */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-        <h2 className="text-lg font-bold text-foreground">Dashboard</h2>
+        <div className="flex flex-col gap-1">
+          <h2 className="text-lg font-bold text-foreground">Dashboard</h2>
+          <div className="flex items-center gap-2 mt-1">
+            {(["MZN", "USD", "EUR", "BRL"] as const).map((cur) => (
+              <button
+                key={cur}
+                onClick={() => setSelectedCurrency(cur)}
+                className={`px-3 py-1 rounded-md text-[10px] font-bold uppercase tracking-tight transition-all ${
+                  selectedCurrency === cur 
+                    ? (cur === "MZN" ? "bg-[#28d56a] text-white" : "bg-primary text-primary-foreground")
+                    : "bg-secondary text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                {cur}
+              </button>
+            ))}
+          </div>
+        </div>
         <div className="flex items-center gap-1">
           {(["today", "7d", "30d", "year"] as FilterPreset[]).map((p) => (
             <button

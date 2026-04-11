@@ -29,6 +29,14 @@ export interface CheckoutTranslations {
   notFound: string;
   notFoundDesc: string;
   defaultCta: string;
+  mobileWallet: string;
+  payWithMobileWallet: string;
+  selectWallet: string;
+  mPesa: string;
+  eMola: string;
+  invalidMpesa: string;
+  invalidEmola: string;
+  phone9Digits: string;
 }
 
 const pt: CheckoutTranslations = {
@@ -60,6 +68,14 @@ const pt: CheckoutTranslations = {
   notFound: "Página não encontrada",
   notFoundDesc: "Este checkout não existe ou foi desativado.",
   defaultCta: "Finalizar compra",
+  mobileWallet: "Carteira Móvel",
+  payWithMobileWallet: "Pagar com Carteira Móvel",
+  selectWallet: "Selecione a carteira",
+  mPesa: "M-Pesa",
+  eMola: "e-Mola",
+  invalidMpesa: "M-Pesa deve começar com 84 ou 85",
+  invalidEmola: "e-Mola deve começar com 86 ou 87",
+  phone9Digits: "O número deve ter exatamente 9 dígitos",
 };
 
 const en: CheckoutTranslations = {
@@ -91,6 +107,14 @@ const en: CheckoutTranslations = {
   notFound: "Page not found",
   notFoundDesc: "This checkout does not exist or has been deactivated.",
   defaultCta: "Complete purchase",
+  mobileWallet: "Mobile Wallet",
+  payWithMobileWallet: "Pay with Mobile Wallet",
+  selectWallet: "Select wallet",
+  mPesa: "M-Pesa",
+  eMola: "e-Mola",
+  invalidMpesa: "M-Pesa must start with 84 or 85",
+  invalidEmola: "e-Mola must start with 86 or 87",
+  phone9Digits: "Number must have exactly 9 digits",
 };
 
 const es: CheckoutTranslations = {
@@ -120,8 +144,16 @@ const es: CheckoutTranslations = {
   fillAllFields: "Complete todos los campos correctamente",
   cardLoadError: "Error al cargar el campo de tarjeta",
   notFound: "Página no encontrada",
-  notFoundDesc: "Este checkout no existe o ha sido desactivado.",
+  notFoundDesc: "Este checkout não existe ou tem sido desativado.",
   defaultCta: "Finalizar compra",
+  mobileWallet: "Billetera Móvil",
+  payWithMobileWallet: "Pagar con Billetera Móvil",
+  selectWallet: "Seleccionar billetera",
+  mPesa: "M-Pesa",
+  eMola: "e-Mola",
+  invalidMpesa: "M-Pesa debe comenzar con 84 u 85",
+  invalidEmola: "e-Mola debe comenzar con 86 u 87",
+  phone9Digits: "El número debe tener exactamente 9 dígitos",
 };
 
 const fr: CheckoutTranslations = {
@@ -153,6 +185,14 @@ const fr: CheckoutTranslations = {
   notFound: "Page non trouvée",
   notFoundDesc: "Ce checkout n'existe pas ou a été désactivé.",
   defaultCta: "Finaliser l'achat",
+  mobileWallet: "Portefeuille Mobile",
+  payWithMobileWallet: "Payer avec Portefeuille Mobile",
+  selectWallet: "Choisir le portefeuille",
+  mPesa: "M-Pesa",
+  eMola: "e-Mola",
+  invalidMpesa: "M-Pesa doit commencer par 84 ou 85",
+  invalidEmola: "e-Mola doit commencer par 86 ou 87",
+  phone9Digits: "Le numéro doit comporter exactement 9 chiffres",
 };
 
 const de: CheckoutTranslations = {
@@ -184,6 +224,14 @@ const de: CheckoutTranslations = {
   notFound: "Seite nicht gefunden",
   notFoundDesc: "Dieser Checkout existiert nicht oder wurde deaktiviert.",
   defaultCta: "Kauf abschließen",
+  mobileWallet: "Mobile Geldbörse",
+  payWithMobileWallet: "Mit mobiler Geldbörse bezahlen",
+  selectWallet: "Geldbörse auswählen",
+  mPesa: "M-Pesa",
+  eMola: "e-Mola",
+  invalidMpesa: "M-Pesa muss mit 84 oder 85 beginnen",
+  invalidEmola: "e-Mola muss mit 86 oder 87 beginnen",
+  phone9Digits: "Nummer muss genau 9 Ziffern haben",
 };
 
 const it: CheckoutTranslations = {
@@ -215,6 +263,14 @@ const it: CheckoutTranslations = {
   notFound: "Pagina non trovata",
   notFoundDesc: "Questo checkout non esiste o è stato disattivato.",
   defaultCta: "Completa l'acquisto",
+  mobileWallet: "Portafoglio Mobile",
+  payWithMobileWallet: "Paga con Portafoglio Mobile",
+  selectWallet: "Seleziona portafoglio",
+  mPesa: "M-Pesa",
+  eMola: "e-Mola",
+  invalidMpesa: "M-Pesa deve iniziare con 84 o 85",
+  invalidEmola: "e-Mola deve iniziare con 86 o 87",
+  phone9Digits: "Il numero deve avere esattamente 9 cifre",
 };
 
 const nl: CheckoutTranslations = {
@@ -246,6 +302,14 @@ const nl: CheckoutTranslations = {
   notFound: "Pagina niet gevonden",
   notFoundDesc: "Deze checkout bestaat niet of is gedeactiveerd.",
   defaultCta: "Aankoop voltooien",
+  mobileWallet: "Mobiele Portemonnee",
+  payWithMobileWallet: "Betalen met Mobiele Portemonnee",
+  selectWallet: "Selecteer portemonnee",
+  mPesa: "M-Pesa",
+  eMola: "e-Mola",
+  invalidMpesa: "M-Pesa moet beginnen met 84 of 85",
+  invalidEmola: "e-Mola moet beginnen met 86 of 87",
+  phone9Digits: "Nummer moet precies 9 cijfers bevatten",
 };
 
 const translations: Record<string, CheckoutTranslations> = { pt, en, es, fr, de, it, nl };

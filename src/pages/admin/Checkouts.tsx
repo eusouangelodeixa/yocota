@@ -14,7 +14,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sh
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { toast } from "sonner";
 import { slugify, formatCents } from "@/lib/formatters";
-import { Plus, Copy, Pencil, Trash2, Eye, Palette, X, GripVertical, Upload, ImageIcon, Loader2, Zap, Users } from "lucide-react";
+import { Plus, Copy, Pencil, Trash2, Eye, Palette, X, GripVertical, Upload, ImageIcon, Loader2, Zap, Users, ChevronDown, Lock } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
 
 interface CheckoutForm {
@@ -103,97 +103,95 @@ function BannerUpload({ value, onChange }: { value: string; onChange: (url: stri
 
 /* ── Checkout Live Preview (faithful recreation — light theme) ── */
 function CheckoutLivePreview({ form, product, bumpProducts }: { form: CheckoutForm; product: any; bumpProducts: any[] }) {
+  const isMZN = (product?.currency || "eur").toUpperCase() === "MZN";
   const currency = product?.currency || "eur";
   const pc = form.primary_color || "#2563eb";
   const btnColor = form.cta_button_color || pc;
+  const bgColor = form.bg_color || "#ffffff";
+
+  // Formatar preço igual ao checkout real
+  const formatPrice = (cents: number) => {
+    const val = cents / 100;
+    const currencyStr = isMZN ? "MTn" : currency.toUpperCase();
+    return val.toLocaleString('pt-PT', { minimumFractionDigits: 2 }).replace('.', ',') + " " + currencyStr;
+  };
 
   return (
-    <div className="w-full rounded-[10px] border border-border overflow-hidden bg-white">
-      {/* Countdown bar preview */}
+    <div className="w-full rounded-[24px] border border-border overflow-hidden p-4 sm:p-8" style={{ backgroundColor: bgColor }}>
+      {/* Urgency Bar */}
       {form.countdown_enabled && (
-        <div className="py-1.5 px-4 flex items-center justify-center gap-2 text-xs font-semibold" style={{ backgroundColor: form.countdown_bg_color, color: form.countdown_text_color }}>
-          <Zap className="h-3 w-3" /><span>{form.countdown_text}</span><span className="tabular-nums font-bold">09:58</span>
+        <div className="py-2 px-4 rounded-lg mb-6 flex items-center justify-center gap-2 text-[11px] font-bold" style={{ backgroundColor: form.countdown_bg_color, color: form.countdown_text_color }}>
+          <Zap className="h-3 w-3" /><span>{form.countdown_text}</span><span className="tabular-nums">09:58</span>
         </div>
       )}
-      <div className="flex flex-col lg:flex-row min-h-[480px]">
-        {/* Left panel */}
-        <div className="lg:w-[45%] bg-white border-b lg:border-b-0 lg:border-r border-[#111111] p-6 lg:p-8 flex flex-col justify-center">
-          <div className="max-w-sm">
-            {form.banner_url && (
-              <div className="w-full h-28 rounded-lg overflow-hidden mb-4 border border-[#111111]">
-                <img src={form.banner_url} alt="" className="w-full h-full object-cover" />
-              </div>
-            )}
-            {form.show_product_image && product?.image_url && (
-              <img src={product.image_url} alt="" className="w-14 h-14 rounded-lg object-cover mb-3 border border-[#111111]" />
-            )}
-            <h3 className="text-base font-semibold text-[#111111] mb-1">{form.headline_text || product?.name || "Nome do Produto"}</h3>
-            {product?.description && <p className="text-xs text-[#525252] leading-relaxed mb-4">{product.description}</p>}
-            <div className="text-2xl font-bold text-[#111111] tabular-nums mb-4">{product ? formatCents(product.price, currency) : "€ 0,00"}</div>
-            <div className="border-t border-[#111111]" />
 
-            {bumpProducts.length > 0 && (
-              <div className="mt-4 space-y-2">
-                {bumpProducts.map((bp) => {
-                  const bumpCopy = form.order_bump_descriptions[bp.id] || bp.description;
-                  return (
-                    <div key={bp.id} className="rounded-[10px] border border-[#111111] bg-white p-3">
-                      <div className="flex items-center gap-2">
-                        <div className="w-3.5 h-3.5 rounded-sm border border-[#111111] shrink-0" />
-                        <div className="flex-1 min-w-0">
-                          <span className="text-[11px] font-medium text-[#111111] truncate block">{bp.name}</span>
-                          {bumpCopy && <p className="text-[10px] text-[#71717a] mt-0.5 line-clamp-2">{bumpCopy}</p>}
-                        </div>
-                        <span className="text-[11px] font-bold tabular-nums shrink-0" style={{ color: pc }}>+{formatCents(bp.price, bp.currency || currency)}</span>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-
-            <div className="mt-4 pt-3 border-t border-[#111111] flex justify-between items-center">
-              <span className="text-xs text-[#525252]">Total</span>
-              <span className="text-lg font-bold text-[#111111] tabular-nums">{product ? formatCents(product.price, currency) : "€ 0,00"}</span>
+      <div className="max-w-[360px] mx-auto w-full space-y-4">
+        {/* Banner */}
+        {form.banner_url && (
+            <div className="w-full rounded-xl overflow-hidden shadow-sm border border-gray-100">
+                <img src={form.banner_url} className="w-full h-auto object-cover" />
             </div>
-          </div>
+        )}
+
+        {/* Title & Price */}
+        <div className="space-y-0.5">
+            <h3 className="text-[20px] font-bold text-black leading-tight truncate">{form.headline_text || product?.name || "Nome do Produto"}</h3>
+            <div className="text-[22px] font-black text-black leading-none">{product ? formatPrice(product.price) : "0,00 MTn"}</div>
         </div>
 
-        {/* Right panel */}
-        <div className="flex-1 bg-white p-6 lg:p-8 flex flex-col justify-center">
-          <div className="max-w-sm mx-auto w-full space-y-4">
-            {/* Contact information */}
-            <p className="text-[13px] font-medium text-[#111111]">Informações de contacto</p>
-            <div className="space-y-3">
-              {["Email", "WhatsApp"].map((label) => (
-                <div key={label} className="space-y-1">
-                  <p className="text-[10px] font-medium text-[#27272a]">{label}</p>
-                  <div className="h-10 rounded-lg bg-white border border-[#111111]" />
-                </div>
-              ))}
-            </div>
-
-            {/* Card information */}
-            <p className="text-[13px] font-medium text-[#111111] pt-2">Informações do cartão</p>
-            <div className="rounded-lg border border-[#111111] overflow-hidden">
-              <div className="h-10 bg-white border-b border-[#111111]" />
-              <div className="grid grid-cols-2">
-                <div className="h-10 bg-white border-r border-[#111111]" />
-                <div className="h-10 bg-white" />
-              </div>
-            </div>
-
-            {/* Cardholder name */}
+        {/* Mock Contact Fields */}
+        <div className="space-y-3 pt-2">
             <div className="space-y-1">
-              <p className="text-[13px] font-medium text-[#111111]">Nome no cartão</p>
-              <div className="h-10 rounded-lg bg-white border border-[#111111]" />
+                <p className="text-[11px] font-bold text-black">Nome completo</p>
+                <div className="h-9 rounded-lg bg-[#f4f7fa] border border-[#27272a]" />
             </div>
+            <div className="space-y-1">
+                <p className="text-[11px] font-bold text-black">Email</p>
+                <div className="h-9 rounded-lg bg-[#f4f7fa] border border-[#27272a]" />
+            </div>
+            <div className="space-y-1">
+                <p className="text-[11px] font-bold text-black">WhatsApp</p>
+                <div className="flex gap-2">
+                    <div className="w-20 h-9 rounded-lg bg-white border border-[#27272a] flex items-center justify-center text-[11px] gap-1">🇲🇿 +258 <ChevronDown size={10} /></div>
+                    <div className="flex-1 h-9 rounded-lg bg-[#f4f7fa] border border-[#27272a]" />
+                </div>
+            </div>
+        </div>
 
-            <button className="w-full h-11 font-bold text-xs rounded-lg cursor-default flex items-center justify-center gap-1.5" style={{ backgroundColor: btnColor, color: '#fff' }}>
-              🔒 {form.cta_text || "Finalizar compra"} {product ? formatCents(product.price, currency) : ""}
-            </button>
-            <p className="text-[10px] text-[#8a8a8a] text-center">🔒 Pagamento processado com segurança via Stripe</p>
+        {/* Wallet Selection Mock */}
+        {isMZN && (
+            <div className="space-y-2 pt-2">
+                <p className="text-[11px] font-bold text-black">Selecione a carteira</p>
+                <div className="grid grid-cols-2 gap-2">
+                    <div className="h-12 rounded-xl bg-[#e31e27] flex items-center justify-center p-2"><img src="/assets/mpesa-logo.png" className="h-6 object-contain" /></div>
+                    <div className="h-12 rounded-xl border border-gray-100 bg-white opacity-40 flex items-center justify-center p-2"><img src="/assets/emola-logo.png" className="h-6 object-contain" /></div>
+                </div>
+            </div>
+        )}
+
+        {/* Order Bumps in Preview */}
+        {bumpProducts.length > 0 && (
+          <div className="space-y-2 pt-2">
+            {bumpProducts.map((bp) => (
+              <div key={bp.id} className="rounded-xl border border-[#111111] bg-white p-3 flex items-center gap-3">
+                <div className="w-4 h-4 rounded border border-[#111111] shrink-0" />
+                <div className="flex-1 min-w-0">
+                    <p className="text-[11px] font-bold text-black truncate">{bp.name}</p>
+                    <p className="text-[10px] text-gray-500 line-clamp-1">{form.order_bump_descriptions[bp.id] || bp.description}</p>
+                </div>
+                <span className="text-[11px] font-black text-black">+{formatPrice(bp.price)}</span>
+              </div>
+            ))}
           </div>
+        )}
+
+        {/* Submit Button */}
+        <div className="pt-2">
+            <div className="w-full h-12 rounded-xl flex items-center justify-center gap-2 shadow-lg" style={{ backgroundColor: btnColor }}>
+                <Lock size={14} className="text-white" />
+                <span className="text-white font-bold text-[14px]">{form.cta_text || "Finalizar compra"}</span>
+            </div>
+            <p className="text-[9px] text-gray-400 text-center mt-3">🔒 Pagamento processado com segurança via {isMZN ? "Débito" : "Stripe"}</p>
         </div>
       </div>
     </div>
@@ -283,7 +281,33 @@ export default function Checkouts() {
     const { ids: bumpIds, descriptions: bumpDescs } = await loadBumpsForCheckout(checkout.id);
     setEditingId(checkout.id);
     const spMessages = Array.isArray(checkout.social_proof_messages) ? (checkout.social_proof_messages as string[]).join("\n") : "";
-    setForm({ name: checkout.name, product_id: checkout.product_id, redirect_url: checkout.redirect_url, checkout_slug: checkout.checkout_slug, first_offer_id: checkout.first_offer_id ?? "", primary_color: checkout.primary_color || "#2563eb", accent_color: checkout.accent_color || "#1e40af", bg_color: checkout.bg_color || "#f8fafc", cta_button_color: checkout.cta_button_color || "", headline_text: checkout.headline_text ?? "", cta_text: checkout.cta_text || "Finalizar compra", banner_url: checkout.banner_url ?? "", show_product_image: checkout.show_product_image ?? true, order_bump_product_ids: bumpIds, order_bump_descriptions: bumpDescs, countdown_enabled: checkout.countdown_enabled ?? false, countdown_duration: checkout.countdown_duration ?? 10, countdown_text: checkout.countdown_text ?? "Essa oferta expira em:", countdown_bg_color: checkout.countdown_bg_color ?? "#dc2626", countdown_text_color: checkout.countdown_text_color ?? "#ffffff", social_proof_enabled: checkout.social_proof_enabled ?? false, social_proof_messages: spMessages, social_proof_interval: checkout.social_proof_interval ?? 15, social_proof_display_duration: checkout.social_proof_display_duration ?? 5, social_proof_position: checkout.social_proof_position ?? "bottom-left" });
+    setForm({ 
+      name: checkout.name, 
+      product_id: checkout.product_id, 
+      redirect_url: checkout.redirect_url, 
+      checkout_slug: checkout.checkout_slug, 
+      first_offer_id: checkout.first_offer_id ?? "", 
+      primary_color: checkout.primary_color || "#2563eb", 
+      accent_color: checkout.accent_color || "#1e40af", 
+      bg_color: checkout.bg_color || "#ffffff", 
+      cta_button_color: checkout.cta_button_color || "", 
+      headline_text: checkout.headline_text ?? "", 
+      cta_text: checkout.cta_text || "Finalizar compra", 
+      banner_url: checkout.banner_url ?? "", 
+      show_product_image: checkout.show_product_image ?? true, 
+      order_bump_product_ids: bumpIds, 
+      order_bump_descriptions: bumpDescs, 
+      countdown_enabled: checkout.countdown_enabled ?? false, 
+      countdown_duration: checkout.countdown_duration ?? 10, 
+      countdown_text: checkout.countdown_text ?? "Essa oferta expira em:", 
+      countdown_bg_color: checkout.countdown_bg_color ?? "#dc2626", 
+      countdown_text_color: checkout.countdown_text_color ?? "#ffffff", 
+      social_proof_enabled: checkout.social_proof_enabled ?? false, 
+      social_proof_messages: spMessages, 
+      social_proof_interval: checkout.social_proof_interval ?? 15, 
+      social_proof_display_duration: checkout.social_proof_display_duration ?? 5, 
+      social_proof_position: checkout.social_proof_position ?? "bottom-left" 
+    });
     setBumpPickerOpen(false);
     setDialogOpen(true);
   };

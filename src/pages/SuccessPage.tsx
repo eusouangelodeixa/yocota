@@ -12,6 +12,7 @@ export default function SuccessPage() {
   const { checkoutId } = useParams<{ checkoutId: string }>();
   const [searchParams] = useSearchParams();
   const paymentIntentId = searchParams.get("payment_intent_id");
+  const debitoReference = searchParams.get("debito_reference");
 
   const [state, setState] = useState<"loading" | "offer-inline" | "done" | "error">("loading");
   const [redirectUrl, setRedirectUrl] = useState<string>("");
@@ -20,7 +21,7 @@ export default function SuccessPage() {
   useDocTitle("Pagamento confirmado");
 
   useEffect(() => {
-    if (!checkoutId || !paymentIntentId) { setState("error"); return; }
+    if (!checkoutId || (!paymentIntentId && !debitoReference)) { setState("error"); return; }
 
     // Fetch checkout config once upfront (parallel with first poll)
     let checkoutData: { redirect_url: string; first_offer_id: string | null } | null = null;
@@ -34,23 +35,25 @@ export default function SuccessPage() {
       await fetchCheckout; // ensure checkout is loaded (resolves instantly after first call)
 
       // Combined query: look for order + offer_session in parallel
-      const orderPromise = supabase
-        .from("orders")
-        .select("id")
-        .eq("stripe_payment_intent_id", paymentIntentId)
-        .eq("status", "paid")
-        .maybeSingle();
+      let orderId: string | null = null;
+      if (paymentIntentId) {
+        const { data: order } = await supabase.from("orders").select("id").eq("stripe_payment_intent_id", paymentIntentId).eq("status", "paid").maybeSingle();
+        orderId = order?.id || null;
+      } else if (debitoReference) {
+        const { data: statusData } = await supabase.functions.invoke("process-debito-payment", { body: { action: "status", debito_reference: debitoReference } });
+        if (statusData?.status === "SUCCESS" || statusData?.status === "PAID") {
+          const { data: order } = await supabase.from("orders").select("id").eq("debito_reference", debitoReference).eq("status", "paid").maybeSingle();
+          orderId = order?.id || null;
+        }
+      }
 
-      const { data: order } = await orderPromise;
-
-      if (!order) {
+      if (!orderId) {
         if (attempts >= maxAttempts) {
           if (checkoutData?.redirect_url) window.location.href = checkoutData.redirect_url;
           else setState("done");
           return;
         }
-        // Faster polling initially (200ms for first 10, then 400ms)
-        setTimeout(poll, attempts <= 10 ? 200 : 400);
+        setTimeout(poll, debitoReference ? 2000 : (attempts <= 10 ? 200 : 400));
         return;
       }
 
@@ -68,7 +71,7 @@ export default function SuccessPage() {
         const { data: offerSession } = await supabase
           .from("offer_sessions")
           .select("token, offer_id")
-          .eq("order_id", order.id)
+          .eq("order_id", orderId)
           .is("decision", null)
           .order("created_at", { ascending: true })
           .limit(1)
@@ -93,7 +96,7 @@ export default function SuccessPage() {
       if (checkoutData?.redirect_url) setTimeout(() => { window.location.href = checkoutData!.redirect_url; }, 3000);
     };
     poll();
-  }, [checkoutId, paymentIntentId]);
+  }, [checkoutId, paymentIntentId, debitoReference]);
 
   const handleIframeMessage = useCallback((event: MessageEvent) => {
     if (event.data?.type === "offer-complete") {
@@ -111,7 +114,9 @@ export default function SuccessPage() {
       <div className="flex min-h-screen items-center justify-center bg-[#09090b]">
         <div className="text-center space-y-4">
           <Loader2 className="h-8 w-8 animate-spin text-[#28d56a] mx-auto" />
-          <p className="text-[13px] text-[#a1a1aa]">Confirmando seu pagamento...</p>
+          <p className="text-[13px] text-[#a1a1aa]">
+            {debitoReference ? "Aguardando confirmação do PIN no seu celular..." : "Confirmando seu pagamento..."}
+          </p>
         </div>
       </div>
     );

@@ -29,12 +29,8 @@ export default function Deliveries() {
 
   const resendMutation = useMutation({
     mutationFn: async ({ orderId, orderItemId }: { orderId: string; orderItemId: string }) => {
-      await supabase
-        .from("deliveries")
-        .update({ status: "pending" as any })
-        .eq("order_item_id", orderItemId);
       const { data, error } = await supabase.functions.invoke("delivery-send", {
-        body: { order_id: orderId, order_item_id: orderItemId },
+        body: { order_id: orderId, order_item_id: orderItemId, force: true },
       });
       if (error) throw error;
       return data;

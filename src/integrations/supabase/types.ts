@@ -20,6 +20,7 @@ export type Database = {
           created_at: string
           email: string
           id: string
+          last_wallet_number: string | null
           name: string | null
           phone: string | null
           recovered: boolean
@@ -502,7 +503,9 @@ export type Database = {
           created_at: string
           currency: string
           customer_id: string
+          debito_reference: string | null
           id: string
+          payment_provider: string | null
           status: Database["public"]["Enums"]["order_status"]
           stripe_payment_intent_id: string | null
           total_amount: number
@@ -517,7 +520,9 @@ export type Database = {
           created_at?: string
           currency?: string
           customer_id: string
+          debito_reference?: string | null
           id?: string
+          payment_provider?: string | null
           status?: Database["public"]["Enums"]["order_status"]
           stripe_payment_intent_id?: string | null
           total_amount: number
@@ -532,7 +537,9 @@ export type Database = {
           created_at?: string
           currency?: string
           customer_id?: string
+          debito_reference?: string | null
           id?: string
+          payment_provider?: string | null
           status?: Database["public"]["Enums"]["order_status"]
           stripe_payment_intent_id?: string | null
           total_amount?: number

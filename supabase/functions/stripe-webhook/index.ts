@@ -330,7 +330,7 @@ async function processSuccessfulPayment(
     for (const bp of bumpProducts) totalAmount += bp.price;
   }
 
-  const orderCurrency = checkout.products.currency || "eur";
+  const orderCurrency = (checkout.products.currency || "eur").toUpperCase();
 
   const { data: order, error: orderError } = await supabase
     .from("orders")

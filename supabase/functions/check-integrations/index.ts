@@ -41,6 +41,7 @@ Deno.serve(async (req) => {
         (Deno.env.get("UAZAPI_TOKEN") || dbKeyNames.has("UAZAPI_TOKEN"))
       ),
       utmify: !!(Deno.env.get("UTMIFY_API_KEY") || dbKeyNames.has("UTMIFY_API_KEY")),
+      debito: true, // Hardcoded fallback present in functions
     };
 
     return new Response(JSON.stringify(status), {

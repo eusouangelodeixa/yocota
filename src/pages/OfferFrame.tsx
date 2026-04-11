@@ -1,14 +1,14 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { useParams, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { formatCents } from "@/lib/formatters";
-import { Loader2 } from "lucide-react";
+import { Loader2, CheckCircle2, Smartphone, AlertCircle, Timer, Lock } from "lucide-react";
 import { defaultPopupStyle, type PopupStyle } from "@/components/OfferPopupEditor";
 
 interface SessionData {
   id: string; token: string; offer_id: string; order_id: string; customer_id: string;
   decision: string | null; expires_at: string;
-  offer: { id: string; name: string; product_id: string; page_url: string | null; popup_style: any; products: { name: string; description: string | null; price: number; currency: string } };
+  offer: { id: string; name: string; product_id: string; page_url: string | null; popup_style: any; products: { id: string; name: string; description: string | null; price: number; currency: string } };
 }
 
 interface PreviewData { name: string; popup_style: any; product: { name: string; description: string | null; price: number; currency: string } }
@@ -29,6 +29,15 @@ export default function OfferFrame() {
   const [processing, setProcessing] = useState(false);
   const [result, setResult] = useState<{ decision: string; redirecting?: boolean } | null>(null);
 
+  // Payment Modal State
+  const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [modalCountdown, setModalCountdown] = useState(120);
+  const [orderStatus, setOrderStatus] = useState<"pending" | "paid" | "failed" | "timeout">("pending");
+
+  // Ref to track latest orderStatus inside polling closures
+  const orderStatusRef = useRef(orderStatus);
+  useEffect(() => { orderStatusRef.current = orderStatus; }, [orderStatus]);
+
   useEffect(() => {
     async function loadSession() {
       if (!token) return;
@@ -46,6 +55,20 @@ export default function OfferFrame() {
     loadSession();
   }, [token, isPreview]);
 
+  // Modal countdown timer — runs independently
+  useEffect(() => {
+    let timer: any;
+    if (showPaymentModal && orderStatus === "pending") {
+      timer = setInterval(() => {
+        setModalCountdown((prev) => {
+          if (prev <= 1) { clearInterval(timer); setOrderStatus("timeout"); return 0; }
+          return prev - 1;
+        });
+      }, 1000);
+    }
+    return () => { if (timer) clearInterval(timer); };
+  }, [showPaymentModal, orderStatus]);
+
   const handleDecision = async (decision: "accepted" | "rejected") => {
     if (!session || !token) return;
     setProcessing(true);
@@ -53,16 +76,57 @@ export default function OfferFrame() {
       const { data, error: fnError } = await supabase.functions.invoke("offer-decision", { body: { token, decision } });
       if (fnError) throw new Error(fnError.message);
       if (data?.error) throw new Error(data.error);
-      const nextToken = data?.next_offer_token || null;
-      const nextPageUrl = data?.next_offer_page_url || null;
-      setResult({ decision, redirecting: !!nextToken });
-      if (window.parent !== window) { window.parent.postMessage({ type: "offer-complete", decision, nextToken, nextPageUrl }, "*"); }
-      if (window.parent === window) {
-        if (nextPageUrl && nextToken) { window.location.href = `${nextPageUrl}${nextPageUrl.includes("?") ? "&" : "?"}offer_token=${nextToken}`; }
-        else if (data?.next_offer_url) { window.location.href = data.next_offer_url; }
+
+      if (data?.payment_method === "debito" && data?.debito_reference) {
+        // Show modal and start polling
+        setShowPaymentModal(true);
+        setOrderStatus("pending");
+        setModalCountdown(120);
+
+        const debitoRef = data.debito_reference;
+        const decisionData = data;
+        let cancelled = false;
+
+        const pollDebito = async () => {
+          if (cancelled || orderStatusRef.current !== "pending") return;
+          try {
+            const { data: statusData } = await supabase.functions.invoke("process-debito-payment", {
+              body: { action: "status", debito_reference: debitoRef }
+            });
+            if (cancelled || orderStatusRef.current !== "pending") return;
+            if (statusData?.status === "SUCCESS" || statusData?.status === "PAID") {
+              setOrderStatus("paid");
+              setTimeout(() => finalizeDecision(decisionData), 1500);
+            } else {
+              // Continue polling after 3 seconds
+              setTimeout(pollDebito, 3000);
+            }
+          } catch (e) {
+            console.warn("Polling error:", e);
+            if (!cancelled && orderStatusRef.current === "pending") {
+              setTimeout(pollDebito, 3000);
+            }
+          }
+        };
+        pollDebito();
+        return;
       }
-    } catch (err: any) { setError(err.message || "Erro ao processar decisão"); }
-    finally { setProcessing(false); }
+
+      finalizeDecision(data);
+    } catch (err: any) { setError(err.message || "Erro ao processar decisão"); setProcessing(false); }
+  };
+
+  const finalizeDecision = (data: any) => {
+    const decision = data.decision;
+    const nextToken = data?.next_offer_token || null;
+    const nextPageUrl = data?.next_offer_page_url || null;
+    setResult({ decision, redirecting: !!nextToken });
+    if (window.parent !== window) { window.parent.postMessage({ type: "offer-complete", decision, nextToken, nextPageUrl }, "*"); }
+    if (window.parent === window) {
+      if (nextPageUrl && nextToken) { window.location.href = `${nextPageUrl}${nextPageUrl.includes("?") ? "&" : "?"}offer_token=${nextToken}`; }
+      else if (data?.next_offer_url) { window.location.href = data.next_offer_url; }
+    }
+    setProcessing(false);
   };
 
   if (loading) {
@@ -143,7 +207,7 @@ export default function OfferFrame() {
             onClick={isPreviewMode ? undefined : () => handleDecision("accepted")}
             disabled={disabledAttr}
           >
-            {processing ? <Loader2 className="h-4 w-4 animate-spin" /> : s.accept_button_text}
+            {processing && !showPaymentModal ? <Loader2 className="h-4 w-4 animate-spin" /> : s.accept_button_text}
           </button>
           <button
             className="w-full text-sm transition-colors duration-150"
@@ -165,6 +229,38 @@ export default function OfferFrame() {
           <p className="text-[11px]" style={{ color: "#f59e0b" }}>Modo preview — botões desativados.</p>
         )}
       </div>
+
+      {showPaymentModal && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
+          <div className="relative bg-white w-full max-w-[320px] rounded-[32px] p-6 shadow-3xl border animate-in zoom-in-95">
+            <div className="flex flex-col items-center text-center space-y-4">
+              <div className={`p-4 rounded-full ${orderStatus === "paid" ? "bg-green-100" : (orderStatus === "timeout" ? "bg-red-100" : "bg-blue-50")}`}>
+                {orderStatus === "paid" ? <CheckCircle2 className="w-8 h-8 text-green-600" /> : 
+                 orderStatus === "timeout" ? <AlertCircle className="w-8 h-8 text-red-600" /> :
+                 <Smartphone className="w-8 h-8 text-[#2b6eff]" />}
+              </div>
+              <div className="space-y-1">
+                <h3 className="text-lg font-bold text-black">{orderStatus === "paid" ? "Sucesso!" : (orderStatus === "timeout" ? "Tempo Excedido" : "Autorize no Celular")}</h3>
+                <p className="text-gray-500 text-[12px] leading-tight px-2">
+                  {orderStatus === "paid" ? "Pagamento confirmado. Redirecionando..." : 
+                   orderStatus === "timeout" ? "Não detectamos o pagamento. Tente novamente." : 
+                   "Introduza o PIN e confirme para finalizar a compra de " + formatCents(product?.price ?? 0, product?.currency ?? "mzn")}
+                </p>
+              </div>
+              {orderStatus === "pending" && (
+                <div className="w-full flex items-center justify-center gap-2 py-2.5 px-4 bg-gray-50 rounded-xl">
+                  <Timer size={16} className="text-gray-400" />
+                  <span className="font-bold text-lg text-black tabular-nums">{Math.floor(modalCountdown / 60)}:{(modalCountdown % 60).toString().padStart(2, '0')}</span>
+                </div>
+              )}
+              {orderStatus !== "pending" && (
+                <button onClick={() => { setShowPaymentModal(false); setProcessing(false); }} className="w-full py-3 rounded-xl bg-black text-white font-bold text-sm transition-transform active:scale-[0.98]">Fechar</button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

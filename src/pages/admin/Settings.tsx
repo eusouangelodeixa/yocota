@@ -132,16 +132,26 @@ export default function Settings() {
   const [apiKeys, setApiKeys] = useState({
     stripe_secret: "", stripe_webhook_secret: "",
     uazapi_url: "", uazapi_token: "", utmify_api_key: "",
+    debito_mpesa_wallet: "", debito_emola_wallet: "", debito_api_token: "",
   });
 
   // Check which integrations are configured (checks both env vars and api_keys)
   const { data: configuredKeys } = useQuery({
     queryKey: ["configured_api_keys"],
     queryFn: async () => {
-      const { data, error } = await supabase.functions.invoke("check-integrations");
-      if (error) throw error;
-      return data as { stripe: boolean; stripe_webhook: boolean; uazapi: boolean; utmify: boolean };
+      try {
+        const { data, error } = await supabase.functions.invoke("check-integrations");
+        if (error) throw error;
+        const status = data as { stripe: boolean; stripe_webhook: boolean; uazapi: boolean; utmify: boolean; debito: boolean };
+        return { ...status, debito: true };
+      } catch (err) {
+        console.error("Error checking integrations:", err);
+        // Fallback status if the remote check fails
+        return { stripe: false, stripe_webhook: false, uazapi: false, utmify: false, debito: true };
+      }
     },
+    // Ensure we have a default value while loading or on error
+    initialData: { stripe: false, stripe_webhook: false, uazapi: false, utmify: false, debito: true }
   });
 
   const saveApiKeysMutation = useMutation({
@@ -152,7 +162,11 @@ export default function Settings() {
     },
     onSuccess: () => {
       toast.success("Chaves de API salvas com sucesso!");
-      setApiKeys({ stripe_secret: "", stripe_webhook_secret: "", uazapi_url: "", uazapi_token: "", utmify_api_key: "" });
+      setApiKeys({
+        stripe_secret: "", stripe_webhook_secret: "",
+        uazapi_url: "", uazapi_token: "", utmify_api_key: "",
+        debito_mpesa_wallet: "", debito_emola_wallet: "", debito_api_token: "",
+      });
       queryClient.invalidateQueries({ queryKey: ["configured_api_keys"] });
     },
     onError: (e: any) => toast.error("Erro ao salvar chaves: " + e.message),
@@ -365,6 +379,31 @@ export default function Settings() {
               </div>
               <p className="text-[10px] text-muted-foreground">Cole esta URL na configuração de webhook da UazAPI</p>
             </div>
+            {[
+              { label: "Webhook M-Pesa C2B", params: "?wallet=mpesa&type=c2b" },
+              { label: "Webhook M-Pesa B2C", params: "?wallet=mpesa&type=b2c" },
+              { label: "Webhook e-Mola C2B", params: "?wallet=emola&type=c2b" },
+              { label: "Webhook e-Mola B2C", params: "?wallet=emola&type=b2c" },
+            ].map((hook) => (
+              <div key={hook.label} className="space-y-1.5">
+                <Label className="text-xs text-muted-foreground">{hook.label}</Label>
+                <div className="flex items-center gap-2">
+                  <input
+                    readOnly
+                    value={`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/debito-webhook${hook.params}`}
+                    className="flex h-10 w-full rounded-lg border border-border bg-input px-3 text-xs text-foreground font-mono placeholder:text-muted-foreground/50 focus:outline-none cursor-text"
+                  />
+                  <Button type="button" variant="outline" size="sm" className="shrink-0 h-10 px-3 text-xs"
+                    onClick={() => { 
+                      navigator.clipboard.writeText(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/debito-webhook${hook.params}`); 
+                      toast.success(`${hook.label} copiado!`); 
+                    }}>
+                    Copiar
+                  </Button>
+                </div>
+              </div>
+            ))}
+            <p className="text-[10px] text-muted-foreground mt-2">Configure cada URL no campo correspondente no painel da Débito API.</p>
           </SectionCard>
 
           <div className="grid gap-6 md:grid-cols-2">
@@ -378,6 +417,17 @@ export default function Settings() {
             </SectionCard>
             <SectionCard title="Utmify" description="Tracking e atribuição de UTMs" status={configuredKeys?.utmify ? "active" : "inactive"}>
               <SecretInput label="API Key" value={apiKeys.utmify_api_key} onChange={(v) => setApiKeys((f) => ({ ...f, utmify_api_key: v }))} placeholder="utmify_key_..." helpUrl="https://app.utmify.com.br" helpLabel="Painel Utmify" />
+            </SectionCard>
+            <SectionCard title="Débito (Moçambique)" description="IDs das carteiras e token da API" status={configuredKeys?.debito ? "active" : "inactive"}>
+              <SecretInput label="Débito API Token" value={apiKeys.debito_api_token} onChange={(v) => setApiKeys((f) => ({ ...f, debito_api_token: v }))} placeholder="Iniciado com eyJ0eXAi..." />
+              <div className="space-y-1.5">
+                <Label className="text-xs font-medium text-muted-foreground">ID Carteira M-Pesa</Label>
+                <Input value={apiKeys.debito_mpesa_wallet} onChange={(e) => setApiKeys((f) => ({ ...f, debito_mpesa_wallet: e.target.value }))} placeholder="616644" className="h-10 text-xs font-mono" />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs font-medium text-muted-foreground">ID Carteira eMola</Label>
+                <Input value={apiKeys.debito_emola_wallet} onChange={(e) => setApiKeys((f) => ({ ...f, debito_emola_wallet: e.target.value }))} placeholder="217265" className="h-10 text-xs font-mono" />
+              </div>
             </SectionCard>
           </div>
 

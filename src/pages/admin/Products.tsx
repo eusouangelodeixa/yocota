@@ -263,7 +263,7 @@ export default function Products() {
               <TableHead className="text-[11px] uppercase tracking-wider text-muted-foreground font-medium">Tipo</TableHead>
               <TableHead className="text-[11px] uppercase tracking-wider text-muted-foreground font-medium">Preço</TableHead>
               <TableHead className="text-[11px] uppercase tracking-wider text-muted-foreground font-medium">Status</TableHead>
-              <TableHead className="text-[11px] uppercase tracking-wider text-muted-foreground font-medium">Stripe</TableHead>
+              <TableHead className="text-[11px] uppercase tracking-wider text-muted-foreground font-medium">Integração</TableHead>
               <TableHead className="w-20 text-[11px] uppercase tracking-wider text-muted-foreground font-medium">Ações</TableHead>
             </TableRow>
           </TableHeader>
@@ -291,7 +291,9 @@ export default function Products() {
                   <TableCell className="text-[13px] tabular-nums text-foreground">{formatCents(product.price, product.currency || "eur")}</TableCell>
                   <TableCell><Switch checked={product.active} onCheckedChange={(active) => toggleActive.mutate({ id: product.id, active })} /></TableCell>
                   <TableCell>
-                    {product.stripe_product_id ? (
+                    {product.currency?.toLowerCase() === 'mzn' ? (
+                      <span className="pill-paid inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium uppercase tracking-wide">Débito (Ativo)</span>
+                    ) : product.stripe_product_id ? (
                       <span className="pill-paid inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium uppercase tracking-wide">Sincronizado</span>
                     ) : (
                       <span className="pill-pending inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium uppercase tracking-wide">Pendente</span>

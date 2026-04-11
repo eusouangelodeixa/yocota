@@ -126,7 +126,76 @@ serve(async (req) => {
     let stripePaymentIntentId: string | null = null;
 
     if (decision === "accepted") {
-      // 5. Get customer's saved payment method
+      const { data: orderWithProvider } = await supabase.from("orders").select("payment_provider").eq("id", session.order_id).single();
+      const isDebito = orderWithProvider?.payment_provider === "debito";
+
+      if (isDebito) {
+        const { data: customer } = await supabase.from("customers").select("last_wallet_number, last_wallet_type").eq("id", session.customer_id).single();
+        if (!customer?.last_wallet_number) {
+          return new Response(JSON.stringify({ error: "Número da carteira não encontrado para upsell" }), {
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+            status: 400,
+          });
+        }
+
+        // Load Débito config from api_keys table first, then fallback to env vars
+        let debitoToken = "";
+        let mpesaWalletId = "";
+        let emolaWalletId = "";
+        {
+          const { data: keys } = await supabase.from("api_keys").select("key_name, key_value").in("key_name", ["DEBITO_API_TOKEN", "DEBITO_MPESA_WALLET_ID", "DEBITO_EMOLA_WALLET_ID"]);
+          if (keys) {
+            for (const k of keys) {
+              if (k.key_name === "DEBITO_API_TOKEN") debitoToken = k.key_value;
+              if (k.key_name === "DEBITO_MPESA_WALLET_ID") mpesaWalletId = k.key_value;
+              if (k.key_name === "DEBITO_EMOLA_WALLET_ID") emolaWalletId = k.key_value;
+            }
+          }
+        }
+        if (!debitoToken) debitoToken = Deno.env.get("DEBITO_API_TOKEN") || "";
+        if (!mpesaWalletId) mpesaWalletId = Deno.env.get("DEBITO_MPESA_WALLET_ID") || "616644";
+        if (!emolaWalletId) emolaWalletId = Deno.env.get("DEBITO_EMOLA_WALLET_ID") || "217265";
+
+        const msisdn = customer.last_wallet_number.replace(/\D/g, "");
+        const walletType = customer.last_wallet_type || (["84", "85"].includes(msisdn.substring(0, 2)) ? "mpesa" : "emola");
+        const walletId = walletType === "mpesa" ? mpesaWalletId : emolaWalletId;
+        const DEBITO_API_URL = "https://my.debito.co.mz/api/v1";
+        // product.price is in cents — Débito API expects value in meticais (units)
+        const upsellAmount = product.price / 100;
+
+        try {
+          const debitoRes = await fetch(`${DEBITO_API_URL}/wallets/${walletId}/c2b/${walletType}`, {
+            method: "POST",
+            headers: { "Authorization": `Bearer ${debitoToken}`, "Content-Type": "application/json", "Accept": "application/json" },
+            body: JSON.stringify({ msisdn, amount: upsellAmount, reference_description: `Upsell - ${offer.name}`.substring(0, 32) }),
+          });
+          const debitoData = await debitoRes.json();
+          if (!debitoRes.ok) throw new Error(debitoData.message || "Error from Debito API");
+
+          // Store the reference in the offer session immediately to allow polling
+          await supabase.from("offer_sessions").update({ 
+            debito_reference: debitoData.debito_reference 
+          }).eq("token", token);
+
+          return new Response(JSON.stringify({ 
+            success: true, 
+            payment_method: "debito", 
+            debito_reference: debitoData.debito_reference,
+            decision: "accepted" 
+          }), {
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+            status: 200,
+          });
+        } catch (debitoError: any) {
+          console.error("Debito upsell failed:", debitoError);
+          return new Response(JSON.stringify({ error: "Falha ao processar pagamento móvel: " + debitoError.message }), {
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+            status: 500,
+          });
+        }
+      }
+
+      // 5. Get customer's saved payment method (Stripe logic)
       const { data: customer } = await supabase
         .from("customers")
         .select("stripe_customer_id, stripe_payment_method_id")

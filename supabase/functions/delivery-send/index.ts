@@ -40,7 +40,7 @@ serve(async (req) => {
   }
 
   try {
-    const { order_id, order_item_id } = await req.json();
+    const { order_id, order_item_id, force } = await req.json();
 
     if (!order_id || !order_item_id) {
       return new Response(JSON.stringify({ error: "order_id and order_item_id required" }), {
@@ -57,11 +57,17 @@ serve(async (req) => {
       .maybeSingle();
 
     if (existingDelivery) {
-      console.log("Delivery already exists for order_item:", order_item_id, "status:", existingDelivery.status);
-      return new Response(JSON.stringify({ success: true, already_exists: true, status: existingDelivery.status }), {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-        status: 200,
-      });
+      if (force) {
+        // Force mode: delete existing delivery to allow re-send
+        await supabase.from("deliveries").delete().eq("id", existingDelivery.id);
+        console.log("Force resend: deleted existing delivery", existingDelivery.id);
+      } else {
+        console.log("Delivery already exists for order_item:", order_item_id, "status:", existingDelivery.status);
+        return new Response(JSON.stringify({ success: true, already_exists: true, status: existingDelivery.status }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+          status: 200,
+        });
+      }
     }
 
     // Get order with customer

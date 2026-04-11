@@ -55,6 +55,14 @@ serve(async (req) => {
       });
     }
 
+    // Skip Stripe sync for MZN (Metical) products as they use Debito API
+    if (product.currency?.toLowerCase() === "mzn") {
+      return new Response(
+        JSON.stringify({ success: true, message: "MZN products use Debito API, skipping Stripe sync" }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 200 }
+      );
+    }
+
     if (action === "create") {
       // Create Stripe product
       const stripeProduct = await stripe.products.create({

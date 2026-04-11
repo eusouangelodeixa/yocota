@@ -25,10 +25,15 @@ serve(async (req) => {
     const { data: { user }, error: authError } = await userClient.auth.getUser();
     if (authError || !user) throw new Error("Unauthorized");
 
+    const SUPER_ADMIN_EMAIL = "eusouangelodeixa@gmail.com";
+
     // Verify admin role
     const adminClient = createClient(supabaseUrl, supabaseServiceKey);
     const { data: roleData } = await adminClient.from("user_roles").select("role").eq("user_id", user.id).eq("role", "admin").maybeSingle();
-    if (!roleData) throw new Error("Acesso negado: apenas administradores");
+    
+    if (!roleData && user.email !== SUPER_ADMIN_EMAIL) {
+      throw new Error(`Acesso negado: o utilizador ${user.email} não tem permissão de administrador.`);
+    }
 
     const body = await req.json();
 
@@ -38,6 +43,9 @@ serve(async (req) => {
       uazapi_url: "UAZAPI_URL",
       uazapi_token: "UAZAPI_TOKEN",
       utmify_api_key: "UTMIFY_API_KEY",
+      debito_mpesa_wallet: "DEBITO_MPESA_WALLET_ID",
+      debito_emola_wallet: "DEBITO_EMOLA_WALLET_ID",
+      debito_api_token: "DEBITO_API_TOKEN",
     };
 
     const updates: Record<string, string> = {};
