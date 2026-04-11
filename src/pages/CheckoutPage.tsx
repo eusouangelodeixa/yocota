@@ -166,7 +166,7 @@ function CheckoutForm({ checkout: c, lang, t, detectedCountry }: { checkout: Che
         setLastOrderDetails({ id: debitoData.order_id, ref: debitoData.debito_reference });
       } catch (err: any) {
         console.error("Catch no CheckoutPage:", err);
-        toast.error(err.message, { duration: 5000 });
+        toast.error("Compra cancelada", { duration: 5000 });
         setShowPaymentModal(false);
       } finally {
         setProcessing(false);
@@ -188,7 +188,7 @@ function CheckoutForm({ checkout: c, lang, t, detectedCountry }: { checkout: Che
       if (paymentIntent?.status === "succeeded") {
         setTimeout(() => { window.location.href = c.first_offer_id ? `/success/${c.id}?pi=${paymentIntent.id}` : c.redirect_url; }, 800);
       }
-    } catch (err: any) { toast.error(err.message); } finally { setProcessing(false); }
+    } catch (err: any) { console.error("Stripe error:", err); toast.error("Compra cancelada"); } finally { setProcessing(false); }
   };
 
   const currencyStr = isMZN ? "MTn" : c.product.currency;
@@ -330,10 +330,10 @@ function CheckoutForm({ checkout: c, lang, t, detectedCountry }: { checkout: Che
                  <Smartphone className="w-10 h-10 text-[#2b6eff]" />}
               </div>
               <div className="space-y-1">
-                <h3 className="text-xl font-bold text-black">{orderStatus === "paid" ? "Sucesso!" : (orderStatus === "timeout" ? "Tempo Excedido" : "Autorize no Celular")}</h3>
+                <h3 className="text-xl font-bold text-black">{orderStatus === "paid" ? "Sucesso!" : (orderStatus === "timeout" ? "Compra cancelada" : "Autorize no Celular")}</h3>
                 <p className="text-gray-500 text-sm">
                   {orderStatus === "paid" ? "Pagamento confirmado. Redirecionando..." : 
-                   orderStatus === "timeout" ? "Não detectamos o pagamento. Tente novamente." : 
+                   orderStatus === "timeout" ? "O tempo para confirmar o pagamento expirou." : 
                    "Introduza o PIN e confirme para finalizar a compra de " + formattedPrice}
                 </p>
               </div>
