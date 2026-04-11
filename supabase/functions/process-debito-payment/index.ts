@@ -78,13 +78,21 @@ serve(async (req) => {
       };
 
       const endpoint = `${DEBITO_API_URL}/wallets/${wallet_id}/c2b/${wallet_type}`;
+      console.log(`Endpoint: ${endpoint}, Token: ${debitoToken ? debitoToken.substring(0, 8) + '...' : 'EMPTY'}`);
       const debitoRes = await fetch(endpoint, {
         method: "POST",
-        headers: { "Authorization": `Bearer ${debitoToken}`, "Content-Type": "application/json" },
+        headers: { "Authorization": `Bearer ${debitoToken}`, "Content-Type": "application/json", "Accept": "application/json" },
         body: JSON.stringify(payload),
       });
 
-      const debitoData = await debitoRes.json();
+      const responseText = await debitoRes.text();
+      let debitoData: any;
+      try {
+        debitoData = JSON.parse(responseText);
+      } catch {
+        console.error("Débito API returned non-JSON:", responseText.substring(0, 200));
+        throw new Error(`Erro de comunicação com a API de pagamento (HTTP ${debitoRes.status})`);
+      }
       if (!debitoRes.ok) {
         console.error("Erro na API Débito:", debitoData);
         throw new Error(debitoData.message || `Erro ${debitoRes.status} na Débito`);
@@ -117,9 +125,16 @@ serve(async (req) => {
     } else if (action === "status") {
       const { debito_reference } = params;
       const statusRes = await fetch(`${DEBITO_API_URL}/transactions/${debito_reference}/status`, {
-        headers: { "Authorization": `Bearer ${debitoToken}` },
+        headers: { "Authorization": `Bearer ${debitoToken}`, "Accept": "application/json" },
       });
-      const statusData = await statusRes.json();
+      const statusText = await statusRes.text();
+      let statusData: any;
+      try {
+        statusData = JSON.parse(statusText);
+      } catch {
+        console.error("Débito status API returned non-JSON:", statusText.substring(0, 200));
+        throw new Error(`Erro de comunicação com a API de pagamento (HTTP ${statusRes.status})`);
+      }
       const currentStatus = (statusData.status || "").toUpperCase();
       
       if (["SUCCESS", "PAID", "COMPLETED"].includes(currentStatus)) {
