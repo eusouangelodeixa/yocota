@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
-import { Loader2, Save, Upload, X, Eye, EyeOff, ExternalLink, Camera, UserPlus, Trash2, CheckCircle2, XCircle, Send } from "lucide-react";
+import { Loader2, Save, Upload, X, Eye, EyeOff, ExternalLink, Camera, UserPlus, Trash2, CheckCircle2, XCircle, Shield, Crown } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 
@@ -71,6 +71,17 @@ export default function Settings() {
   const queryClient = useQueryClient();
   const { user } = useAuth();
   const isSuperAdmin = user?.email === SUPER_ADMIN_EMAIL;
+
+  // Detect if current user is a regular admin
+  const { data: callerRoleRow } = useQuery({
+    queryKey: ["caller_role", user?.id],
+    enabled: !!user?.id && !isSuperAdmin,
+    queryFn: async () => {
+      const { data } = await supabase.from("user_roles").select("role").eq("user_id", user!.id).maybeSingle();
+      return data;
+    },
+  });
+  const isAdmin = isSuperAdmin || callerRoleRow?.role === "admin";
 
   const { data: settings, isLoading } = useQuery({
     queryKey: ["site_settings"],
@@ -271,17 +282,16 @@ export default function Settings() {
     finally { setUploading(false); }
   };
 
-  // Team members (super admin only)
+  // Team members (visible to all admins)
   const { data: teamMembers, isLoading: teamLoading } = useQuery({
     queryKey: ["team_members_v2"],
-    enabled: isSuperAdmin,
+    enabled: isAdmin,
     queryFn: async () => {
       const { data, error } = await supabase.functions.invoke("list-admins");
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
-      // Ensure we return the array
       const members = Array.isArray(data) ? data : [];
-      return members as { user_id: string; email: string }[];
+      return members as { user_id: string; email: string; role: string }[];
     },
   });
 
@@ -338,7 +348,7 @@ export default function Settings() {
           <TabsTrigger value="integrations" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground rounded-md text-xs font-medium px-4 py-1.5">Integrações</TabsTrigger>
           <TabsTrigger value="checkout" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground rounded-md text-xs font-medium px-4 py-1.5">Checkout</TabsTrigger>
           <TabsTrigger value="profile" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground rounded-md text-xs font-medium px-4 py-1.5">Minha Conta</TabsTrigger>
-          {isSuperAdmin && <TabsTrigger value="team" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground rounded-md text-xs font-medium px-4 py-1.5">Equipe</TabsTrigger>}
+          {isAdmin && <TabsTrigger value="team" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground rounded-md text-xs font-medium px-4 py-1.5">Equipe</TabsTrigger>}
         </TabsList>
 
         <TabsContent value="integrations" className="space-y-6">
@@ -550,7 +560,7 @@ export default function Settings() {
             </SectionCard>
           </div>
         </TabsContent>
-        {isSuperAdmin && (
+        {isAdmin && (
           <TabsContent value="team" className="space-y-6">
             <div className="max-w-lg space-y-6">
               <SectionCard title="Convidar Administrador" description="Crie um novo usuário com acesso admin">
@@ -576,13 +586,30 @@ export default function Settings() {
                       <div key={member.user_id} className="flex items-center justify-between py-2">
                         <div className="flex items-center gap-3">
                           <Avatar className="w-8 h-8">
-                            <AvatarFallback className="bg-primary text-primary-foreground text-xs font-bold">
+                            <AvatarFallback className={`text-xs font-bold ${
+                              member.role === "super_admin"
+                                ? "bg-amber-500 text-white"
+                                : "bg-primary text-primary-foreground"
+                            }`}>
                               {(member.email || "?")[0]?.toUpperCase()}
                             </AvatarFallback>
                           </Avatar>
-                          <span className="text-sm text-foreground">{member.email}</span>
+                          <div>
+                            <span className="text-sm text-foreground">{member.email}</span>
+                            <div className="flex items-center gap-1 mt-0.5">
+                              {member.role === "super_admin" ? (
+                                <span className="inline-flex items-center gap-1 text-[10px] font-medium text-amber-500">
+                                  <Crown className="h-3 w-3" strokeWidth={1.5} /> Super Admin
+                                </span>
+                              ) : (
+                                <span className="inline-flex items-center gap-1 text-[10px] font-medium text-muted-foreground">
+                                  <Shield className="h-3 w-3" strokeWidth={1.5} /> Admin
+                                </span>
+                              )}
+                            </div>
+                          </div>
                         </div>
-                        {member.user_id !== user?.id && (
+                        {member.user_id !== user?.id && member.role !== "super_admin" && (
                           <Button
                             variant="ghost"
                             size="icon"

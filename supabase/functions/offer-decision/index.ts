@@ -1,5 +1,4 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
-import Stripe from "https://esm.sh/stripe@18.5.0";
 import { createClient } from "npm:@supabase/supabase-js@2.57.2";
 
 const corsHeaders = {
@@ -49,10 +48,7 @@ serve(async (req) => {
       if (keyRow?.key_value) stripeKey = keyRow.key_value;
     }
     if (!stripeKey) stripeKey = Deno.env.get("STRIPE_SECRET_KEY") || "";
-
-    const stripe = new Stripe(stripeKey, {
-      apiVersion: "2025-08-27.basil",
-    });
+    // Stripe initialized lazily inside the Stripe payment block — not needed for Débito payments
 
     const { token, decision } = await req.json();
 
@@ -211,6 +207,9 @@ serve(async (req) => {
 
       // 6. One-click charge via Stripe off-session with idempotency key
       try {
+        if (!stripeKey) throw new Error("STRIPE_SECRET_KEY não configurado");
+        const Stripe = (await import("https://esm.sh/stripe@18.5.0")).default;
+        const stripe = new Stripe(stripeKey, { apiVersion: "2025-08-27.basil" });
         const idempotencyKey = `upsell_${session.id}_${offer.id}`;
 
         const paymentIntent = await stripe.paymentIntents.create({

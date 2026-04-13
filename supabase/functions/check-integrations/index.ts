@@ -25,9 +25,10 @@ Deno.serve(async (req) => {
     const { data: { user }, error: authError } = await userClient.auth.getUser();
     if (authError || !user) throw new Error("Unauthorized");
 
+    const SUPER_ADMIN_EMAIL = "eusouangelodeixa@gmail.com";
     const adminClient = createClient(supabaseUrl, serviceRoleKey);
     const { data: roleData } = await adminClient.from("user_roles").select("role").eq("user_id", user.id).eq("role", "admin").maybeSingle();
-    if (!roleData) throw new Error("Acesso negado");
+    if (!roleData && user.email !== SUPER_ADMIN_EMAIL) throw new Error("Acesso negado");
 
     // Check both env vars AND api_keys table
     const { data: dbKeys } = await adminClient.from("api_keys").select("key_name");

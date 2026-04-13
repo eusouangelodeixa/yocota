@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo, useRef } from "react";
+import { useEffect, useState, useMemo, useRef, useCallback } from "react";
 import { useParams } from "react-router-dom";
 import { loadStripe } from "@stripe/stripe-js";
 import { Elements, CardNumberElement, CardExpiryElement, CardCvcElement, useStripe, useElements } from "@stripe/react-stripe-js";
@@ -60,11 +60,14 @@ function CheckoutForm({ checkout: c, lang, t, detectedCountry }: { checkout: Che
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [modalCountdown, setModalCountdown] = useState(120);
   const [lastOrderDetails, setLastOrderDetails] = useState<{ id: string, ref: string } | null>(null);
-  const [orderStatus, setOrderStatus] = useState<"pending" | "paid" | "failed" | "timeout">("pending");
+  const [orderStatus, setOrderStatus] = useState<"pending" | "paid" | "failed" | "timeout" | "checking">("pending");
 
-  // Ref to track latest orderStatus inside polling closures
+  // Refs to track latest values inside closures and event listeners
   const orderStatusRef = useRef(orderStatus);
+  const lastOrderDetailsRef = useRef(lastOrderDetails);
+  const modalOpenTimeRef = useRef<number>(0);
   useEffect(() => { orderStatusRef.current = orderStatus; }, [orderStatus]);
+  useEffect(() => { lastOrderDetailsRef.current = lastOrderDetails; }, [lastOrderDetails]);
 
   const pc = c.primary_color || "#2b6eff";
 
@@ -73,55 +76,74 @@ function CheckoutForm({ checkout: c, lang, t, detectedCountry }: { checkout: Che
   const selectedEntry = COUNTRY_CODES.find((cc) => cc.country === selectedCountry);
   const ddi = selectedEntry?.code || "+258";
 
-  // Countdown timer — runs independently
+  // Raw fetch status check — uses same approach as initiate (proven to work)
+  // Called by polling interval and visibilitychange handler
+  const checkPaymentStatus = useCallback(async () => {
+    const details = lastOrderDetailsRef.current;
+    if (!details?.ref || details.ref === 'pending') return;
+    if (orderStatusRef.current !== "pending") return;
+    try {
+      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+      const supabaseAnonKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+      const resp = await fetch(`${supabaseUrl}/functions/v1/process-debito-payment`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "Authorization": `Bearer ${supabaseAnonKey}` },
+        body: JSON.stringify({ action: "status", debito_reference: details.ref })
+      });
+      const statusData = await resp.json();
+      if (orderStatusRef.current !== "pending") return;
+      if (statusData?.status === "SUCCESS" || statusData?.status === "PAID") {
+        setOrderStatus("paid");
+        setTimeout(() => {
+          const successUrl = c.first_offer_id
+            ? `/success/${c.id}?order_id=${details.id}&debito_reference=${details.ref}`
+            : `${c.redirect_url}${c.redirect_url.includes("?") ? "&" : "?"}order_id=${details.id}&debito_reference=${details.ref}`;
+          window.location.href = successUrl;
+        }, 800);
+      } else if (statusData?.status === "FAILED") {
+        setOrderStatus("failed");
+      }
+    } catch (e) { console.warn("Status check exception:", e); }
+  }, [c.first_offer_id, c.id, c.redirect_url]);
+
+  // Date-based countdown timer — NOT affected by browser throttling in background
   useEffect(() => {
     let timer: any;
     if (showPaymentModal && orderStatus === "pending") {
+      modalOpenTimeRef.current = Date.now();
       timer = setInterval(() => {
-        setModalCountdown((prev) => {
-          if (prev <= 1) { clearInterval(timer); setOrderStatus("timeout"); return 0; }
-          return prev - 1;
-        });
-      }, 1000);
+        const elapsed = Math.floor((Date.now() - modalOpenTimeRef.current) / 1000);
+        const remaining = Math.max(0, 120 - elapsed);
+        setModalCountdown(remaining);
+        if (remaining <= 0) { clearInterval(timer); setOrderStatus("timeout"); }
+      }, 500);
     }
     return () => { if (timer) clearInterval(timer); };
   }, [showPaymentModal, orderStatus]);
 
-  // Polling for payment status — runs independently from countdown
+  // Polling — every 3s while pending
   useEffect(() => {
     let pollInterval: any;
     let cancelled = false;
     if (showPaymentModal && lastOrderDetails?.ref && lastOrderDetails.ref !== 'pending' && orderStatus === "pending") {
       pollInterval = setInterval(async () => {
-        // Check ref to see if timer already expired or payment already resolved
-        if (orderStatusRef.current !== "pending" || cancelled) {
-          clearInterval(pollInterval);
-          return;
-        }
-        try {
-          const { data: statusData } = await supabase.functions.invoke("process-debito-payment", {
-            body: { action: "status", debito_reference: lastOrderDetails.ref }
-          });
-          
-          // Double-check status hasn't changed during the async call
-          if (orderStatusRef.current !== "pending" || cancelled) return;
-          
-          if (statusData?.status === "SUCCESS" || statusData?.status === "PAID") {
-            setOrderStatus("paid");
-            clearInterval(pollInterval);
-            setTimeout(() => {
-              const successUrl = c.first_offer_id ? `/success/${c.id}?order_id=${lastOrderDetails.id}&debito_reference=${lastOrderDetails.ref}` : `${c.redirect_url}${c.redirect_url.includes("?") ? "&" : "?"}order_id=${lastOrderDetails.id}&debito_reference=${lastOrderDetails.ref}`;
-              window.location.href = successUrl;
-            }, 800);
-          } else if (statusData?.status === "FAILED") {
-            setOrderStatus("failed");
-            clearInterval(pollInterval);
-          }
-        } catch (e) { console.warn("Polling error:", e); }
+        if (orderStatusRef.current !== "pending" || cancelled) { clearInterval(pollInterval); return; }
+        await checkPaymentStatus();
       }, 3000);
     }
     return () => { cancelled = true; if (pollInterval) clearInterval(pollInterval); };
-  }, [showPaymentModal, lastOrderDetails, c.id, c.first_offer_id, c.redirect_url]);
+  }, [showPaymentModal, lastOrderDetails, orderStatus, checkPaymentStatus]);
+
+  // visibilitychange — check immediately when user returns to tab after approving on phone
+  useEffect(() => {
+    const handleVisibility = () => {
+      if (document.visibilityState === 'visible' && orderStatusRef.current === "pending") {
+        checkPaymentStatus();
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibility);
+    return () => document.removeEventListener('visibilitychange', handleVisibility);
+  }, [checkPaymentStatus]);
 
   const totalAmount = () => {
     let total = c.product.price;
@@ -229,10 +251,10 @@ function CheckoutForm({ checkout: c, lang, t, detectedCountry }: { checkout: Che
   const inputClass = "bg-[#f4f7fa] border-[#27272a] text-black h-10 rounded-lg mb-3 focus-visible:ring-0 focus:ring-0 focus:border-black transition-all outline-none";
   const labelClass = "text-[13px] font-bold text-black mb-1.5 block";
   return (
-    <div className="min-h-screen font-sans text-black selection:bg-blue-100 flex flex-col justify-center" style={{ backgroundColor: c.bg_color || "#ffffff" }}>
+    <div className="min-h-screen font-sans text-black selection:bg-blue-100 flex flex-col justify-center py-6 sm:py-10" style={{ backgroundColor: c.bg_color || "#ffffff" }}>
       {c.countdown_enabled && <CheckoutCountdownBar checkoutId={c.id} durationMinutes={c.countdown_duration} text={c.countdown_text} bgColor={c.countdown_bg_color} textColor={c.countdown_text_color} />}
       
-      <div className="max-w-[440px] mx-auto w-full space-y-5">
+      <div className="max-w-[440px] mx-auto w-full space-y-5 px-4 sm:px-5">
         {c.banner_url && (
             <div className="w-full rounded-xl overflow-hidden shadow-sm border border-gray-100">
                 <img src={c.banner_url} className="w-full h-auto object-cover" />
@@ -355,7 +377,7 @@ function CheckoutForm({ checkout: c, lang, t, detectedCountry }: { checkout: Che
       {showPaymentModal && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-6">
           <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
-          <div className="relative bg-white w-full max-w-sm rounded-[32px] p-8 shadow-3xl border animate-in zoom-in-95">
+          <div className="relative bg-white w-full max-w-[320px] sm:max-w-sm rounded-[24px] sm:rounded-[32px] p-5 sm:p-8 shadow-3xl border animate-in zoom-in-95">
             <div className="flex flex-col items-center text-center space-y-6">
               <div className={`p-5 rounded-full ${orderStatus === "paid" ? "bg-green-100" : (orderStatus === "timeout" ? "bg-red-100" : "bg-blue-50")}`}>
                 {orderStatus === "paid" ? <CheckCircle2 className="w-10 h-10 text-green-600" /> : 
@@ -363,10 +385,16 @@ function CheckoutForm({ checkout: c, lang, t, detectedCountry }: { checkout: Che
                  <Smartphone className="w-10 h-10 text-[#2b6eff]" />}
               </div>
               <div className="space-y-1">
-                <h3 className="text-xl font-bold text-black">{orderStatus === "paid" ? "Sucesso!" : (orderStatus === "timeout" ? "Compra cancelada" : "Autorize no Celular")}</h3>
+                <h3 className="text-lg sm:text-xl font-bold text-black">
+                  {orderStatus === "paid" ? "Sucesso!" : 
+                   orderStatus === "checking" ? "A verificar..." :
+                   orderStatus === "timeout" ? "Tempo esgotado" : 
+                   "Autorize no Celular"}
+                </h3>
                 <p className="text-gray-500 text-sm">
                   {orderStatus === "paid" ? "Pagamento confirmado. Redirecionando..." : 
-                   orderStatus === "timeout" ? "O tempo para confirmar o pagamento expirou." : 
+                   orderStatus === "checking" ? "A consultar o estado do pagamento..." :
+                   orderStatus === "timeout" ? "Inseriu o PIN depois do tempo? Clique em verificar." : 
                    "Introduza o PIN e confirme para finalizar a compra de " + formattedPrice}
                 </p>
               </div>
@@ -376,8 +404,46 @@ function CheckoutForm({ checkout: c, lang, t, detectedCountry }: { checkout: Che
                   <span className="font-bold text-xl text-black tabular-nums">{Math.floor(modalCountdown / 60)}:{(modalCountdown % 60).toString().padStart(2, '0')}</span>
                 </div>
               )}
-              {orderStatus !== "pending" && (
+              {orderStatus === "timeout" && lastOrderDetails?.ref && (
+                <button
+                  onClick={async () => {
+                    // Use raw fetch directly — avoids stale ref and SDK issues
+                    setOrderStatus("checking");
+                    try {
+                      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+                      const supabaseAnonKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+                      const resp = await fetch(`${supabaseUrl}/functions/v1/process-debito-payment`, {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json", "Authorization": `Bearer ${supabaseAnonKey}` },
+                        body: JSON.stringify({ action: "status", debito_reference: lastOrderDetails.ref })
+                      });
+                      const statusData = await resp.json();
+                      if (statusData?.status === "SUCCESS" || statusData?.status === "PAID") {
+                        setOrderStatus("paid");
+                        setTimeout(() => {
+                          const successUrl = c.first_offer_id
+                            ? `/success/${c.id}?order_id=${lastOrderDetails.id}&debito_reference=${lastOrderDetails.ref}`
+                            : `${c.redirect_url}${c.redirect_url.includes("?") ? "&" : "?"}order_id=${lastOrderDetails.id}&debito_reference=${lastOrderDetails.ref}`;
+                          window.location.href = successUrl;
+                        }, 800);
+                      } else {
+                        setOrderStatus("timeout"); // back to timeout — payment not confirmed yet
+                      }
+                    } catch { setOrderStatus("timeout"); }
+                  }}
+                  className="w-full py-4 rounded-xl font-bold text-white"
+                  style={{ backgroundColor: c.primary_color || "#2b6eff" }}
+                >
+                  Verificar pagamento
+                </button>
+              )}
+              {(orderStatus === "failed" || (orderStatus === "timeout" && !lastOrderDetails?.ref)) && (
                 <button onClick={() => setShowPaymentModal(false)} className="w-full py-4 rounded-xl bg-black text-white font-bold">Fechar</button>
+              )}
+              {orderStatus === "checking" && (
+                <div className="w-full flex items-center justify-center gap-2 py-3">
+                  <Loader2 size={20} className="animate-spin text-gray-400" />
+                </div>
               )}
             </div>
           </div>

@@ -90,15 +90,20 @@ export default function OfferFrame() {
         const pollDebito = async () => {
           if (cancelled || orderStatusRef.current !== "pending") return;
           try {
-            const { data: statusData } = await supabase.functions.invoke("process-debito-payment", {
-              body: { action: "status", debito_reference: debitoRef }
+            // Use raw fetch — same approach as CheckoutPage (proven to work vs supabase.functions.invoke)
+            const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+            const supabaseAnonKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+            const resp = await fetch(`${supabaseUrl}/functions/v1/process-debito-payment`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json", "Authorization": `Bearer ${supabaseAnonKey}` },
+              body: JSON.stringify({ action: "status", debito_reference: debitoRef })
             });
+            const statusData = await resp.json();
             if (cancelled || orderStatusRef.current !== "pending") return;
             if (statusData?.status === "SUCCESS" || statusData?.status === "PAID") {
               setOrderStatus("paid");
               setTimeout(() => finalizeDecision(decisionData), 1500);
             } else {
-              // Continue polling after 3 seconds
               setTimeout(pollDebito, 3000);
             }
           } catch (e) {

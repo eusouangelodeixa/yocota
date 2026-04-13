@@ -20,20 +20,35 @@ Deno.serve(async (req) => {
     const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
     const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
-    // Verify caller is super admin
+    // Verify caller identity
     const anonClient = createClient(supabaseUrl, supabaseAnonKey, {
       global: { headers: { Authorization: authHeader } },
     });
     const { data: { user: caller }, error: authError } = await anonClient.auth.getUser();
     if (authError || !caller) throw new Error("Não autorizado");
-    if (caller.email !== SUPER_ADMIN_EMAIL) throw new Error("Apenas o administrador principal pode convidar usuários");
+
+    const adminClient = createClient(supabaseUrl, serviceRoleKey);
+    const isSuperAdmin = caller.email === SUPER_ADMIN_EMAIL;
+
+    // Allow super admin OR users with admin role
+    if (!isSuperAdmin) {
+      const { data: roleRow } = await adminClient
+        .from("user_roles")
+        .select("role")
+        .eq("user_id", caller.id)
+        .maybeSingle();
+      if (!roleRow || roleRow.role !== "admin") {
+        throw new Error("Apenas administradores podem convidar usuários");
+      }
+    }
 
     const { email, password } = await req.json();
     if (!email || !password) throw new Error("Email e senha são obrigatórios");
     if (password.length < 6) throw new Error("A senha deve ter pelo menos 6 caracteres");
+    // Prevent creating another super admin via this endpoint
+    if (email === SUPER_ADMIN_EMAIL) throw new Error("Este email não pode ser utilizado");
 
     // Create user with service role
-    const adminClient = createClient(supabaseUrl, serviceRoleKey);
     const { data: newUser, error: createError } = await adminClient.auth.admin.createUser({
       email,
       password,

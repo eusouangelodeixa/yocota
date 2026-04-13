@@ -22,27 +22,29 @@ serve(async (req) => {
     const typeParam = url.searchParams.get("type");
 
     const payload = await req.json();
-    console.log(`Received Débito Webhook [${walletParam || 'unknown'}-${typeParam || 'unknown'}]:`, payload);
+    console.log(`Received Débito Webhook [${walletParam || 'unknown'}-${typeParam || 'unknown'}]:`, JSON.stringify(payload));
 
-    // Common fields in Débito C2B/B2C callbacks
-    // C2B callbacks often use "reference" for OUR ID and "status" for state
+    // Normalise all common field names from Débito payloads
     const { status, state, debito_reference, reference, transaction_id, type } = payload;
     const finalStatus = (status || state || "").toUpperCase();
-    const finalRef = debito_reference || reference;
+    const finalRef = debito_reference || reference || null;
 
-    if (!finalRef) {
-      console.error("No reference found in payload");
-      return new Response(JSON.stringify({ error: "No reference provided" }), {
-        status: 400,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-
-    // 1. Audit log the webhook
+    // 1. ALWAYS audit log first — even if we can't find the order
+    // This is critical for debugging unknown payload formats
     await supabase.from("audit_logs").insert({
       event_type: `debito_webhook_${finalStatus?.toLowerCase() || 'unknown'}`,
       payload: payload,
     });
+
+    if (!finalRef) {
+      // Débito may only send transaction_id (numeric) without a text reference.
+      // Log it and return 200 so Débito doesn't retry forever.
+      console.warn(`Webhook sem referência de texto. transaction_id recebido: ${transaction_id}. Payload completo já registado em audit_logs.`);
+      return new Response(JSON.stringify({ received: true, warning: "No text reference in payload — logged for inspection" }), {
+        status: 200,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
 
     // 2. Find the order (Try both debito_reference AND provider_order_id)
     const { data: order, error: orderError } = await supabase
@@ -62,7 +64,8 @@ serve(async (req) => {
     }
 
     // 3. Update order status if successful
-    if (finalStatus === "SUCCESS" || finalStatus === "PAID" || finalStatus === "COMPLETED") {
+    // NOTE: M-Pesa returns "SUCCESSFUL", eMola may return "SUCCESS" or other variants
+    if (finalStatus === "SUCCESS" || finalStatus === "PAID" || finalStatus === "COMPLETED" || finalStatus === "SUCCESSFUL") {
       if (order.status !== "paid") {
         const { error: updateError } = await supabase
           .from("orders")
@@ -79,10 +82,11 @@ serve(async (req) => {
           const { data: existingOffer } = await supabase.from("offer_sessions").select("id").eq("order_id", order.id).maybeSingle();
           if (!existingOffer) {
             await supabase.from("offer_sessions").insert({ offer_id: checkout.first_offer_id, order_id: order.id, customer_id: order.customer_id, debito_reference: finalRef });
+            console.log(`Offer session created for order ${order.id}`);
           }
         }
 
-        // 4. Trigger delivery for each item
+        // 4. Trigger delivery for each existing item
         if (order.order_items && order.order_items.length > 0) {
           for (const item of order.order_items) {
             try {
@@ -104,12 +108,14 @@ serve(async (req) => {
       } else {
         console.log(`Order ${order.id} was already paid, skipping duplicate processing`);
       }
-    } else if (status === "FAILED" || status === "EXPIRED" || status === "CANCELLED") {
+    } else if (finalStatus === "FAILED" || finalStatus === "EXPIRED" || finalStatus === "CANCELLED") {
       await supabase
         .from("orders")
         .update({ status: "failed" })
         .eq("id", order.id);
-      console.log(`Order ${order.id} marked as failed via webhook (${status})`);
+      console.log(`Order ${order.id} marked as failed via webhook (${finalStatus})`);
+    } else {
+      console.log(`Webhook recebido com status não processável: ${finalStatus} — nenhuma acção tomada`);
     }
 
     return new Response(JSON.stringify({ success: true }), {

@@ -25,29 +25,52 @@ Deno.serve(async (req) => {
     });
     const { data: { user: caller }, error: authError } = await anonClient.auth.getUser();
     if (authError || !caller) throw new Error("Não autorizado");
-    if (caller.email !== SUPER_ADMIN_EMAIL) throw new Error("Acesso negado");
 
     const adminClient = createClient(supabaseUrl, serviceRoleKey);
+    const isSuperAdmin = caller.email === SUPER_ADMIN_EMAIL;
 
-    // Get admin user_ids
-    const { data: roles, error: rolesErr } = await adminClient.from("user_roles").select("user_id").eq("role", "admin");
+    // Allow super admin OR users with admin role
+    let callerIsAdmin = isSuperAdmin;
+    if (!isSuperAdmin) {
+      const { data: roleRow } = await adminClient
+        .from("user_roles")
+        .select("role")
+        .eq("user_id", caller.id)
+        .maybeSingle();
+      callerIsAdmin = roleRow?.role === "admin";
+    }
+    if (!callerIsAdmin) throw new Error("Acesso negado");
+
+    // Get admin user_ids from user_roles
+    const { data: roles, error: rolesErr } = await adminClient
+      .from("user_roles")
+      .select("user_id")
+      .eq("role", "admin");
     if (rolesErr) throw rolesErr;
 
     const userIds = roles?.map((r: any) => r.user_id) || [];
-    if (userIds.length === 0) {
-      return new Response(JSON.stringify([]), {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
 
-    // Get emails from auth.users via admin API
-    const { data: { users }, error: usersErr } = await adminClient.auth.admin.listUsers({ perPage: 100 });
+    // Get user emails via admin API
+    const { data: { users }, error: usersErr } = await adminClient.auth.admin.listUsers({ perPage: 200 });
     if (usersErr) throw usersErr;
 
-    const members = userIds.map((uid: string) => {
+    const members: { user_id: string; email: string; role: string }[] = userIds.map((uid: string) => {
       const u = users.find((u: any) => u.id === uid);
-      return { user_id: uid, email: u?.email || "—" };
+      return { user_id: uid, email: u?.email || "—", role: "admin" };
     });
+
+    // Super admin sees themselves at the top with role "super_admin"
+    if (isSuperAdmin) {
+      const superAdminUser = users.find((u: any) => u.email === SUPER_ADMIN_EMAIL);
+      if (superAdminUser) {
+        members.unshift({
+          user_id: superAdminUser.id,
+          email: superAdminUser.email!,
+          role: "super_admin",
+        });
+      }
+    }
+    // Regular admin: super admin is filtered out (already not in user_roles results)
 
     return new Response(JSON.stringify(members), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
