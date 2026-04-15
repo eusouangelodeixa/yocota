@@ -110,13 +110,12 @@ function BannerUpload({ value, onChange }: { value: string; onChange: (url: stri
 function CheckoutLivePreview({ form, product, bumpProducts }: { form: CheckoutForm; product: any; bumpProducts: any[] }) {
   const isMZN = (product?.currency || "eur").toUpperCase() === "MZN";
   const currency = product?.currency || "eur";
-  const btnColor = form.cta_button_color || "#00B589";
+  const btnColor = form.cta_button_color || form.primary_color || "#00B589";
   const bgColor  = form.bg_color || "#f9fafb";
 
   const basePrice = product ? formatCents(product.price, currency) : "—";
 
-  // Same class tokens as CheckoutPage.tsx
-  const labelClass = "block text-[12px] font-semibold text-[#1F2937] mb-0.5";
+  const labelClass = "block text-[12px] font-semibold text-[#1F2937] mb-1";
   const fieldWrap  = "relative flex items-center h-10 rounded-lg border border-[#D1D5DB] bg-white overflow-hidden";
   const fieldMock  = "flex-1 h-full px-2 text-[13px] text-[#9CA3AF] bg-transparent outline-none";
 
@@ -133,7 +132,7 @@ function CheckoutLivePreview({ form, product, bumpProducts }: { form: CheckoutFo
         </div>
       )}
 
-      <div className="px-4 pt-3 pb-4 space-y-3">
+      <div className="px-4 pt-4 pb-5 space-y-3">
 
         {/* Banner */}
         {form.banner_url && (
@@ -142,22 +141,29 @@ function CheckoutLivePreview({ form, product, bumpProducts }: { form: CheckoutFo
           </div>
         )}
 
-        {/* Product Summary Card */}
-        <div className="bg-white rounded-2xl border border-[#E5E7EB] shadow-sm px-3 py-2.5 flex items-center gap-3">
+        {/* Headline centrada */}
+        <div className="text-center pt-1 pb-0.5">
+          <h1 className="text-[15px] font-extrabold text-[#111827] leading-snug">
+            {form.headline_text || product?.name || "Nome do Produto"}
+          </h1>
+        </div>
+
+        {/* Product Summary Card — centrado */}
+        <div className="bg-white rounded-2xl border border-[#E5E7EB] shadow-sm px-3 py-3 flex flex-col items-center gap-2 text-center">
           {form.show_product_image && product?.image_url && (
-            <div className="w-14 h-14 rounded-xl overflow-hidden shrink-0 border border-[#F3F4F6]">
+            <div className="w-16 h-16 rounded-xl overflow-hidden border border-[#F3F4F6]">
               <img src={product.image_url} alt={product.name} className="w-full h-full object-cover" />
             </div>
           )}
-          <div className="flex-1 min-w-0">
+          <div>
             <p className="text-[13px] font-bold text-[#1F2937] leading-snug line-clamp-2">
-              {form.headline_text || product?.name || "Nome do Produto"}
+              {product?.name || "Nome do Produto"}
             </p>
-            <p className="text-[17px] font-extrabold leading-tight mt-0.5" style={{ color: btnColor }}>
+            <p className="text-[20px] font-extrabold leading-tight mt-0.5" style={{ color: btnColor }}>
               {basePrice}
             </p>
           </div>
-          {isMZN && <span className="text-xl shrink-0 select-none">🇲🇿</span>}
+          {isMZN && <span className="text-lg select-none">🇲🇿</span>}
         </div>
 
         {/* Nome completo */}
@@ -208,10 +214,10 @@ function CheckoutLivePreview({ form, product, bumpProducts }: { form: CheckoutFo
                 <div className="w-5 h-5 rounded border-2 border-[#D1D5DB] bg-white shrink-0 mt-0.5" />
                 <div className="flex-1 min-w-0">
                   <div className="flex justify-between items-start gap-2">
-                    <span className="text-[14px] font-semibold text-[#1F2937] leading-tight">{bp.name}</span>
+                    <span className="text-[13px] font-semibold text-[#1F2937] leading-tight">{bp.name}</span>
                     <span className="text-[12px] font-semibold text-[#1F2937] shrink-0">+{formatCents(bp.price, bp.currency)}</span>
                   </div>
-                  <p className="text-[12px] text-[#6B7280] mt-0.5 line-clamp-2">{form.order_bump_descriptions[bp.id] || bp.description}</p>
+                  <p className="text-[11px] text-[#6B7280] mt-0.5 line-clamp-2">{form.order_bump_descriptions[bp.id] || bp.description}</p>
                 </div>
               </div>
             ))}
@@ -240,7 +246,6 @@ function CheckoutLivePreview({ form, product, bumpProducts }: { form: CheckoutFo
                 <span className="text-[10px] font-medium text-[#1F2937]">M-Pesa</span>
               </div>
             </div>
-            {/* Número e-Mola */}
             <div>
               <label className={labelClass}>Número e-Mola <span className="text-[#EF4444]">*</span></label>
               <div className={fieldWrap}>
@@ -269,14 +274,15 @@ function CheckoutLivePreview({ form, product, bumpProducts }: { form: CheckoutFo
           </div>
         )}
 
-        {/* CTA Button */}
-        <div className="pt-0.5 space-y-2">
+        {/* CTA Button — centrado com sombra */}
+        <div className="pt-1 space-y-2">
           <div className="w-full h-12 rounded-xl flex items-center justify-center gap-2.5 shadow-md"
             style={{ backgroundColor: btnColor }}>
             <ShoppingCart size={18} className="text-white" strokeWidth={2} />
-            <span className="text-white font-semibold text-[14px]">{form.cta_text || "Finalizar Compra"} — {basePrice}</span>
+            <span className="text-white font-bold text-[14px]">{form.cta_text || "Finalizar Compra"} — {basePrice}</span>
           </div>
-          <div className="flex items-center justify-center gap-4 text-[11px] text-[#6B7280]">
+          {/* Trust badges — centralizados */}
+          <div className="flex items-center justify-center gap-4 text-[10px] text-[#6B7280]">
             <span className="flex items-center gap-1">
               <Shield className="h-3 w-3 text-[#22C55E]" strokeWidth={2} /> Compra 100% segura
             </span>

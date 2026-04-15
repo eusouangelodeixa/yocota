@@ -114,7 +114,7 @@ export default function Dashboard() {
       const [products, checkouts, orders, orderItems, abandoned, deliveries] = await Promise.all([
         supabase.from("products").select("id", { count: "exact", head: true }).eq("active", true),
         supabase.from("checkouts").select("id", { count: "exact", head: true }).eq("active", true),
-        supabase.from("orders").select("id, total_amount, status, created_at, checkout_id, currency, wallet_type, payment_provider, customers(name, email)").order("created_at", { ascending: false }),
+        supabase.from("orders").select("id, total_amount, status, created_at, checkout_id, currency, payment_provider, customers(name, email, last_wallet_type)").order("created_at", { ascending: false }),
         supabase.from("order_items").select("order_id, product_id, amount, type, products(name, currency)"),
         supabase.from("abandoned_checkouts").select("id, recovered, created_at"),
         supabase.from("deliveries").select("id, status"),
@@ -201,15 +201,21 @@ export default function Dashboard() {
       (o.currency || "eur").toUpperCase() === selectedCurrency
     );
 
-    // Count by wallet type
+    // Count by wallet type — use orders.wallet_type if available, else customers.last_wallet_type
+    // Only count debito orders (stripe has no wallet type)
     let emolaTotal = 0, emolaPaid = 0;
     let mpesaTotal = 0, mpesaPaid = 0;
     for (const o of allFilteredOrders) {
-      const wt = ((o as any).wallet_type || "").toLowerCase();
-      if (wt === "emola" || wt === "e-mola") {
+      if ((o as any).payment_provider !== "debito") continue; // skip Stripe
+      const wt = (
+        (o as any).wallet_type ||
+        (o as any).customers?.last_wallet_type ||
+        ""
+      ).toLowerCase().replace("-", "");
+      if (wt === "emola") {
         emolaTotal++;
         if (o.status === "paid") emolaPaid++;
-      } else if (wt === "mpesa" || wt === "m-pesa") {
+      } else if (wt === "mpesa") {
         mpesaTotal++;
         if (o.status === "paid") mpesaPaid++;
       }
@@ -234,9 +240,8 @@ export default function Dashboard() {
       totalAbandoned,
       recoveredCount,
       recentOrders: filteredOrders.slice(0, 10),
-      chartData,
       weekdayChartData,
-      chartCurrency,
+      chartCurrency: selectedCurrency,
       emolaApproval, emolaTotal, emolaPaid,
       mpesaApproval, mpesaTotal, mpesaPaid,
       conversionRate, totalAllOrders, totalPaid,
