@@ -93,6 +93,8 @@ serve(async (req) => {
           utmCampaign: metadata.utm_campaign || null,
           utmContent: metadata.utm_content || null,
           utmTerm: metadata.utm_term || null,
+          utmSrc: metadata.src || null,
+          utmSck: metadata.sck || null,
         });
         break;
       }
@@ -145,6 +147,8 @@ serve(async (req) => {
           utmCampaign: metadata.utm_campaign || null,
           utmContent: metadata.utm_content || null,
           utmTerm: metadata.utm_term || null,
+          utmSrc: metadata.src || null,
+          utmSck: metadata.sck || null,
         });
         break;
       }
@@ -251,12 +255,14 @@ async function processSuccessfulPayment(
     utmCampaign: string | null;
     utmContent: string | null;
     utmTerm: string | null;
+    utmSrc: string | null;
+    utmSck: string | null;
   }
 ) {
   const {
     checkoutId, paymentIntentId, customerId, paymentMethodId,
     customerEmail, customerName, customerPhone, selectedBumpIds,
-    utmSource, utmMedium, utmCampaign, utmContent, utmTerm,
+    utmSource, utmMedium, utmCampaign, utmContent, utmTerm, utmSrc, utmSck,
   } = params;
 
   const { data: checkout } = await supabase
@@ -438,7 +444,7 @@ async function processSuccessfulPayment(
       ...bumpProducts.map((bp: any) => ({ id: bp.id, name: bp.name || "Bump", priceInCents: bp.price, quantity: 1 })),
     ],
     trackingParameters: {
-      src: null, sck: null,
+      src: utmSrc || null, sck: utmSck || null,
       utm_source: utmSource, utm_campaign: utmCampaign, utm_medium: utmMedium,
       utm_content: utmContent, utm_term: utmTerm,
     },
@@ -486,9 +492,11 @@ interface UtmifyParams {
   currency: string;
 }
 
+// Only currencies explicitly supported by UTMify commission.currency field
+// Source: https://api.utmify.com.br docs — others will be converted to EUR
 const UTMIFY_SUPPORTED_CURRENCIES = new Set([
   "BRL", "USD", "EUR", "GBP", "ARS", "CAD", "COP", "MXN",
-  "PYG", "CLP", "PEN", "PLN", "UAH", "CHF", "THB", "AUD",
+  "PYG", "CLP", "PEN", "PLN",
 ]);
 
 async function getEurAmountFromBalanceTransaction(
@@ -586,6 +594,18 @@ async function sendToUtmify(supabase: any, stripe: Stripe, params: UtmifyParams)
     return;
   }
 
+  // Check if UTMify is enabled (defaults to true when not set)
+  const { data: enabledRow } = await supabase
+    .from("api_keys")
+    .select("key_value")
+    .eq("key_name", "UTMIFY_ENABLED")
+    .maybeSingle();
+  const isEnabled = (enabledRow?.key_value ?? "true") !== "false";
+  if (!isEnabled) {
+    console.log("Utmify is disabled (UTMIFY_ENABLED=false), skipping");
+    return;
+  }
+
   const sourceCurrency = (params.currency || "EUR").toUpperCase();
   let targetCurrency = sourceCurrency;
   let targetAmountInCents = params.totalAmountCents;
@@ -673,11 +693,12 @@ async function sendToUtmify(supabase: any, stripe: Stripe, params: UtmifyParams)
       priceInCents: p.priceInCents,
     })),
     trackingParameters: params.trackingParameters,
+    // Per UTMify docs: currency field is optional for BRL — omit it
     commission: {
       totalPriceInCents: targetAmountInCents,
       gatewayFeeInCents: 0,
       userCommissionInCents: targetAmountInCents,
-      currency: targetCurrency,
+      ...(targetCurrency !== "BRL" ? { currency: targetCurrency } : {}),
     },
   };
 

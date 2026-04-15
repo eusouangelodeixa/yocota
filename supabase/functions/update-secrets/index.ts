@@ -43,6 +43,7 @@ serve(async (req) => {
       uazapi_url: "UAZAPI_URL",
       uazapi_token: "UAZAPI_TOKEN",
       utmify_api_key: "UTMIFY_API_KEY",
+      utmify_enabled: "UTMIFY_ENABLED",
       debito_mpesa_wallet: "DEBITO_MPESA_WALLET_ID",
       debito_emola_wallet: "DEBITO_EMOLA_WALLET_ID",
       debito_api_token: "DEBITO_API_TOKEN",

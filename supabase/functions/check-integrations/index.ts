@@ -31,8 +31,13 @@ Deno.serve(async (req) => {
     if (!roleData && user.email !== SUPER_ADMIN_EMAIL) throw new Error("Acesso negado");
 
     // Check both env vars AND api_keys table
-    const { data: dbKeys } = await adminClient.from("api_keys").select("key_name");
-    const dbKeyNames = new Set(dbKeys?.map((k: any) => k.key_name) || []);
+    const { data: dbKeys } = await adminClient.from("api_keys").select("key_name, key_value");
+    const dbKeyMap = new Map((dbKeys || []).map((k: any) => [k.key_name, k.key_value]));
+    const dbKeyNames = new Set(dbKeyMap.keys());
+
+    // UTMIFY_ENABLED defaults to true when not set
+    const utmifyEnabledVal = dbKeyMap.get("UTMIFY_ENABLED") ?? Deno.env.get("UTMIFY_ENABLED") ?? "true";
+    const utmifyEnabled = utmifyEnabledVal !== "false";
 
     const status = {
       stripe: !!(Deno.env.get("STRIPE_SECRET_KEY") || dbKeyNames.has("STRIPE_SECRET_KEY")),
@@ -42,6 +47,7 @@ Deno.serve(async (req) => {
         (Deno.env.get("UAZAPI_TOKEN") || dbKeyNames.has("UAZAPI_TOKEN"))
       ),
       utmify: !!(Deno.env.get("UTMIFY_API_KEY") || dbKeyNames.has("UTMIFY_API_KEY")),
+      utmify_enabled: utmifyEnabled,
       debito: true, // Hardcoded fallback present in functions
     };
 

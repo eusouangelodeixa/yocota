@@ -1,16 +1,27 @@
+import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { formatCents } from "@/lib/formatters";
 
 const statusPill: Record<string, { label: string; cls: string }> = {
-  pending: { label: "PENDENTE", cls: "pill-pending" },
-  paid: { label: "PAGO", cls: "pill-paid" },
-  failed: { label: "FALHOU", cls: "pill-failed" },
-  refunded: { label: "REEMBOLSO", cls: "pill-refunded" },
+  pending:  { label: "PENDENTE",   cls: "pill-pending"  },
+  paid:     { label: "PAGO",       cls: "pill-paid"     },
+  failed:   { label: "FALHOU",     cls: "pill-failed"   },
+  refunded: { label: "REEMBOLSO",  cls: "pill-refunded" },
 };
 
+const FILTERS = [
+  { value: "all",      label: "Todos"      },
+  { value: "paid",     label: "Pagos"      },
+  { value: "pending",  label: "Pendentes"  },
+  { value: "failed",   label: "Falhados"   },
+  { value: "refunded", label: "Reembolsos" },
+];
+
 export default function Orders() {
+  const [statusFilter, setStatusFilter] = useState("all");
+
   const { data: orders, isLoading } = useQuery({
     queryKey: ["orders"],
     queryFn: async () => {
@@ -23,9 +34,36 @@ export default function Orders() {
     },
   });
 
+  const filtered = statusFilter === "all"
+    ? orders
+    : orders?.filter((o: any) => o.status === statusFilter);
+
   return (
     <div className="space-y-6">
-      <h2 className="text-lg font-bold text-foreground">Pedidos</h2>
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+        <h2 className="text-lg font-bold text-foreground">Pedidos</h2>
+        <div className="flex items-center gap-1 bg-secondary rounded-lg p-0.5">
+          {FILTERS.map((f) => (
+            <button
+              key={f.value}
+              onClick={() => setStatusFilter(f.value)}
+              className={`px-3 py-1.5 rounded-md text-xs font-medium transition-all duration-150 ${
+                statusFilter === f.value
+                  ? "bg-background text-foreground shadow-sm"
+                  : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              {f.label}
+              {f.value !== "all" && orders && (
+                <span className="ml-1.5 text-[10px] opacity-60">
+                  {orders.filter((o: any) => o.status === f.value).length}
+                </span>
+              )}
+            </button>
+          ))}
+        </div>
+      </div>
+
       <div className="card-surface rounded-[10px] overflow-x-auto">
         <Table>
           <TableHeader>
@@ -48,12 +86,14 @@ export default function Orders() {
                   <TableCell><div className="h-4 w-20 shimmer rounded" /></TableCell>
                 </TableRow>
               ))
-            ) : orders?.length === 0 ? (
+            ) : !filtered?.length ? (
               <TableRow>
-                <TableCell colSpan={5} className="text-center py-12 text-muted-foreground text-[13px]">Nenhum pedido encontrado</TableCell>
+                <TableCell colSpan={5} className="text-center py-12 text-muted-foreground text-[13px]">
+                  Nenhum pedido{statusFilter !== "all" ? " com este status" : ""} encontrado
+                </TableCell>
               </TableRow>
             ) : (
-              orders?.map((order: any) => {
+              filtered.map((order: any) => {
                 const sp = statusPill[order.status] || statusPill.pending;
                 return (
                   <TableRow key={order.id} className="border-border hover:bg-[rgba(255,255,255,0.02)] h-12">

@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -7,12 +8,20 @@ import { toast } from "sonner";
 
 const statusPill: Record<string, { label: string; cls: string }> = {
   pending: { label: "PENDENTE", cls: "pill-pending" },
-  sent: { label: "ENVIADO", cls: "pill-sent" },
-  failed: { label: "FALHOU", cls: "pill-failed" },
+  sent:    { label: "ENVIADO",  cls: "pill-sent"    },
+  failed:  { label: "FALHOU",   cls: "pill-failed"  },
 };
+
+const FILTERS = [
+  { value: "all",     label: "Todos"     },
+  { value: "pending", label: "Pendentes" },
+  { value: "sent",    label: "Enviados"  },
+  { value: "failed",  label: "Falhados"  },
+];
 
 export default function Deliveries() {
   const queryClient = useQueryClient();
+  const [statusFilter, setStatusFilter] = useState("all");
 
   const { data: deliveries, isLoading } = useQuery({
     queryKey: ["admin-deliveries"],
@@ -42,13 +51,39 @@ export default function Deliveries() {
     onError: (err: any) => toast.error("Falha ao reenviar: " + (err.message || "Erro desconhecido")),
   });
 
+  const filtered = statusFilter === "all"
+    ? deliveries
+    : deliveries?.filter((d: any) => d.status === statusFilter);
+
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h2 className="text-lg font-bold text-foreground">Entregas</h2>
-        <span className="text-[11px] font-medium text-muted-foreground bg-secondary px-2.5 py-1 rounded-full">
-          {deliveries?.length || 0} registros
-        </span>
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+        <div className="flex items-center gap-3">
+          <h2 className="text-lg font-bold text-foreground">Entregas</h2>
+          <span className="text-[11px] font-medium text-muted-foreground bg-secondary px-2.5 py-1 rounded-full">
+            {filtered?.length || 0} registros
+          </span>
+        </div>
+        <div className="flex items-center gap-1 bg-secondary rounded-lg p-0.5">
+          {FILTERS.map((f) => (
+            <button
+              key={f.value}
+              onClick={() => setStatusFilter(f.value)}
+              className={`px-3 py-1.5 rounded-md text-xs font-medium transition-all duration-150 ${
+                statusFilter === f.value
+                  ? "bg-background text-foreground shadow-sm"
+                  : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              {f.label}
+              {f.value !== "all" && deliveries && (
+                <span className="ml-1.5 text-[10px] opacity-60">
+                  {deliveries.filter((d: any) => d.status === f.value).length}
+                </span>
+              )}
+            </button>
+          ))}
+        </div>
       </div>
 
       <div className="card-surface rounded-[10px] overflow-x-auto">
@@ -72,12 +107,14 @@ export default function Deliveries() {
                   ))}
                 </TableRow>
               ))
-            ) : (!deliveries || deliveries.length === 0) ? (
+            ) : !filtered?.length ? (
               <TableRow>
-                <TableCell colSpan={6} className="text-center text-muted-foreground py-12 text-[13px]">Nenhuma entrega registrada</TableCell>
+                <TableCell colSpan={6} className="text-center text-muted-foreground py-12 text-[13px]">
+                  Nenhuma entrega{statusFilter !== "all" ? " com este status" : ""} registrada
+                </TableCell>
               </TableRow>
             ) : (
-              deliveries.map((d: any) => {
+              filtered.map((d: any) => {
                 const sp = statusPill[d.status] || statusPill.pending;
                 return (
                   <TableRow key={d.id} className="border-border hover:bg-[rgba(255,255,255,0.02)] h-12">

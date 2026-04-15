@@ -3,6 +3,8 @@ import { useParams, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Loader2, CheckCircle2 } from "lucide-react";
+import PixelInjector from "@/components/PixelInjector";
+import type { PixelConfig } from "@/components/PixelInjector";
 
 function useDocTitle(title: string) {
   useEffect(() => { document.title = title; return () => { document.title = "Yocota"; }; }, [title]);
@@ -19,6 +21,14 @@ export default function SuccessPage() {
   const [redirectUrl, setRedirectUrl] = useState<string>("");
   const [offerToken, setOfferToken] = useState<string | null>(null);
 
+  // Pixel tracking state
+  const [pixels, setPixels] = useState<PixelConfig>({});
+  const [purchaseValue, setPurchaseValue] = useState(0);
+  const [purchaseCurrency, setPurchaseCurrency] = useState("BRL");
+  const [purchaseOrderId, setPurchaseOrderId] = useState<string | undefined>();
+  const [productName, setProductName] = useState<string | undefined>();
+  const [pixelFired, setPixelFired] = useState(false);
+
   useDocTitle("Pagamento confirmado");
 
   useEffect(() => {
@@ -26,12 +36,26 @@ export default function SuccessPage() {
 
     const formatAbsoluteUrl = (url: string) => url.startsWith("http") ? url : `https://${url}`;
 
-    // Fetch checkout config once upfront (parallel with first poll)
+    // Fetch checkout config + pixel fields
     let checkoutData: { redirect_url: string; first_offer_id: string | null } | null = null;
-    const fetchCheckout = supabase.from("checkouts").select("redirect_url, first_offer_id").eq("id", checkoutId).single()
-      .then(({ data }) => { 
-        checkoutData = data; 
-        if (data?.redirect_url) setRedirectUrl(formatAbsoluteUrl(data.redirect_url)); 
+    const fetchCheckout = supabase
+      .from("checkouts")
+      .select("redirect_url, first_offer_id, fb_pixel_id, tiktok_pixel_id, google_ads_id, google_ads_label, gtm_id, products!checkouts_product_id_fkey(name, currency)")
+      .eq("id", checkoutId)
+      .single()
+      .then(({ data }) => {
+        checkoutData = data;
+        if (data?.redirect_url) setRedirectUrl(formatAbsoluteUrl(data?.redirect_url));
+        // Load pixel config
+        setPixels({
+          fb_pixel_id: data?.fb_pixel_id,
+          tiktok_pixel_id: data?.tiktok_pixel_id,
+          google_ads_id: data?.google_ads_id,
+          google_ads_label: data?.google_ads_label,
+          gtm_id: data?.gtm_id,
+        });
+        setProductName((data as any)?.products?.name);
+        setPurchaseCurrency((data as any)?.products?.currency || "BRL");
       });
 
     let attempts = 0;
@@ -41,7 +65,7 @@ export default function SuccessPage() {
       await fetchCheckout; // ensure checkout is loaded (resolves instantly after first call)
 
       let orderId: string | null = urlOrderId || null;
-      
+
       // Fallback: Se não trouxe order_id na URL (ex: Stripe redirecionou direto sem ele), tenta buscar pelo intent
       if (!orderId && paymentIntentId) {
         const { data: order } = await supabase.from("orders").select("id").eq("stripe_payment_intent_id", paymentIntentId).eq("status", "paid").maybeSingle();
@@ -60,8 +84,17 @@ export default function SuccessPage() {
 
       // Order found — check if there's an offer funnel
       const hasOfferFunnel = !!checkoutData?.first_offer_id;
+
+      // Fetch order value for pixel Purchase event
+      if (orderId) {
+        supabase.from("orders").select("total_amount").eq("id", orderId).maybeSingle().then(({ data: orderData }) => {
+          if (orderData?.total_amount) setPurchaseValue(orderData.total_amount / 100);
+          setPurchaseOrderId(orderId);
+        });
+      }
       if (!hasOfferFunnel) {
         setState("done");
+        setPixelFired(false); // will fire on render
         if (checkoutData?.redirect_url) setTimeout(() => { window.location.href = checkoutData!.redirect_url; }, 3000);
         return;
       }
@@ -81,8 +114,11 @@ export default function SuccessPage() {
         if (offerSession?.token) {
           const { data: offer } = await supabase.from("offers").select("page_url").eq("id", offerSession.offer_id).single();
           if (offer?.page_url) {
-            window.location.href = `${offer.page_url}${offer.page_url.includes("?") ? "&" : "?"}offer_token=${offerSession.token}`;
+            // External page — redirect with token so the page can embed the Yocota widget
+            const sep = offer.page_url.includes("?") ? "&" : "?";
+            window.location.href = `${offer.page_url}${sep}offer_token=${offerSession.token}`;
           } else {
+            // Inline — show offer popup within this page
             setOfferToken(offerSession.token);
             setState("offer-inline");
           }
@@ -94,17 +130,28 @@ export default function SuccessPage() {
 
       // Give up waiting for offer session
       setState("done");
+      setPixelFired(false);
       if (checkoutData?.redirect_url) setTimeout(() => { window.location.href = checkoutData!.redirect_url; }, 3000);
     };
     poll();
   }, [checkoutId, paymentIntentId, debitoReference]);
 
+  // Handles messages from the Yocota OfferFrame iframe (inline mode)
   const handleIframeMessage = useCallback((event: MessageEvent) => {
     if (event.data?.type === "offer-complete") {
       const { nextToken, nextPageUrl } = event.data;
-      if (nextPageUrl && nextToken) { window.location.href = `${nextPageUrl}${nextPageUrl.includes("?") ? "&" : "?"}offer_token=${nextToken}`; }
-      else if (nextToken) { setOfferToken(nextToken); }
-      else { setState("done"); if (redirectUrl) setTimeout(() => { window.location.href = redirectUrl; }, 3000); }
+      if (nextPageUrl && nextToken) {
+        // Next offer has external page — redirect with token
+        const sep = nextPageUrl.includes("?") ? "&" : "?";
+        window.location.href = `${nextPageUrl}${sep}offer_token=${nextToken}`;
+      } else if (nextToken) {
+        // Next offer is inline — update token (keeps offer-inline state)
+        setOfferToken(nextToken);
+      } else {
+        // End of funnel
+        setState("done");
+        if (redirectUrl) setTimeout(() => { window.location.href = redirectUrl; }, 3000);
+      }
     }
   }, [redirectUrl]);
 
@@ -160,6 +207,18 @@ export default function SuccessPage() {
         <p className="text-[13px] text-[#a1a1aa]">Obrigado pela sua compra. Você receberá os detalhes por email ou WhatsApp.</p>
         {redirectUrl && <p className="text-[11px] text-[#52525b]">Redirecionando em alguns segundos...</p>}
       </div>
+
+      {/* Tracking Pixels — Purchase event on confirmed payment */}
+      {!pixelFired && (
+        <PixelInjector
+          pixels={pixels}
+          event="purchase"
+          value={purchaseValue}
+          currency={purchaseCurrency}
+          orderId={purchaseOrderId}
+          productName={productName}
+        />
+      )}
     </div>
   );
 }

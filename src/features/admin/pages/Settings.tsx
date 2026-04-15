@@ -14,7 +14,7 @@ import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 const SETTINGS_ID = "00000000-0000-0000-0000-000000000001";
 const SUPER_ADMIN_EMAIL = "eusouangelodeixa@gmail.com";
 
-function SectionCard({ title, description, children, status }: { title: string; description?: string; children: React.ReactNode; status?: "active" | "inactive" }) {
+function SectionCard({ title, description, children, status }: { title: string; description?: string; children: React.ReactNode; status?: "active" | "inactive" | "paused" }) {
   return (
     <div className="card-surface rounded-[10px] overflow-hidden">
       <div className="px-5 py-4 border-b border-border flex items-center justify-between">
@@ -23,12 +23,15 @@ function SectionCard({ title, description, children, status }: { title: string; 
           {description && <p className="text-[11px] text-muted-foreground mt-0.5">{description}</p>}
         </div>
         {status && (
-          <Badge className={status === "active"
-            ? "bg-emerald-500/15 text-emerald-400 border-emerald-500/30 hover:bg-emerald-500/20 gap-1"
-            : "bg-muted text-muted-foreground border-border hover:bg-muted gap-1"
+          <Badge className={
+            status === "active"
+              ? "bg-emerald-500/15 text-emerald-400 border-emerald-500/30 hover:bg-emerald-500/20 gap-1"
+              : status === "paused"
+              ? "bg-amber-500/15 text-amber-400 border-amber-500/30 hover:bg-amber-500/20 gap-1"
+              : "bg-muted text-muted-foreground border-border hover:bg-muted gap-1"
           }>
-            {status === "active" ? <CheckCircle2 className="h-3 w-3" /> : <XCircle className="h-3 w-3" />}
-            {status === "active" ? "Ativo" : "Não configurado"}
+            {status === "active" ? <CheckCircle2 className="h-3 w-3" /> : status === "paused" ? <XCircle className="h-3 w-3" /> : <XCircle className="h-3 w-3" />}
+            {status === "active" ? "Ativo" : status === "paused" ? "Pausado" : "Não configurado"}
           </Badge>
         )}
       </div>
@@ -153,17 +156,31 @@ export default function Settings() {
       try {
         const { data, error } = await supabase.functions.invoke("check-integrations");
         if (error) throw error;
-        const status = data as { stripe: boolean; stripe_webhook: boolean; uazapi: boolean; utmify: boolean; debito: boolean };
+        const status = data as { stripe: boolean; stripe_webhook: boolean; uazapi: boolean; utmify: boolean; utmify_enabled: boolean; debito: boolean };
         return { ...status, debito: true };
       } catch (err) {
         console.error("Error checking integrations:", err);
-        // Fallback status if the remote check fails
-        return { stripe: false, stripe_webhook: false, uazapi: false, utmify: false, debito: true };
+        return { stripe: false, stripe_webhook: false, uazapi: false, utmify: false, utmify_enabled: true, debito: true };
       }
     },
-    // Ensure we have a default value while loading or on error
-    initialData: { stripe: false, stripe_webhook: false, uazapi: false, utmify: false, debito: true }
+    initialData: { stripe: false, stripe_webhook: false, uazapi: false, utmify: false, utmify_enabled: true, debito: true }
   });
+
+  const toggleUtmifyMutation = useMutation({
+    mutationFn: async (enabled: boolean) => {
+      const { data, error } = await supabase.functions.invoke("update-secrets", {
+        body: { utmify_enabled: enabled ? "true" : "false" },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+    },
+    onSuccess: (_data, enabled) => {
+      toast.success(enabled ? "UTMify ativado!" : "UTMify pausado!");
+      queryClient.invalidateQueries({ queryKey: ["configured_api_keys"] });
+    },
+    onError: (e: any) => toast.error("Erro ao alterar UTMify: " + e.message),
+  });
+
 
   const saveApiKeysMutation = useMutation({
     mutationFn: async () => {
@@ -425,8 +442,46 @@ export default function Settings() {
               <SecretInput label="URL da API" value={apiKeys.uazapi_url} onChange={(v) => setApiKeys((f) => ({ ...f, uazapi_url: v }))} placeholder="https://api.uazapi.com/..." />
               <SecretInput label="Token" value={apiKeys.uazapi_token} onChange={(v) => setApiKeys((f) => ({ ...f, uazapi_token: v }))} placeholder="seu-token-uazapi" />
             </SectionCard>
-            <SectionCard title="Utmify" description="Tracking e atribuição de UTMs" status={configuredKeys?.utmify ? "active" : "inactive"}>
+            <SectionCard
+              title="Utmify"
+              description="Tracking e atribuição de UTMs"
+              status={
+                !configuredKeys?.utmify ? "inactive"
+                : configuredKeys?.utmify_enabled === false ? "paused"
+                : "active"
+              }
+            >
               <SecretInput label="API Key" value={apiKeys.utmify_api_key} onChange={(v) => setApiKeys((f) => ({ ...f, utmify_api_key: v }))} placeholder="utmify_key_..." helpUrl="https://app.utmify.com.br" helpLabel="Painel Utmify" />
+              {configuredKeys?.utmify && (
+                <div className="flex items-center justify-between pt-1">
+                  <div>
+                    <p className="text-xs font-medium text-foreground">
+                      {configuredKeys?.utmify_enabled !== false ? "Envio ativo" : "Envio pausado"}
+                    </p>
+                    <p className="text-[10px] text-muted-foreground mt-0.5">
+                      {configuredKeys?.utmify_enabled !== false
+                        ? "Vendas estão sendo enviadas ao UTMify"
+                        : "Nenhuma venda será enviada ao UTMify"}
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => toggleUtmifyMutation.mutate(configuredKeys?.utmify_enabled === false)}
+                    disabled={toggleUtmifyMutation.isPending}
+                    className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors duration-200 focus:outline-none ${
+                      configuredKeys?.utmify_enabled !== false
+                        ? "bg-emerald-500"
+                        : "bg-muted-foreground/30"
+                    }`}
+                  >
+                    <span
+                      className={`inline-block h-4 w-4 transform rounded-full bg-white shadow-sm transition-transform duration-200 ${
+                        configuredKeys?.utmify_enabled !== false ? "translate-x-6" : "translate-x-1"
+                      }`}
+                    />
+                  </button>
+                </div>
+              )}
             </SectionCard>
             <SectionCard title="Débito (Moçambique)" description="IDs das carteiras e token da API" status={configuredKeys?.debito ? "active" : "inactive"}>
               <SecretInput label="Débito API Token" value={apiKeys.debito_api_token} onChange={(v) => setApiKeys((f) => ({ ...f, debito_api_token: v }))} placeholder="Iniciado com eyJ0eXAi..." />

@@ -85,6 +85,7 @@ export default function Products() {
   const [form, setForm] = useState<ProductForm>(emptyForm);
   const [filterType, setFilterType] = useState<string>("all");
   const [page, setPage] = useState(0);
+  const [confirmDelete, setConfirmDelete] = useState<any>(null);
   const pageSize = 20;
 
   const { data, isLoading } = useQuery({
@@ -137,22 +138,26 @@ export default function Products() {
 
   const deleteMutation = useMutation({
     mutationFn: async (product: any) => {
-      // Archive on Stripe if synced
+      // 1. Archive on Stripe if synced
       if (product.stripe_product_id) {
         try {
           await supabase.functions.invoke("sync-product", { body: { productId: product.id, action: "archive" } });
         } catch (e) { console.error("Stripe archive error:", e); }
       }
-      // Delete related checkout_order_bumps
+      // 2. Delete all FK-related records (cascade)
+      await supabase.from("order_items").delete().eq("product_id", product.id);
       await supabase.from("checkout_order_bumps").delete().eq("product_id", product.id);
-      // Delete the product
+      await supabase.from("checkouts").delete().eq("product_id", product.id);
+      // 3. Delete the product
       const { error } = await supabase.from("products").delete().eq("id", product.id);
-      if (error) {
-        if (error.code === "23503") throw new Error("Este produto está vinculado a pedidos existentes e não pode ser excluído. Desative-o em vez disso.");
-        throw error;
-      }
+      if (error) throw error;
     },
-    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["products"] }); toast.success("Produto excluído!"); },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["products"] });
+      queryClient.invalidateQueries({ queryKey: ["checkouts"] });
+      setConfirmDelete(null);
+      toast.success("Produto excluído com sucesso.");
+    },
     onError: (e: Error) => toast.error(e.message),
   });
 
@@ -304,7 +309,7 @@ export default function Products() {
                       <Button variant="ghost" size="icon" onClick={() => openEdit(product)} className="h-8 w-8 text-muted-foreground hover:text-foreground">
                         <Pencil className="h-3.5 w-3.5" strokeWidth={1.5} />
                       </Button>
-                      <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-destructive" title="Excluir" onClick={() => { if (confirm("Excluir este produto? Esta ação não pode ser desfeita.")) deleteMutation.mutate(product); }}>
+                      <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-destructive" title="Excluir" onClick={() => setConfirmDelete(product)}>
                         <Trash2 className="h-3.5 w-3.5" strokeWidth={1.5} />
                       </Button>
                     </div>
@@ -323,6 +328,38 @@ export default function Products() {
             <button key={i} onClick={() => setPage(i)} className={`w-8 h-8 rounded-lg text-xs font-medium transition-all duration-150 ${page === i ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground hover:bg-secondary"}`}>{i + 1}</button>
           ))}
           <button disabled={page >= totalPages - 1} onClick={() => setPage(page + 1)} className="px-3 h-8 rounded-lg text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-secondary disabled:opacity-40 disabled:cursor-not-allowed transition-all duration-150">Próxima</button>
+        </div>
+      )}
+
+      {/* ── Confirm Delete Dialog ── */}
+      {confirmDelete && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
+          <div className="bg-background border border-border rounded-2xl shadow-2xl p-6 w-full max-w-sm mx-4 space-y-4">
+            <div className="flex items-start gap-3">
+              <div className="w-10 h-10 rounded-full bg-destructive/10 flex items-center justify-center shrink-0">
+                <Trash2 className="h-5 w-5 text-destructive" strokeWidth={1.5} />
+              </div>
+              <div>
+                <p className="font-semibold text-foreground text-[15px]">Excluir produto?</p>
+                <p className="text-[13px] text-muted-foreground mt-1">
+                  <span className="font-medium text-foreground">{confirmDelete.name}</span> será removido permanentemente.
+                  Checkouts e itens de pedidos vinculados também serão apagados.
+                </p>
+              </div>
+            </div>
+            <div className="flex gap-2 pt-1">
+              <Button variant="outline" className="flex-1 h-9 text-xs" onClick={() => setConfirmDelete(null)} disabled={deleteMutation.isPending}>
+                Cancelar
+              </Button>
+              <Button
+                className="flex-1 h-9 text-xs bg-destructive text-destructive-foreground hover:brightness-110"
+                onClick={() => deleteMutation.mutate(confirmDelete)}
+                disabled={deleteMutation.isPending}
+              >
+                {deleteMutation.isPending ? "Excluindo..." : "Sim, excluir"}
+              </Button>
+            </div>
+          </div>
         </div>
       )}
     </div>

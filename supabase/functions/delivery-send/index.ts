@@ -30,6 +30,8 @@ serve(async (req) => {
   }
   if (!UAZAPI_URL) UAZAPI_URL = Deno.env.get("UAZAPI_URL") || "";
   if (!UAZAPI_TOKEN) UAZAPI_TOKEN = Deno.env.get("UAZAPI_TOKEN") || "";
+  // Normalize: remove trailing slash
+  UAZAPI_URL = UAZAPI_URL.replace(/\/+$/, "");
 
   if (!UAZAPI_URL || !UAZAPI_TOKEN) {
     console.error("UazAPI not configured");
@@ -104,6 +106,7 @@ serve(async (req) => {
     const customer = order.customers;
     const phone = customer.phone;
 
+    console.log(`[delivery-send] order=${order_id} item=${order_item_id} product=${product.id} delivery_type=${product.delivery_type} phone=${phone}`);
     // Only deliver if product has delivery_type !== 'none' and customer has phone
     if (product.delivery_type === "none" || !phone) {
       console.log("No delivery needed for product:", product.id, "delivery_type:", product.delivery_type, "phone:", phone);
@@ -180,12 +183,14 @@ serve(async (req) => {
           }),
         });
 
+        const responseBody = await uazRes.text();
+        console.log(`[delivery-send] UazAPI attempt ${attempt + 1}: HTTP ${uazRes.status} — ${responseBody.substring(0, 300)}`);
+
         if (uazRes.ok) {
           sent = true;
           break;
         } else {
-          const errBody = await uazRes.text();
-          lastError = `UazAPI ${uazRes.status}: ${errBody}`;
+          lastError = `UazAPI ${uazRes.status}: ${responseBody}`;
           console.warn(`Delivery attempt ${attempt + 1} failed:`, lastError);
         }
       } catch (e: any) {

@@ -1,14 +1,30 @@
+import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 
 const statusPill: Record<string, { label: string; cls: string }> = {
-  recovered: { label: "RECUPERADO", cls: "pill-paid" },
-  whatsapp: { label: "WHATSAPP ENVIADO", cls: "pill-sent" },
-  pending: { label: "PENDENTE", cls: "pill-pending" },
+  recovered: { label: "RECUPERADO",       cls: "pill-paid"    },
+  whatsapp:  { label: "WHATSAPP ENVIADO", cls: "pill-sent"    },
+  pending:   { label: "PENDENTE",         cls: "pill-pending" },
+};
+
+const FILTERS = [
+  { value: "all",       label: "Todos"      },
+  { value: "pending",   label: "Pendentes"  },
+  { value: "whatsapp",  label: "Contactado" },
+  { value: "recovered", label: "Recuperado" },
+];
+
+const getStatusKey = (item: any) => {
+  if (item.recovered) return "recovered";
+  if (item.whatsapp_sent_at) return "whatsapp";
+  return "pending";
 };
 
 export default function Remarketing() {
+  const [statusFilter, setStatusFilter] = useState("all");
+
   const { data, isLoading } = useQuery({
     queryKey: ["admin-remarketing"],
     queryFn: async () => {
@@ -22,27 +38,47 @@ export default function Remarketing() {
     },
   });
 
-  const total = data?.length || 0;
-  const recovered = data?.filter((a: any) => a.recovered).length || 0;
+  const total      = data?.length || 0;
+  const recovered  = data?.filter((a: any) => a.recovered).length || 0;
   const whatsappSent = data?.filter((a: any) => a.whatsapp_sent_at).length || 0;
   const recoveryRate = total > 0 ? ((recovered / total) * 100).toFixed(1) : "0.0";
 
   const kpis = [
-    { label: "ABANDONOS TOTAIS", value: total },
-    { label: "RECUPERADOS", value: recovered },
-    { label: "WHATSAPP ENVIADO", value: whatsappSent },
+    { label: "ABANDONOS TOTAIS",    value: total },
+    { label: "RECUPERADOS",         value: recovered },
+    { label: "WHATSAPP ENVIADO",    value: whatsappSent },
     { label: "TAXA DE RECUPERAÇÃO", value: `${recoveryRate}%` },
   ];
 
-  const getStatus = (item: any) => {
-    if (item.recovered) return statusPill.recovered;
-    if (item.whatsapp_sent_at) return statusPill.whatsapp;
-    return statusPill.pending;
-  };
+  const filtered = statusFilter === "all"
+    ? data
+    : data?.filter((item: any) => getStatusKey(item) === statusFilter);
 
   return (
     <div className="space-y-6">
-      <h2 className="text-lg font-bold text-foreground">Remarketing</h2>
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+        <h2 className="text-lg font-bold text-foreground">Remarketing</h2>
+        <div className="flex items-center gap-1 bg-secondary rounded-lg p-0.5">
+          {FILTERS.map((f) => (
+            <button
+              key={f.value}
+              onClick={() => setStatusFilter(f.value)}
+              className={`px-3 py-1.5 rounded-md text-xs font-medium transition-all duration-150 ${
+                statusFilter === f.value
+                  ? "bg-background text-foreground shadow-sm"
+                  : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              {f.label}
+              {f.value !== "all" && data && (
+                <span className="ml-1.5 text-[10px] opacity-60">
+                  {data.filter((item: any) => getStatusKey(item) === f.value).length}
+                </span>
+              )}
+            </button>
+          ))}
+        </div>
+      </div>
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
         {kpis.map((kpi) => (
@@ -73,13 +109,16 @@ export default function Remarketing() {
                   ))}
                 </TableRow>
               ))
-            ) : (!data || data.length === 0) ? (
+            ) : !filtered?.length ? (
               <TableRow>
-                <TableCell colSpan={5} className="text-center text-muted-foreground py-12 text-[13px]">Nenhum abandono registrado</TableCell>
+                <TableCell colSpan={5} className="text-center text-muted-foreground py-12 text-[13px]">
+                  Nenhum abandono{statusFilter !== "all" ? " com este status" : ""} registrado
+                </TableCell>
               </TableRow>
             ) : (
-              data.map((item: any) => {
-                const sp = getStatus(item);
+              filtered.map((item: any) => {
+                const key = getStatusKey(item);
+                const sp = statusPill[key];
                 return (
                   <TableRow key={item.id} className="border-border hover:bg-[rgba(255,255,255,0.02)] h-12">
                     <TableCell>

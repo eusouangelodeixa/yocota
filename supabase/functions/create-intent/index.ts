@@ -94,6 +94,8 @@ serve(async (req) => {
       utm_campaign: sanitizeString(rawBody.utm_data?.utm_campaign, 100),
       utm_content: sanitizeString(rawBody.utm_data?.utm_content, 100),
       utm_term: sanitizeString(rawBody.utm_data?.utm_term, 100),
+      src: sanitizeString(rawBody.utm_data?.src, 100),
+      sck: sanitizeString(rawBody.utm_data?.sck, 100),
     } : {};
 
     // Validate required fields
@@ -218,6 +220,8 @@ serve(async (req) => {
         utm_campaign: utm_data?.utm_campaign || "",
         utm_content: utm_data?.utm_content || "",
         utm_term: utm_data?.utm_term || "",
+        src: utm_data?.src || "",
+        sck: utm_data?.sck || "",
       },
       automatic_payment_methods: {
         enabled: true,

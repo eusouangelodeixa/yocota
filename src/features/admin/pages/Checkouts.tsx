@@ -14,7 +14,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sh
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { toast } from "sonner";
 import { slugify, formatCents } from "@/lib/formatters";
-import { Plus, Copy, Pencil, Trash2, Eye, Palette, X, GripVertical, Upload, ImageIcon, Loader2, Zap, Users, ChevronDown, Lock } from "lucide-react";
+import { Plus, Copy, Pencil, Trash2, Eye, Palette, X, GripVertical, Upload, ImageIcon, Loader2, Zap, Users, ChevronDown, Lock, User, Mail, Shield, ShoppingCart, Phone, CreditCard, CheckCircle2, ScanLine } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
 
 interface CheckoutForm {
@@ -22,10 +22,13 @@ interface CheckoutForm {
   primary_color: string; accent_color: string; bg_color: string; cta_button_color: string; headline_text: string; cta_text: string;
   banner_url: string; show_product_image: boolean; order_bump_product_ids: string[];
   order_bump_descriptions: Record<string, string>;
-  countdown_enabled: boolean; countdown_duration: number; countdown_text: string;
+  countdown_enabled: boolean; countdown_duration: number; countdown_text: string; countdown_expired_text: string;
   countdown_bg_color: string; countdown_text_color: string;
   social_proof_enabled: boolean; social_proof_messages: string; social_proof_interval: number;
   social_proof_display_duration: number; social_proof_position: string;
+  // Tracking Pixels
+  fb_pixel_id: string; tiktok_pixel_id: string;
+  google_ads_id: string; google_ads_label: string; gtm_id: string;
 }
 
 const emptyForm: CheckoutForm = {
@@ -33,10 +36,12 @@ const emptyForm: CheckoutForm = {
   primary_color: "#2563eb", accent_color: "#1e40af", bg_color: "#f8fafc", cta_button_color: "",
   headline_text: "", cta_text: "Finalizar compra", banner_url: "", show_product_image: true,
   order_bump_product_ids: [], order_bump_descriptions: {},
-  countdown_enabled: false, countdown_duration: 10, countdown_text: "Essa oferta expira em:",
+  countdown_enabled: false, countdown_duration: 10, countdown_text: "Tempo a esgotar. Desconto expira em:",
+  countdown_expired_text: "O tempo acabou mas ainda podes comprar!",
   countdown_bg_color: "#dc2626", countdown_text_color: "#ffffff",
   social_proof_enabled: false, social_proof_messages: "", social_proof_interval: 15,
   social_proof_display_duration: 5, social_proof_position: "bottom-left",
+  fb_pixel_id: "", tiktok_pixel_id: "", google_ads_id: "", google_ads_label: "", gtm_id: "",
 };
 
 function OfferSelect({ value, onChange }: { value: string; onChange: (v: string) => void }) {
@@ -101,98 +106,187 @@ function BannerUpload({ value, onChange }: { value: string; onChange: (url: stri
   );
 }
 
-/* ── Checkout Live Preview (faithful recreation — light theme) ── */
+/* ── Faithful 1:1 Checkout Preview ── */
 function CheckoutLivePreview({ form, product, bumpProducts }: { form: CheckoutForm; product: any; bumpProducts: any[] }) {
   const isMZN = (product?.currency || "eur").toUpperCase() === "MZN";
   const currency = product?.currency || "eur";
-  const pc = form.primary_color || "#2563eb";
-  const btnColor = form.cta_button_color || pc;
-  const bgColor = form.bg_color || "#ffffff";
+  const btnColor = form.cta_button_color || "#00B589";
+  const bgColor  = form.bg_color || "#f9fafb";
 
-  // Formatar preço igual ao checkout real
-  const formatPrice = (cents: number) => {
-    const val = cents / 100;
-    const currencyStr = isMZN ? "MTn" : currency.toUpperCase();
-    return val.toLocaleString('pt-PT', { minimumFractionDigits: 2 }).replace('.', ',') + " " + currencyStr;
-  };
+  const basePrice = product ? formatCents(product.price, currency) : "—";
+
+  // Same class tokens as CheckoutPage.tsx
+  const labelClass = "block text-[12px] font-semibold text-[#1F2937] mb-0.5";
+  const fieldWrap  = "relative flex items-center h-10 rounded-lg border border-[#D1D5DB] bg-white overflow-hidden";
+  const fieldMock  = "flex-1 h-full px-2 text-[13px] text-[#9CA3AF] bg-transparent outline-none";
 
   return (
-    <div className="w-full rounded-[24px] border border-border overflow-hidden p-4 sm:p-8" style={{ backgroundColor: bgColor }}>
-      {/* Urgency Bar */}
+    <div className="w-full rounded-2xl border border-border overflow-hidden font-sans" style={{ backgroundColor: bgColor }}>
+
+      {/* Countdown bar */}
       {form.countdown_enabled && (
-        <div className="py-2 px-4 rounded-lg mb-6 flex items-center justify-center gap-2 text-[11px] font-bold" style={{ backgroundColor: form.countdown_bg_color, color: form.countdown_text_color }}>
-          <Zap className="h-3 w-3" /><span>{form.countdown_text}</span><span className="tabular-nums">09:58</span>
+        <div className="py-2 px-4 flex items-center justify-center gap-2 text-[11px] font-bold"
+          style={{ backgroundColor: form.countdown_bg_color || "#dc2626", color: form.countdown_text_color || "#ffffff" }}>
+          <Zap className="h-3 w-3 shrink-0" />
+          <span className="truncate">{form.countdown_text || "Oferta expira em:"}</span>
+          <span className="tabular-nums shrink-0">09:58</span>
         </div>
       )}
 
-      <div className="max-w-[360px] mx-auto w-full space-y-4">
+      <div className="px-4 pt-3 pb-4 space-y-3">
+
         {/* Banner */}
         {form.banner_url && (
-            <div className="w-full rounded-xl overflow-hidden shadow-sm border border-gray-100">
-                <img src={form.banner_url} className="w-full h-auto object-cover" />
-            </div>
+          <div className="w-full rounded-2xl overflow-hidden shadow-sm">
+            <img src={form.banner_url} className="w-full h-auto object-cover" alt="" />
+          </div>
         )}
 
-        {/* Title & Price */}
-        <div className="space-y-0.5">
-            <h3 className="text-[20px] font-bold text-black leading-tight truncate">{form.headline_text || product?.name || "Nome do Produto"}</h3>
-            <div className="text-[22px] font-black text-black leading-none">{product ? formatPrice(product.price) : "0,00 MTn"}</div>
+        {/* Product Summary Card */}
+        <div className="bg-white rounded-2xl border border-[#E5E7EB] shadow-sm px-3 py-2.5 flex items-center gap-3">
+          {form.show_product_image && product?.image_url && (
+            <div className="w-14 h-14 rounded-xl overflow-hidden shrink-0 border border-[#F3F4F6]">
+              <img src={product.image_url} alt={product.name} className="w-full h-full object-cover" />
+            </div>
+          )}
+          <div className="flex-1 min-w-0">
+            <p className="text-[13px] font-bold text-[#1F2937] leading-snug line-clamp-2">
+              {form.headline_text || product?.name || "Nome do Produto"}
+            </p>
+            <p className="text-[17px] font-extrabold leading-tight mt-0.5" style={{ color: btnColor }}>
+              {basePrice}
+            </p>
+          </div>
+          {isMZN && <span className="text-xl shrink-0 select-none">🇲🇿</span>}
         </div>
 
-        {/* Mock Contact Fields */}
-        <div className="space-y-3 pt-2">
-            <div className="space-y-1">
-                <p className="text-[11px] font-bold text-black">Nome completo</p>
-                <div className="h-9 rounded-lg bg-[#f4f7fa] border border-[#27272a]" />
-            </div>
-            <div className="space-y-1">
-                <p className="text-[11px] font-bold text-black">Email</p>
-                <div className="h-9 rounded-lg bg-[#f4f7fa] border border-[#27272a]" />
-            </div>
-            <div className="space-y-1">
-                <p className="text-[11px] font-bold text-black">WhatsApp</p>
-                <div className="flex gap-2">
-                    <div className="w-20 h-9 rounded-lg bg-white border border-[#27272a] flex items-center justify-center text-[11px] gap-1">🇲🇿 +258 <ChevronDown size={10} /></div>
-                    <div className="flex-1 h-9 rounded-lg bg-[#f4f7fa] border border-[#27272a]" />
-                </div>
-            </div>
+        {/* Nome completo */}
+        <div>
+          <label className={labelClass}>Nome completo <span className="text-[#EF4444]">*</span></label>
+          <div className={fieldWrap}>
+            <span className="pl-2.5 pr-1.5 text-[#9CA3AF] flex-shrink-0"><User className="h-4 w-4" strokeWidth={1.5} /></span>
+            <span className={fieldMock}>Nome completo</span>
+          </div>
         </div>
 
-        {/* Wallet Selection Mock */}
-        {isMZN && (
-            <div className="space-y-2 pt-2">
-                <p className="text-[11px] font-bold text-black">Selecione a carteira</p>
-                <div className="grid grid-cols-2 gap-2">
-                    <div className="h-12 rounded-xl bg-[#e31e27] flex items-center justify-center p-2"><img src="/assets/mpesa-logo.png" className="h-6 object-contain" /></div>
-                    <div className="h-12 rounded-xl border border-gray-100 bg-white opacity-40 flex items-center justify-center p-2"><img src="/assets/emola-logo.png" className="h-6 object-contain" /></div>
-                </div>
-            </div>
-        )}
+        {/* Email */}
+        <div>
+          <label className={labelClass}>Email <span className="text-[#6B7280] font-normal text-[10px]">(opcional)</span></label>
+          <div className={fieldWrap}>
+            <span className="pl-2.5 pr-1.5 text-[#9CA3AF] flex-shrink-0"><Mail className="h-4 w-4" strokeWidth={1.5} /></span>
+            <span className={fieldMock}>seu@email.com</span>
+          </div>
+        </div>
 
-        {/* Order Bumps in Preview */}
+        {/* WhatsApp */}
+        <div>
+          <label className={labelClass}>WhatsApp <span className="text-[#EF4444]">*</span></label>
+          <div className={fieldWrap}>
+            <span className="pl-2.5 pr-1.5 flex-shrink-0">
+              <svg viewBox="0 0 24 24" className="h-4 w-4" fill="#25D366"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413Z"/></svg>
+            </span>
+            {isMZN ? (
+              <>
+                <span className="text-[12px] font-semibold text-[#1F2937] pr-2 border-r border-[#E5E7EB] mr-1">+258</span>
+                <span className={fieldMock}>84 123 4567</span>
+              </>
+            ) : (
+              <>
+                <span className="text-[12px] font-semibold text-[#1F2937] pr-2 border-r border-[#E5E7EB] mr-1 flex items-center gap-1">🇵🇹 +351 <ChevronDown className="h-3 w-3" /></span>
+                <span className={fieldMock}>912 345 678</span>
+              </>
+            )}
+          </div>
+        </div>
+
+        {/* Order Bumps */}
         {bumpProducts.length > 0 && (
-          <div className="space-y-2 pt-2">
+          <div className="space-y-2">
+            <label className={labelClass}>Ofertas especiais</label>
             {bumpProducts.map((bp) => (
-              <div key={bp.id} className="rounded-xl border border-[#111111] bg-white p-3 flex items-center gap-3">
-                <div className="w-4 h-4 rounded border border-[#111111] shrink-0" />
+              <div key={bp.id} className="p-3 rounded-xl border-2 border-[#D1D5DB] bg-white flex items-start gap-3">
+                <div className="w-5 h-5 rounded border-2 border-[#D1D5DB] bg-white shrink-0 mt-0.5" />
                 <div className="flex-1 min-w-0">
-                    <p className="text-[11px] font-bold text-black truncate">{bp.name}</p>
-                    <p className="text-[10px] text-gray-500 line-clamp-1">{form.order_bump_descriptions[bp.id] || bp.description}</p>
+                  <div className="flex justify-between items-start gap-2">
+                    <span className="text-[14px] font-semibold text-[#1F2937] leading-tight">{bp.name}</span>
+                    <span className="text-[12px] font-semibold text-[#1F2937] shrink-0">+{formatCents(bp.price, bp.currency)}</span>
+                  </div>
+                  <p className="text-[12px] text-[#6B7280] mt-0.5 line-clamp-2">{form.order_bump_descriptions[bp.id] || bp.description}</p>
                 </div>
-                <span className="text-[11px] font-black text-black">+{formatPrice(bp.price)}</span>
               </div>
             ))}
           </div>
         )}
 
-        {/* Submit Button */}
-        <div className="pt-2">
-            <div className="w-full h-12 rounded-xl flex items-center justify-center gap-2 shadow-lg" style={{ backgroundColor: btnColor }}>
-                <Lock size={14} className="text-white" />
-                <span className="text-white font-bold text-[14px]">{form.cta_text || "Finalizar compra"}</span>
+        {/* Payment */}
+        {isMZN ? (
+          <div className="space-y-2">
+            <label className={labelClass}>Selecione o método de pagamento <span className="text-[#EF4444]">*</span></label>
+            <div className="grid grid-cols-2 gap-2">
+              <div className="flex flex-col items-center p-2 rounded-lg border-2 border-[#22C55E] bg-[#F0FDF4] gap-1">
+                <div className="flex items-center gap-1.5 w-full">
+                  <div className="w-3.5 h-3.5 rounded-full border-2 border-[#3B82F6] bg-[#3B82F6] flex items-center justify-center flex-shrink-0">
+                    <div className="w-1 h-1 rounded-full bg-white" />
+                  </div>
+                  <img src="/assets/emola-logo.png" className="h-5 object-contain flex-1" alt="e-Mola" />
+                </div>
+                <span className="text-[10px] font-medium text-[#1F2937]">e-Mola</span>
+              </div>
+              <div className="flex flex-col items-center p-2 rounded-lg border-2 border-[#D1D5DB] bg-white gap-1">
+                <div className="flex items-center gap-1.5 w-full">
+                  <div className="w-3.5 h-3.5 rounded-full border-2 border-[#D1D5DB] flex-shrink-0" />
+                  <img src="/assets/mpesa-logo.png" className="h-5 object-contain flex-1" alt="M-Pesa" />
+                </div>
+                <span className="text-[10px] font-medium text-[#1F2937]">M-Pesa</span>
+              </div>
             </div>
-            <p className="text-[9px] text-gray-400 text-center mt-3">🔒 Pagamento processado com segurança via {isMZN ? "Débito" : "Stripe"}</p>
+            {/* Número e-Mola */}
+            <div>
+              <label className={labelClass}>Número e-Mola <span className="text-[#EF4444]">*</span></label>
+              <div className={fieldWrap}>
+                <span className="pl-2.5 pr-1.5 text-[#9CA3AF] flex-shrink-0"><Phone className="h-4 w-4" strokeWidth={1.5} /></span>
+                <span className="text-[12px] font-semibold text-[#1F2937] pr-2 border-r border-[#E5E7EB] mr-1">+258</span>
+                <span className={fieldMock}>86 12 34 567</span>
+              </div>
+            </div>
+          </div>
+        ) : (
+          <div>
+            <label className={labelClass}><CreditCard className="inline h-3.5 w-3.5 mr-1 -mt-0.5" />Cartão de crédito <span className="text-[#EF4444]">*</span></label>
+            <div className="space-y-2">
+              <div className="flex items-center h-10 rounded-lg border border-[#D1D5DB] bg-white px-3">
+                <span className="text-[13px] text-[#9CA3AF]">1234 5678 9012 3456</span>
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <div className="flex items-center h-10 rounded-lg border border-[#D1D5DB] bg-white px-3">
+                  <span className="text-[13px] text-[#9CA3AF]">MM/AA</span>
+                </div>
+                <div className="flex items-center h-10 rounded-lg border border-[#D1D5DB] bg-white px-3">
+                  <span className="text-[13px] text-[#9CA3AF]">CVV</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* CTA Button */}
+        <div className="pt-0.5 space-y-2">
+          <div className="w-full h-12 rounded-xl flex items-center justify-center gap-2.5 shadow-md"
+            style={{ backgroundColor: btnColor }}>
+            <ShoppingCart size={18} className="text-white" strokeWidth={2} />
+            <span className="text-white font-semibold text-[14px]">{form.cta_text || "Finalizar Compra"} — {basePrice}</span>
+          </div>
+          <div className="flex items-center justify-center gap-4 text-[11px] text-[#6B7280]">
+            <span className="flex items-center gap-1">
+              <Shield className="h-3 w-3 text-[#22C55E]" strokeWidth={2} /> Compra 100% segura
+            </span>
+            <span className="text-[#D1D5DB]">|</span>
+            <span className="flex items-center gap-1">
+              <Lock className="h-3 w-3 text-[#22C55E]" strokeWidth={2} /> Entrega imediata
+            </span>
+          </div>
         </div>
+
       </div>
     </div>
   );
@@ -237,11 +331,17 @@ export default function Checkouts() {
         headline_text: form.headline_text || null, cta_text: form.cta_text || "Finalizar compra",
         banner_url: form.banner_url || null, show_product_image: form.show_product_image,
         countdown_enabled: form.countdown_enabled, countdown_duration: form.countdown_duration,
-        countdown_text: form.countdown_text, countdown_bg_color: form.countdown_bg_color,
+        countdown_text: form.countdown_text, countdown_expired_text: form.countdown_expired_text,
+        countdown_bg_color: form.countdown_bg_color,
         countdown_text_color: form.countdown_text_color, social_proof_enabled: form.social_proof_enabled,
         social_proof_messages: form.social_proof_messages.split("\n").map(s => s.trim()).filter(Boolean),
         social_proof_interval: form.social_proof_interval, social_proof_display_duration: form.social_proof_display_duration,
         social_proof_position: form.social_proof_position,
+        fb_pixel_id: form.fb_pixel_id || null,
+        tiktok_pixel_id: form.tiktok_pixel_id || null,
+        google_ads_id: form.google_ads_id || null,
+        google_ads_label: form.google_ads_label || null,
+        gtm_id: form.gtm_id || null,
       };
       let checkoutId: string;
       if (editingId) {
@@ -299,14 +399,20 @@ export default function Checkouts() {
       order_bump_descriptions: bumpDescs, 
       countdown_enabled: checkout.countdown_enabled ?? false, 
       countdown_duration: checkout.countdown_duration ?? 10, 
-      countdown_text: checkout.countdown_text ?? "Essa oferta expira em:", 
+      countdown_text: checkout.countdown_text ?? "Tempo a esgotar. Desconto expira em:", 
+      countdown_expired_text: checkout.countdown_expired_text ?? "O tempo acabou mas ainda podes comprar!",
       countdown_bg_color: checkout.countdown_bg_color ?? "#dc2626", 
       countdown_text_color: checkout.countdown_text_color ?? "#ffffff", 
       social_proof_enabled: checkout.social_proof_enabled ?? false, 
       social_proof_messages: spMessages, 
       social_proof_interval: checkout.social_proof_interval ?? 15, 
       social_proof_display_duration: checkout.social_proof_display_duration ?? 5, 
-      social_proof_position: checkout.social_proof_position ?? "bottom-left" 
+      social_proof_position: checkout.social_proof_position ?? "bottom-left",
+      fb_pixel_id: checkout.fb_pixel_id ?? "",
+      tiktok_pixel_id: checkout.tiktok_pixel_id ?? "",
+      google_ads_id: checkout.google_ads_id ?? "",
+      google_ads_label: checkout.google_ads_label ?? "",
+      gtm_id: checkout.gtm_id ?? "",
     });
     setBumpPickerOpen(false);
     setDialogOpen(true);
@@ -374,15 +480,17 @@ export default function Checkouts() {
               <Plus className="mr-1.5 h-3.5 w-3.5" strokeWidth={1.5} /> Novo Checkout
             </Button>
           </DialogTrigger>
-           <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto" aria-describedby={undefined}>
-             <DialogHeader><DialogTitle className="text-base">{editingId ? "Editar Checkout" : "Novo Checkout"}</DialogTitle></DialogHeader>
-            <form onSubmit={(e) => { e.preventDefault(); saveMutation.mutate(form); }}>
+           <DialogContent className="max-w-5xl max-h-[92vh] overflow-hidden p-0" aria-describedby={undefined}>
+             <DialogHeader className="px-5 pt-4 pb-0"><DialogTitle className="text-base">{editingId ? "Editar Checkout" : "Novo Checkout"}</DialogTitle></DialogHeader>
+            <form onSubmit={(e) => { e.preventDefault(); saveMutation.mutate(form); }} className="flex h-[calc(92vh-60px)]">
+              {/* LEFT: Settings */}
+              <div className="flex-1 min-w-0 overflow-y-auto px-5 py-4 border-r border-border space-y-0">
               <Tabs value={activeTab} onValueChange={setActiveTab}>
                 <TabsList className="w-full mb-4 bg-secondary border border-border">
                   <TabsTrigger value="info" className="flex-1 text-xs data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">Info</TabsTrigger>
                   <TabsTrigger value="design" className="flex-1 text-xs data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"><Palette className="mr-1 h-3 w-3" strokeWidth={1.5} />Design</TabsTrigger>
                   <TabsTrigger value="conversion" className="flex-1 text-xs data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"><Zap className="mr-1 h-3 w-3" strokeWidth={1.5} />Conversão</TabsTrigger>
-                  <TabsTrigger value="preview" className="flex-1 text-xs data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"><Eye className="mr-1 h-3 w-3" strokeWidth={1.5} />Preview</TabsTrigger>
+                  <TabsTrigger value="pixels" className="flex-1 text-xs data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"><ScanLine className="mr-1 h-3 w-3" strokeWidth={1.5} />Pixels</TabsTrigger>
                 </TabsList>
 
                 <TabsContent value="info" className="space-y-4">
@@ -453,7 +561,7 @@ export default function Checkouts() {
                   <div className="space-y-1.5"><Label className="text-xs text-muted-foreground">Primeira Oferta (Upsell/Downsell)</Label><OfferSelect value={form.first_offer_id} onChange={(v) => setForm({ ...form, first_offer_id: v })} /></div>
                 </TabsContent>
 
-                <TabsContent value="design" className="space-y-4">
+                <TabsContent value="design" className="space-y-4 pb-2">
                   <BannerUpload value={form.banner_url} onChange={(url) => setForm({ ...form, banner_url: url })} />
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     {[{ label: "Cor Primária", key: "primary_color" as const }, { label: "Cor Secundária", key: "accent_color" as const }, { label: "Cor de Fundo", key: "bg_color" as const }].map((c) => (
@@ -475,11 +583,7 @@ export default function Checkouts() {
                     <div className="space-y-1.5"><Label className="text-xs text-muted-foreground">Headline</Label><Input value={form.headline_text} onChange={(e) => setForm({ ...form, headline_text: e.target.value })} placeholder="Deixe vazio para usar o nome do produto" /></div>
                     <div className="space-y-1.5"><Label className="text-xs text-muted-foreground">Texto do Botão (CTA)</Label><Input value={form.cta_text} onChange={(e) => setForm({ ...form, cta_text: e.target.value })} placeholder="Finalizar compra" /></div>
                   </div>
-                  <div className="flex items-center gap-3"><Switch checked={form.show_product_image} onCheckedChange={(v) => setForm({ ...form, show_product_image: v })} /><Label className="text-xs text-muted-foreground">Mostrar imagem do produto</Label></div>
-                  <div className="pt-4 border-t border-border">
-                    <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium mb-3">Preview em tempo real</p>
-                    <CheckoutLivePreview form={form} product={selectedProduct} bumpProducts={bumpProducts} />
-                  </div>
+                  <div className="flex items-center gap-3 pt-2 pb-1"><Switch checked={form.show_product_image} onCheckedChange={(v) => setForm({ ...form, show_product_image: v })} /><Label className="text-xs text-muted-foreground">Mostrar imagem do produto</Label></div>
                 </TabsContent>
 
                 <TabsContent value="conversion" className="space-y-6">
@@ -495,8 +599,12 @@ export default function Checkouts() {
                     {form.countdown_enabled && (
                       <div className="space-y-3 pt-2">
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                          <div className="space-y-1.5"><Label className="text-xs text-muted-foreground">Texto da barra</Label><Input value={form.countdown_text} onChange={(e) => setForm({ ...form, countdown_text: e.target.value })} /></div>
+                          <div className="space-y-1.5"><Label className="text-xs text-muted-foreground">Texto antes de expirar</Label><Input value={form.countdown_text} onChange={(e) => setForm({ ...form, countdown_text: e.target.value })} placeholder="Tempo a esgotar. Desconto expira em:" /></div>
                           <div className="space-y-1.5"><Label className="text-xs text-muted-foreground">Duração (minutos)</Label><Input type="number" min={1} max={120} value={form.countdown_duration} onChange={(e) => setForm({ ...form, countdown_duration: parseInt(e.target.value) || 10 })} /></div>
+                        </div>
+                        <div className="space-y-1.5">
+                          <Label className="text-xs text-muted-foreground">Texto após expirar (quando o tempo chega a 00:00)</Label>
+                          <Input value={form.countdown_expired_text} onChange={(e) => setForm({ ...form, countdown_expired_text: e.target.value })} placeholder="O tempo acabou mas ainda podes comprar!" />
                         </div>
                         <div className="grid grid-cols-2 gap-3">
                           <div className="space-y-1.5">
@@ -508,10 +616,17 @@ export default function Checkouts() {
                             <div className="flex gap-2 items-center"><input type="color" value={form.countdown_text_color} onChange={(e) => setForm({ ...form, countdown_text_color: e.target.value })} className="w-10 h-10 rounded-lg border border-border cursor-pointer bg-transparent" /><Input value={form.countdown_text_color} onChange={(e) => setForm({ ...form, countdown_text_color: e.target.value })} className="flex-1 text-xs" /></div>
                           </div>
                         </div>
-                        <div className="rounded-lg overflow-hidden border border-border">
-                          <div className="py-2 px-4 flex items-center justify-center gap-2 text-sm font-semibold" style={{ backgroundColor: form.countdown_bg_color, color: form.countdown_text_color }}>
-                            <Zap className="h-4 w-4" /><span>{form.countdown_text}</span><span className="tabular-nums font-bold text-base">09:58</span>
+                        <div className="space-y-1.5">
+                          <Label className="text-xs text-muted-foreground">Preview</Label>
+                          <div className="rounded-lg overflow-hidden border border-border space-y-0">
+                            <div className="py-2 px-4 flex items-center justify-center gap-2 text-sm font-semibold" style={{ backgroundColor: form.countdown_bg_color, color: form.countdown_text_color }}>
+                              <Zap className="h-4 w-4" /><span>{form.countdown_text}</span><span className="tabular-nums font-bold text-base">09:58</span>
+                            </div>
+                            <div className="py-2 px-4 flex items-center justify-center gap-2 text-sm font-semibold border-t" style={{ backgroundColor: form.countdown_bg_color, color: form.countdown_text_color, borderColor: 'rgba(255,255,255,0.2)' }}>
+                              <span>⏱</span><span>{form.countdown_expired_text || "O tempo acabou mas ainda podes comprar!"}</span>
+                            </div>
                           </div>
+                          <p className="text-[10px] text-muted-foreground">↑ Antes do tempo acabar &nbsp;|&nbsp; ↓ Depois do tempo acabar</p>
                         </div>
                       </div>
                     )}
@@ -542,6 +657,115 @@ export default function Checkouts() {
                   </div>
                 </TabsContent>
 
+                <TabsContent value="pixels" className="space-y-5 pb-2">
+                  <p className="text-[11px] text-muted-foreground">Configure pixels de rastreamento para disparar eventos automaticamente no checkout e na página de sucesso.</p>
+
+                  {/* Meta Pixel */}
+                  <div className="space-y-3 rounded-lg border border-border p-4">
+                    <div className="flex items-center gap-2 mb-1">
+                      <svg className="h-4 w-4" viewBox="0 0 24 24" fill="#1877F2"><path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/></svg>
+                      <Label className="text-sm font-semibold text-foreground">Meta (Facebook) Pixel</Label>
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label className="text-xs text-muted-foreground">Pixel ID</Label>
+                      <Input
+                        value={form.fb_pixel_id}
+                        onChange={(e) => setForm({ ...form, fb_pixel_id: e.target.value })}
+                        placeholder="Ex: 1234567890123456"
+                        className="text-xs font-mono"
+                      />
+                      <p className="text-[10px] text-muted-foreground">Encontre em: Meta Business Suite → Events Manager → Pixels</p>
+                    </div>
+                    {form.fb_pixel_id && (
+                      <div className="flex flex-wrap gap-2">
+                        <span className="inline-flex items-center gap-1 rounded-full bg-blue-500/10 text-blue-400 border border-blue-500/20 px-2 py-0.5 text-[10px] font-medium">ViewContent — checkout</span>
+                        <span className="inline-flex items-center gap-1 rounded-full bg-blue-500/10 text-blue-400 border border-blue-500/20 px-2 py-0.5 text-[10px] font-medium">Purchase — sucesso</span>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* TikTok Pixel */}
+                  <div className="space-y-3 rounded-lg border border-border p-4">
+                    <div className="flex items-center gap-2 mb-1">
+                      <svg className="h-4 w-4" viewBox="0 0 24 24" fill="currentColor"><path d="M19.59 6.69a4.83 4.83 0 01-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 01-2.88 2.5 2.89 2.89 0 01-2.89-2.89 2.89 2.89 0 012.89-2.89c.28 0 .54.04.79.1V9.01a6.33 6.33 0 00-.79-.05 6.34 6.34 0 00-6.34 6.34 6.34 6.34 0 006.34 6.34 6.34 6.34 0 006.33-6.34V8.72a8.19 8.19 0 004.77 1.52V6.79a4.85 4.85 0 01-1-.1z"/></svg>
+                      <Label className="text-sm font-semibold text-foreground">TikTok Pixel</Label>
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label className="text-xs text-muted-foreground">Pixel ID</Label>
+                      <Input
+                        value={form.tiktok_pixel_id}
+                        onChange={(e) => setForm({ ...form, tiktok_pixel_id: e.target.value })}
+                        placeholder="Ex: C9ABC1234DEF5678"
+                        className="text-xs font-mono"
+                      />
+                      <p className="text-[10px] text-muted-foreground">Encontre em: TikTok Ads Manager → Assets → Events → Web Events</p>
+                    </div>
+                    {form.tiktok_pixel_id && (
+                      <div className="flex flex-wrap gap-2">
+                        <span className="inline-flex items-center gap-1 rounded-full bg-pink-500/10 text-pink-400 border border-pink-500/20 px-2 py-0.5 text-[10px] font-medium">ViewContent — checkout</span>
+                        <span className="inline-flex items-center gap-1 rounded-full bg-pink-500/10 text-pink-400 border border-pink-500/20 px-2 py-0.5 text-[10px] font-medium">CompletePayment — sucesso</span>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Google Ads */}
+                  <div className="space-y-3 rounded-lg border border-border p-4">
+                    <div className="flex items-center gap-2 mb-1">
+                      <svg className="h-4 w-4" viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg>
+                      <Label className="text-sm font-semibold text-foreground">Google Ads</Label>
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <div className="space-y-1.5">
+                        <Label className="text-xs text-muted-foreground">Conversion ID</Label>
+                        <Input
+                          value={form.google_ads_id}
+                          onChange={(e) => setForm({ ...form, google_ads_id: e.target.value })}
+                          placeholder="Ex: AW-123456789"
+                          className="text-xs font-mono"
+                        />
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label className="text-xs text-muted-foreground">Conversion Label</Label>
+                        <Input
+                          value={form.google_ads_label}
+                          onChange={(e) => setForm({ ...form, google_ads_label: e.target.value })}
+                          placeholder="Ex: AbCdEfGhIjKlMnOp"
+                          className="text-xs font-mono"
+                        />
+                      </div>
+                    </div>
+                    <p className="text-[10px] text-muted-foreground">Google Ads → Metas → Conversões → Detalhes da conversão</p>
+                    {form.google_ads_id && form.google_ads_label && (
+                      <div className="flex flex-wrap gap-2">
+                        <span className="inline-flex items-center gap-1 rounded-full bg-green-500/10 text-green-400 border border-green-500/20 px-2 py-0.5 text-[10px] font-medium">Conversion — sucesso</span>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* GTM */}
+                  <div className="space-y-3 rounded-lg border border-border p-4">
+                    <div className="flex items-center gap-2 mb-1">
+                      <svg className="h-4 w-4" viewBox="0 0 24 24" fill="#4285F4"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
+                      <Label className="text-sm font-semibold text-foreground">Google Tag Manager</Label>
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label className="text-xs text-muted-foreground">Container ID</Label>
+                      <Input
+                        value={form.gtm_id}
+                        onChange={(e) => setForm({ ...form, gtm_id: e.target.value })}
+                        placeholder="Ex: GTM-XXXXXXX"
+                        className="text-xs font-mono"
+                      />
+                      <p className="text-[10px] text-muted-foreground">GTM carrega todos os seus tags configurados. Use para múltiplos pixels via uma única integração.</p>
+                    </div>
+                    {form.gtm_id && (
+                      <div className="flex flex-wrap gap-2">
+                        <span className="inline-flex items-center gap-1 rounded-full bg-blue-500/10 text-blue-400 border border-blue-500/20 px-2 py-0.5 text-[10px] font-medium">dataLayer push — checkout + sucesso</span>
+                      </div>
+                    )}
+                  </div>
+                </TabsContent>
+
                 <TabsContent value="preview">
                   <div className="py-2">
                     <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium mb-3">Preview em tempo real</p>
@@ -549,9 +773,21 @@ export default function Checkouts() {
                   </div>
                 </TabsContent>
               </Tabs>
-              <Button type="submit" className="w-full mt-4 h-10 bg-primary text-primary-foreground font-bold hover:brightness-110 active:scale-[0.98]" disabled={saveMutation.isPending}>{saveMutation.isPending ? "Salvando..." : "Salvar"}</Button>
+              <div className="border-t border-border pt-4 mt-2">
+                <Button type="submit" className="w-full mb-1 h-10 bg-primary text-primary-foreground font-bold hover:brightness-110 active:scale-[0.98]" disabled={saveMutation.isPending}>{saveMutation.isPending ? "Salvando..." : "Salvar"}</Button>
+              </div>
+              </div>
+
+              {/* RIGHT: Live Preview (always visible) */}
+              <div className="w-[340px] shrink-0 overflow-y-auto bg-secondary/30 px-4 py-4 flex flex-col gap-3">
+                <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">Preview em tempo real</p>
+                <div className="sticky top-0">
+                  <CheckoutLivePreview form={form} product={selectedProduct} bumpProducts={bumpProducts} />
+                </div>
+              </div>
+
             </form>
-          </DialogContent>
+           </DialogContent>
         </Dialog>
       </div>
 

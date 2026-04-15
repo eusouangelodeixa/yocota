@@ -10,7 +10,7 @@ import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
   ResponsiveContainer, AreaChart, Area,
 } from "recharts";
-import { format, subDays, startOfDay, endOfDay, startOfMonth, startOfYear, isWithinInterval } from "date-fns";
+import { format, subDays, startOfDay, endOfDay, startOfMonth, startOfYear, isWithinInterval, getDay } from "date-fns";
 import { ptBR } from "date-fns/locale";
 
 /* ── Skeleton ── */
@@ -74,6 +74,15 @@ function getDateRange(preset: FilterPreset, customFrom?: Date, customTo?: Date):
   }
 }
 
+/* ── Compact Y-axis formatter ── */
+function compactAxis(v: number): string {
+  const amount = v / 100;
+  if (amount === 0) return "0";
+  if (amount >= 1_000_000) return `${(amount / 1_000_000).toFixed(1)}M`;
+  if (amount >= 1_000) return `${(amount / 1_000).toFixed(0)}K`;
+  return amount.toLocaleString("pt-PT", { maximumFractionDigits: 0 });
+}
+
 /* ── Tooltip ── */
 function ChartTooltip({ active, payload, label, currency = "eur" }: any) {
   if (!active || !payload?.length) return null;
@@ -91,7 +100,7 @@ function ChartTooltip({ active, payload, label, currency = "eur" }: any) {
 
 /* ── Main ── */
 export default function Dashboard() {
-  const [preset, setPreset] = useState<FilterPreset>("30d");
+  const [preset, setPreset] = useState<FilterPreset>("today");
   const [customFrom, setCustomFrom] = useState<Date>();
   const [customTo, setCustomTo] = useState<Date>();
   const [calendarOpen, setCalendarOpen] = useState(false);
@@ -105,7 +114,7 @@ export default function Dashboard() {
       const [products, checkouts, orders, orderItems, abandoned, deliveries] = await Promise.all([
         supabase.from("products").select("id", { count: "exact", head: true }).eq("active", true),
         supabase.from("checkouts").select("id", { count: "exact", head: true }).eq("active", true),
-        supabase.from("orders").select("id, total_amount, status, created_at, checkout_id, currency, customers(name, email)").order("created_at", { ascending: false }),
+        supabase.from("orders").select("id, total_amount, status, created_at, checkout_id, currency, wallet_type, payment_provider, customers(name, email)").order("created_at", { ascending: false }),
         supabase.from("order_items").select("order_id, product_id, amount, type, products(name, currency)"),
         supabase.from("abandoned_checkouts").select("id, recovered, created_at"),
         supabase.from("deliveries").select("id, status"),
@@ -174,13 +183,44 @@ export default function Dashboard() {
     const recoveredCount = filteredAbandoned.filter((a: any) => a.recovered).length;
     const recoveryRate = totalAbandoned > 0 ? (recoveredCount / totalAbandoned) * 100 : 0;
 
-    const dayMap: Record<string, number> = {};
+    // ── A: Faturamento por Dia da Semana (Seg→Dom) ──────────────────────────────
+    // Day index: 0=Sun,1=Mon,...,6=Sat → remap to Mon=0...Sun=6
+    const DOW_LABELS = ["Seg", "Ter", "Qua", "Qui", "Sex", "Sáb", "Dom"];
+    const dowMap: number[] = [0, 0, 0, 0, 0, 0, 0]; // Mon…Sun
     for (const o of paidOrders) {
-      const day = format(new Date((o as any).created_at), "dd/MM", { locale: ptBR });
-      dayMap[day] = (dayMap[day] || 0) + (o as any).total_amount;
+      const d = getDay(new Date((o as any).created_at)); // 0=Sun…6=Sat
+      const idx = d === 0 ? 6 : d - 1; // remap: Mon→0, …, Sun→6
+      dowMap[idx] += (o as any).total_amount;
     }
-    const chartData = Object.entries(dayMap).map(([day, value]) => ({ day, value }));
-    const chartCurrency = selectedCurrency;
+    const weekdayChartData = DOW_LABELS.map((label, i) => ({ day: label, value: dowMap[i] }));
+
+    // ── B: Taxa de Aprovação e-Mola vs M-Pesa + Conversão Geral ────────────────
+    // payment_method stored in orders ("emola" | "mpesa" | "stripe")
+    const allFilteredOrders = orders.filter((o: any) =>
+      isWithinInterval(new Date(o.created_at), { start: dateRange.from, end: dateRange.to }) &&
+      (o.currency || "eur").toUpperCase() === selectedCurrency
+    );
+
+    // Count by wallet type
+    let emolaTotal = 0, emolaPaid = 0;
+    let mpesaTotal = 0, mpesaPaid = 0;
+    for (const o of allFilteredOrders) {
+      const wt = ((o as any).wallet_type || "").toLowerCase();
+      if (wt === "emola" || wt === "e-mola") {
+        emolaTotal++;
+        if (o.status === "paid") emolaPaid++;
+      } else if (wt === "mpesa" || wt === "m-pesa") {
+        mpesaTotal++;
+        if (o.status === "paid") mpesaPaid++;
+      }
+    }
+
+    // Overall conversion: paid / total (all statuses)
+    const totalAllOrders = allFilteredOrders.length;
+    const totalPaid = paidOrders.length;
+    const conversionRate = totalAllOrders > 0 ? (totalPaid / totalAllOrders) * 100 : 0;
+    const emolaApproval = emolaTotal > 0 ? (emolaPaid / emolaTotal) * 100 : null;
+    const mpesaApproval = mpesaTotal > 0 ? (mpesaPaid / mpesaTotal) * 100 : null;
 
     return {
       productsCount: allData.productsCount,
@@ -195,7 +235,11 @@ export default function Dashboard() {
       recoveredCount,
       recentOrders: filteredOrders.slice(0, 10),
       chartData,
+      weekdayChartData,
       chartCurrency,
+      emolaApproval, emolaTotal, emolaPaid,
+      mpesaApproval, mpesaTotal, mpesaPaid,
+      conversionRate, totalAllOrders, totalPaid,
     };
   }, [allData, dateRange, selectedCurrency]);
 
@@ -312,61 +356,130 @@ export default function Dashboard() {
 
       {/* Charts */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        {/* Revenue Bar Chart */}
+        {/* A: Faturamento por Dia da Semana */}
         <div className="card-surface rounded-[10px] overflow-hidden">
           <div className="px-5 py-4 border-b border-border">
-            <h3 className="text-sm font-semibold text-foreground">Faturamento por Dia</h3>
-            <p className="text-[11px] text-muted-foreground mt-0.5">Receita dos pedidos pagos no período</p>
+            <h3 className="text-sm font-semibold text-foreground">Faturamento por Dia da Semana</h3>
+            <p className="text-[11px] text-muted-foreground mt-0.5">Receita acumulada por dia · Segunda a Domingo</p>
           </div>
-          <div className="p-5 h-[280px]">
-            {stats?.chartData && stats.chartData.length > 0 ? (
+          <div className="p-5 h-[260px]">
+            {stats?.weekdayChartData && stats.weekdayChartData.some(d => d.value > 0) ? (
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={stats.chartData} barCategoryGap="20%">
-                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" />
-                  <XAxis dataKey="day" tick={{ fontSize: 11, fill: "#52525b" }} axisLine={false} tickLine={false} />
-                  <YAxis tick={{ fontSize: 11, fill: "#52525b" }} axisLine={false} tickLine={false} tickFormatter={(v) => formatCents(v, stats?.chartCurrency || "eur")} width={80} />
-                  <Tooltip content={<ChartTooltip currency={stats?.chartCurrency || "eur"} />} cursor={{ fill: "rgba(255,255,255,0.02)" }} />
-                  <Bar dataKey="value" fill="#27272a" activeBar={{ fill: "#E04B00" }} radius={0} maxBarSize={40} />
+                <BarChart data={stats.weekdayChartData} barCategoryGap="30%" margin={{ top: 4, right: 4, left: 0, bottom: 0 }}>
+                  <defs>
+                    <linearGradient id="barGradDow" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor="#E04B00" stopOpacity={1} />
+                      <stop offset="100%" stopColor="#E04B00" stopOpacity={0.6} />
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(128,128,128,0.1)" vertical={false} />
+                  <XAxis dataKey="day" tick={{ fontSize: 11, fill: "#71717a" }} axisLine={false} tickLine={false} dy={6} />
+                  <YAxis tick={{ fontSize: 11, fill: "#71717a" }} axisLine={false} tickLine={false} tickFormatter={compactAxis} width={54} />
+                  <Tooltip content={<ChartTooltip currency={stats?.chartCurrency || "mzn"} />} cursor={{ fill: "rgba(128,128,128,0.06)", radius: 6 }} />
+                  <Bar dataKey="value" fill="url(#barGradDow)" radius={[6, 6, 0, 0]} maxBarSize={48} />
                 </BarChart>
               </ResponsiveContainer>
             ) : (
-              <div className="flex items-center justify-center h-full text-sm text-muted-foreground">Nenhum dado no período</div>
+              <div className="flex flex-col items-center justify-center h-full gap-2">
+                <div className="w-10 h-10 rounded-full bg-secondary flex items-center justify-center text-muted-foreground text-lg">📊</div>
+                <p className="text-sm text-muted-foreground">Sem vendas no período</p>
+              </div>
             )}
           </div>
         </div>
 
-        {/* Cumulative Area Chart */}
+        {/* B: Taxas de Aprovação + Conversão */}
         <div className="card-surface rounded-[10px] overflow-hidden">
           <div className="px-5 py-4 border-b border-border">
-            <h3 className="text-sm font-semibold text-foreground">Receita Acumulada</h3>
-            <p className="text-[11px] text-muted-foreground mt-0.5">Evolução do faturamento no período</p>
+            <h3 className="text-sm font-semibold text-foreground">Taxas de Aprovação e Conversão</h3>
+            <p className="text-[11px] text-muted-foreground mt-0.5">e-Mola · M-Pesa · Conversão geral</p>
           </div>
-          <div className="p-5 h-[280px]">
-            {stats?.chartData && stats.chartData.length > 0 ? (
-              <ResponsiveContainer width="100%" height="100%">
-                <AreaChart
-                  data={stats.chartData.reduce((acc: any[], item, i) => {
-                    const prev = i > 0 ? acc[i - 1].cumulative : 0;
-                    acc.push({ ...item, cumulative: prev + item.value });
-                    return acc;
-                  }, [])}
-                >
-                  <defs>
-                    <linearGradient id="accentGrad" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="0%" stopColor="#E04B00" stopOpacity={0.2} />
-                      <stop offset="100%" stopColor="#E04B00" stopOpacity={0} />
-                    </linearGradient>
-                  </defs>
-                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" />
-                  <XAxis dataKey="day" tick={{ fontSize: 11, fill: "#52525b" }} axisLine={false} tickLine={false} />
-                  <YAxis tick={{ fontSize: 11, fill: "#52525b" }} axisLine={false} tickLine={false} tickFormatter={(v) => formatCents(v, stats?.chartCurrency || "eur")} width={80} />
-                  <Tooltip content={<ChartTooltip currency={stats?.chartCurrency || "eur"} />} />
-                  <Area type="monotone" dataKey="cumulative" stroke="#E04B00" strokeWidth={2} fill="url(#accentGrad)" />
-                </AreaChart>
-              </ResponsiveContainer>
-            ) : (
-              <div className="flex items-center justify-center h-full text-sm text-muted-foreground">Nenhum dado no período</div>
-            )}
+          <div className="p-5 h-[260px] flex flex-col justify-center gap-5">
+
+            {/* Conversão Geral */}
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-[12px] font-semibold text-foreground">Conversão Geral</p>
+                  <p className="text-[10px] text-muted-foreground">{stats?.totalPaid ?? 0} pagos de {stats?.totalAllOrders ?? 0} tentativas</p>
+                </div>
+                <span className="text-[22px] font-bold tabular-nums" style={{ color: (() => {
+                  const r = stats?.conversionRate ?? 0;
+                  return r >= 60 ? "#22c55e" : r >= 35 ? "#f59e0b" : "#ef4444";
+                })() }}>
+                  {(stats?.conversionRate ?? 0).toFixed(1)}%
+                </span>
+              </div>
+              <div className="h-2 bg-secondary rounded-full overflow-hidden">
+                <div
+                  className="h-full rounded-full transition-all duration-700"
+                  style={{
+                    width: `${Math.min(stats?.conversionRate ?? 0, 100)}%`,
+                    backgroundColor: (() => {
+                      const r = stats?.conversionRate ?? 0;
+                      return r >= 60 ? "#22c55e" : r >= 35 ? "#f59e0b" : "#ef4444";
+                    })(),
+                  }}
+                />
+              </div>
+            </div>
+
+            <div className="border-t border-border" />
+
+            {/* e-Mola */}
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <img src="/assets/emola-logo.png" className="h-5 object-contain" alt="e-Mola" onError={(e) => { (e.target as HTMLImageElement).style.display='none'; }} />
+                  <div>
+                    <p className="text-[12px] font-semibold text-foreground">e-Mola</p>
+                    <p className="text-[10px] text-muted-foreground">
+                      {stats?.emolaApproval !== null ? `${stats?.emolaPaid} pagos de ${stats?.emolaTotal}` : "Sem dados"}
+                    </p>
+                  </div>
+                </div>
+                <span className="text-[20px] font-bold tabular-nums" style={{ color: stats?.emolaApproval !== null ? (stats!.emolaApproval! >= 60 ? "#22c55e" : stats!.emolaApproval! >= 35 ? "#f59e0b" : "#ef4444") : "#52525b" }}>
+                  {stats?.emolaApproval !== null ? `${stats!.emolaApproval!.toFixed(1)}%` : "—"}
+                </span>
+              </div>
+              <div className="h-1.5 bg-secondary rounded-full overflow-hidden">
+                <div
+                  className="h-full rounded-full transition-all duration-700"
+                  style={{
+                    width: `${Math.min(stats?.emolaApproval ?? 0, 100)}%`,
+                    backgroundColor: stats?.emolaApproval !== null ? (stats!.emolaApproval! >= 60 ? "#22c55e" : stats!.emolaApproval! >= 35 ? "#f59e0b" : "#ef4444") : "#3f3f46",
+                  }}
+                />
+              </div>
+            </div>
+
+            {/* M-Pesa */}
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <img src="/assets/mpesa-logo.png" className="h-5 object-contain" alt="M-Pesa" onError={(e) => { (e.target as HTMLImageElement).style.display='none'; }} />
+                  <div>
+                    <p className="text-[12px] font-semibold text-foreground">M-Pesa</p>
+                    <p className="text-[10px] text-muted-foreground">
+                      {stats?.mpesaApproval !== null ? `${stats?.mpesaPaid} pagos de ${stats?.mpesaTotal}` : "Sem dados"}
+                    </p>
+                  </div>
+                </div>
+                <span className="text-[20px] font-bold tabular-nums" style={{ color: stats?.mpesaApproval !== null ? (stats!.mpesaApproval! >= 60 ? "#22c55e" : stats!.mpesaApproval! >= 35 ? "#f59e0b" : "#ef4444") : "#52525b" }}>
+                  {stats?.mpesaApproval !== null ? `${stats!.mpesaApproval!.toFixed(1)}%` : "—"}
+                </span>
+              </div>
+              <div className="h-1.5 bg-secondary rounded-full overflow-hidden">
+                <div
+                  className="h-full rounded-full transition-all duration-700"
+                  style={{
+                    width: `${Math.min(stats?.mpesaApproval ?? 0, 100)}%`,
+                    backgroundColor: stats?.mpesaApproval !== null ? (stats!.mpesaApproval! >= 60 ? "#22c55e" : stats!.mpesaApproval! >= 35 ? "#f59e0b" : "#ef4444") : "#3f3f46",
+                  }}
+                />
+              </div>
+            </div>
+
           </div>
         </div>
       </div>

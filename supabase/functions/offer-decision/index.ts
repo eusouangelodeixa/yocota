@@ -168,16 +168,35 @@ serve(async (req) => {
           const debitoData = await debitoRes.json();
           if (!debitoRes.ok) throw new Error(debitoData.message || "Error from Debito API");
 
-          // Store the reference in the offer session immediately to allow polling
+          // Store the reference in the offer session (decision stays null until webhook confirms)
           await supabase.from("offer_sessions").update({ 
             debito_reference: debitoData.debito_reference 
           }).eq("token", token);
 
+          // Pre-create the next offer session so OfferFrame can navigate after payment
+          const nextOfferId = offer.accept_next_offer_id;
+          let nextOfferPageUrl: string | null = null;
+          let nextOfferToken: string | null = null;
+          if (nextOfferId) {
+            const { data: nextOffer } = await supabase.from("offers").select("page_url").eq("id", nextOfferId).single();
+            const { data: nextSess } = await supabase.from("offer_sessions").insert({
+              offer_id: nextOfferId, order_id: session.order_id, customer_id: session.customer_id,
+            }).select("token").single();
+            if (nextSess) {
+              nextOfferToken = nextSess.token;
+              nextOfferPageUrl = nextOffer?.page_url || null;
+            }
+          }
+
           return new Response(JSON.stringify({ 
             success: true, 
-            payment_method: "debito", 
+            payment_method: "debito",
+            payment_confirmed: false,       // OfferFrame will poll offer_sessions for confirmation
             debito_reference: debitoData.debito_reference,
-            decision: "accepted" 
+            offer_session_token: token,     // OfferFrame polls this session token
+            decision: "pending",
+            next_offer_token: nextOfferToken,
+            next_offer_page_url: nextOfferPageUrl,
           }), {
             headers: { ...corsHeaders, "Content-Type": "application/json" },
             status: 200,

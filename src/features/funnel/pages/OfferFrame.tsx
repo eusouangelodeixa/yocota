@@ -31,7 +31,7 @@ export default function OfferFrame() {
 
   // Payment Modal State
   const [showPaymentModal, setShowPaymentModal] = useState(false);
-  const [modalCountdown, setModalCountdown] = useState(120);
+  const [modalCountdown, setModalCountdown] = useState(300);
   const [orderStatus, setOrderStatus] = useState<"pending" | "paid" | "failed" | "timeout">("pending");
 
   // Ref to track latest orderStatus inside polling closures
@@ -73,64 +73,98 @@ export default function OfferFrame() {
     if (!session || !token) return;
     setProcessing(true);
     try {
+      if (decision === "accepted") {
+        // Show modal IMMEDIATELY — before the API call, so user sees it when M-Pesa popup arrives
+        setShowPaymentModal(true);
+        setOrderStatus("pending");
+        setModalCountdown(300);
+      }
+
       const { data, error: fnError } = await supabase.functions.invoke("offer-decision", { body: { token, decision } });
       if (fnError) throw new Error(fnError.message);
       if (data?.error) throw new Error(data.error);
 
-      if (data?.payment_method === "debito" && data?.debito_reference) {
-        // Show modal and start polling
-        setShowPaymentModal(true);
-        setOrderStatus("pending");
-        setModalCountdown(120);
+      if (data?.payment_method === "debito") {
+        if (data?.payment_confirmed === true) {
+          // M-Pesa SYNCHRONOUS: payment already confirmed — skip polling
+          setOrderStatus("paid");
+          setTimeout(() => finalizeDecision(data), 1500);
+          return;
+        }
 
-        const debitoRef = data.debito_reference;
+        // e-Mola ASYNC: poll offer_sessions table directly for decision update
+        const sessionToken = data?.offer_session_token || token;
         const decisionData = data;
         let cancelled = false;
 
-        const pollDebito = async () => {
-          if (cancelled || orderStatusRef.current !== "pending") return;
+        const pollOfferSession = async () => {
+          // Continue polling even after timeout — stop only when paid or explicitly cancelled
+          if (cancelled || orderStatusRef.current === "paid") return;
           try {
-            // Use raw fetch — same approach as CheckoutPage (proven to work vs supabase.functions.invoke)
-            const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-            const supabaseAnonKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
-            const resp = await fetch(`${supabaseUrl}/functions/v1/process-debito-payment`, {
-              method: "POST",
-              headers: { "Content-Type": "application/json", "Authorization": `Bearer ${supabaseAnonKey}` },
-              body: JSON.stringify({ action: "status", debito_reference: debitoRef })
-            });
-            const statusData = await resp.json();
-            if (cancelled || orderStatusRef.current !== "pending") return;
-            if (statusData?.status === "SUCCESS" || statusData?.status === "PAID") {
+            const { data: sess } = await supabase
+              .from("offer_sessions")
+              .select("decision")
+              .eq("token", sessionToken)
+              .maybeSingle();
+            if (cancelled || orderStatusRef.current === "paid") return;
+            if (sess?.decision === "accepted") {
               setOrderStatus("paid");
               setTimeout(() => finalizeDecision(decisionData), 1500);
             } else {
-              setTimeout(pollDebito, 3000);
+              setTimeout(pollOfferSession, 3000);
             }
           } catch (e) {
-            console.warn("Polling error:", e);
-            if (!cancelled && orderStatusRef.current === "pending") {
-              setTimeout(pollDebito, 3000);
-            }
+            if (!cancelled && orderStatusRef.current !== "paid") setTimeout(pollOfferSession, 3000);
           }
         };
-        pollDebito();
+        pollOfferSession();
         return;
       }
 
       finalizeDecision(data);
-    } catch (err: any) { setError(err.message || "Erro ao processar decisão"); setProcessing(false); }
+    } catch (err: any) {
+      setShowPaymentModal(false);
+      setError(err.message || "Erro ao processar decisão");
+      setProcessing(false);
+    }
   };
 
   const finalizeDecision = (data: any) => {
     const decision = data.decision;
     const nextToken = data?.next_offer_token || null;
     const nextPageUrl = data?.next_offer_page_url || null;
+    const nextOfferUrl = data?.next_offer_url || null;
     setResult({ decision, redirecting: !!nextToken });
-    if (window.parent !== window) { window.parent.postMessage({ type: "offer-complete", decision, nextToken, nextPageUrl }, "*"); }
+
     if (window.parent === window) {
-      if (nextPageUrl && nextToken) { window.location.href = `${nextPageUrl}${nextPageUrl.includes("?") ? "&" : "?"}offer_token=${nextToken}`; }
-      else if (data?.next_offer_url) { window.location.href = data.next_offer_url; }
+      // Standalone mode (not in any iframe) — navigate directly
+      if (nextPageUrl && nextToken) {
+        const sep = nextPageUrl.includes("?") ? "&" : "?";
+        window.location.href = `${nextPageUrl}${sep}offer_token=${nextToken}`;
+      } else if (nextOfferUrl) {
+        window.location.href = nextOfferUrl;
+      }
+    } else {
+      // In an iframe — ALWAYS send postMessage (backward compat with existing embeds)
+      window.parent.postMessage({ type: "offer-complete", decision, nextToken, nextPageUrl }, "*");
+
+      // Also navigate window.top as backup (for sites without a JS postMessage listener)
+      // Only when there is a URL to navigate to; with 600ms delay so postMessage fires first
+      let isCrossOrigin = false;
+      try { void window.parent.document; } catch { isCrossOrigin = true; }
+      if (isCrossOrigin && (nextPageUrl || nextOfferUrl)) {
+        setTimeout(() => {
+          const target = window.top!;
+          if (nextPageUrl && nextToken) {
+            const sep = nextPageUrl.includes("?") ? "&" : "?";
+            target.location.href = `${nextPageUrl}${sep}offer_token=${nextToken}`;
+          } else if (nextOfferUrl) {
+            target.location.href = nextOfferUrl;
+          }
+        }, 600);
+      }
     }
+
     setProcessing(false);
   };
 
@@ -171,7 +205,7 @@ export default function OfferFrame() {
 
   return (
     <div
-      className="flex items-center justify-center min-h-[480px] max-h-[480px] px-4 py-6"
+      className="flex items-center justify-center min-h-screen px-4 py-6"
       style={{ backgroundColor: s.overlay_bg_color }}
     >
       <div
@@ -199,12 +233,12 @@ export default function OfferFrame() {
         <p className="text-[11px]" style={{ color: s.charge_info_color }}>{s.charge_info_text}</p>
         <div className="space-y-3 pt-1">
           <button
-            className="w-full font-bold text-sm transition-all duration-150 flex items-center justify-center"
+            className="w-full font-semibold text-sm transition-all duration-150 flex items-center justify-center"
             style={{
-              height: `${s.button_height}px`,
-              backgroundColor: s.accept_button_color,
-              color: s.accept_button_text_color,
-              borderRadius: `${Math.min(Number(s.border_radius), 12)}px`,
+              height: `${Number(s.button_height) || 48}px`,
+              backgroundColor: s.accept_button_color || "#22c55e",
+              color: s.accept_button_text_color || "#ffffff",
+              borderRadius: `${Math.min(Number(s.border_radius) || 8, 12)}px`,
               border: "none",
               cursor: isPreviewMode ? "not-allowed" : "pointer",
               opacity: disabledAttr ? 0.7 : 1,
@@ -217,8 +251,8 @@ export default function OfferFrame() {
           <button
             className="w-full text-sm transition-colors duration-150"
             style={{
-              backgroundColor: s.reject_button_color,
-              color: s.reject_text_color,
+              backgroundColor: s.reject_button_color || "transparent",
+              color: s.reject_text_color || "#6b7280",
               border: "none",
               cursor: isPreviewMode ? "not-allowed" : "pointer",
               padding: "8px",
@@ -249,7 +283,7 @@ export default function OfferFrame() {
                 <h3 className="text-lg font-bold text-black">{orderStatus === "paid" ? "Sucesso!" : (orderStatus === "timeout" ? "Tempo Excedido" : "Autorize no Celular")}</h3>
                 <p className="text-gray-500 text-[12px] leading-tight px-2">
                   {orderStatus === "paid" ? "Pagamento confirmado. Redirecionando..." : 
-                   orderStatus === "timeout" ? "Não detectamos o pagamento. Tente novamente." : 
+                   orderStatus === "timeout" ? "Se já confirmou o PIN no telemóvel, o pagamento está a ser verificado. Aguarde uns instantes..." : 
                    "Introduza o PIN e confirme para finalizar a compra de " + formatCents(product?.price ?? 0, product?.currency ?? "mzn")}
                 </p>
               </div>
@@ -259,8 +293,14 @@ export default function OfferFrame() {
                   <span className="font-bold text-lg text-black tabular-nums">{Math.floor(modalCountdown / 60)}:{(modalCountdown % 60).toString().padStart(2, '0')}</span>
                 </div>
               )}
-              {orderStatus !== "pending" && (
-                <button onClick={() => { setShowPaymentModal(false); setProcessing(false); }} className="w-full py-3 rounded-xl bg-black text-white font-bold text-sm transition-transform active:scale-[0.98]">Fechar</button>
+              {orderStatus === "timeout" && (
+                <div className="w-full space-y-2">
+                  <div className="w-full flex items-center justify-center gap-2 py-2 px-4 bg-amber-50 rounded-xl">
+                    <Loader2 size={14} className="text-amber-500 animate-spin" />
+                    <span className="text-amber-600 text-xs font-medium">A verificar pagamento...</span>
+                  </div>
+                  <button onClick={() => { setShowPaymentModal(false); setProcessing(false); }} className="w-full py-2.5 rounded-xl bg-gray-100 text-gray-500 font-medium text-sm">Fechar (o produto será entregue se o pagamento foi confirmado)</button>
+                </div>
               )}
             </div>
           </div>

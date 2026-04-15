@@ -82,7 +82,7 @@ const CURRENCY_CONFIG: Record<string, { symbol: string; locale: string; decimals
   mwk: { symbol: "MK", locale: "en-MW", decimals: 2 },
   mxn: { symbol: "MX$", locale: "es-MX", decimals: 2 },
   myr: { symbol: "RM", locale: "ms-MY", decimals: 2 },
-  mzn: { symbol: "MT", locale: "pt-MZ", decimals: 2 },
+  mzn: { symbol: "MTn", locale: "pt-MZ", decimals: 2 },
   nad: { symbol: "N$", locale: "en-NA", decimals: 2 },
   ngn: { symbol: "₦", locale: "en-NG", decimals: 2 },
   nio: { symbol: "C$", locale: "es-NI", decimals: 2 },
@@ -281,23 +281,27 @@ export function getCurrencyLabel(code: string): string {
 // and we prefer the ISO code instead for clarity
 const USE_ISO_CODE: Record<string, boolean> = {
   zar: true,
+  mzn: true,
 };
 
 export function formatCents(cents: number, currency = "eur"): string {
-  const config = CURRENCY_CONFIG[currency] || CURRENCY_CONFIG.eur;
+  // Normalize to lowercase so "EUR", "Eur", "eur" all resolve correctly
+  const normalized = (currency || "eur").trim().toLowerCase();
+  const config = CURRENCY_CONFIG[normalized] || CURRENCY_CONFIG.eur;
   const value = cents / Math.pow(10, config.decimals);
   const formatted = new Intl.NumberFormat(config.locale, {
     style: "currency",
-    currency: currency.toUpperCase(),
+    currency: normalized.toUpperCase(),
     minimumFractionDigits: config.decimals,
     maximumFractionDigits: config.decimals,
   }).format(value);
 
-  if (USE_ISO_CODE[currency]) {
+  if (USE_ISO_CODE[normalized]) {
     // Replace the native symbol with the ISO code (e.g. "R 1,00" → "ZAR 1,00")
-    return formatted.replace(config.symbol, currency.toUpperCase() + " ").replace(/\s+/g, " ").trim();
+    return formatted.replace(config.symbol, normalized.toUpperCase() + " ").replace(/\s+/g, " ").trim();
   }
-  return formatted;
+  // Uppercase any alphabetic currency symbol/code (e.g. "kr" → "KR", "lei" → "LEI")
+  return formatted.replace(/[a-zA-ZÀ-ÖØ-öø-ÿ]+/g, (m) => m.toUpperCase());
 }
 
 // Keep backward compat

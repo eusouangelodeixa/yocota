@@ -68,15 +68,36 @@ serve(async (req) => {
       const wallet_id = wallet_type === "mpesa" ? mpesaWalletId : emolaWalletId;
       const uniqueRef = `YCT-${Math.random().toString(36).substring(2, 8).toUpperCase()}`;
 
-      // 1. Save Customer FIRST (before API call)
-      step = "Salvando Dados no Supabase (Customer)";
-      const { data: customer, error: custError } = await supabase.from("customers").upsert({
-        email: customer_email.toLowerCase(), 
-        name: customer_name, 
-        phone: customer_phone,
-        last_wallet_number: msisdn.replace(/\D/g, ""),
-        last_wallet_type: wallet_type
-      }, { onConflict: 'email' }).select().single();
+      // Handle optional email — store null when empty to avoid unique constraint conflicts
+      const emailToStore = customer_email?.trim() ? customer_email.trim().toLowerCase() : null;
+
+      let customer: any = null;
+      let custError: any = null;
+
+      if (emailToStore) {
+        // Has email — upsert by email (update name/phone if already exists)
+        const result = await supabase.from("customers").upsert({
+          email: emailToStore, name: customer_name, phone: customer_phone,
+          last_wallet_number: msisdn.replace(/\D/g, ""), last_wallet_type: wallet_type
+        }, { onConflict: 'email' }).select().single();
+        customer = result.data; custError = result.error;
+      } else {
+        // No email — lookup by phone first to avoid duplicate records
+        const { data: byPhone } = await supabase.from("customers").select("*").eq("phone", customer_phone).maybeSingle();
+        if (byPhone) {
+          await supabase.from("customers").update({
+            name: customer_name,
+            last_wallet_number: msisdn.replace(/\D/g, ""), last_wallet_type: wallet_type
+          }).eq("id", byPhone.id);
+          customer = { ...byPhone, name: customer_name };
+        } else {
+          const result = await supabase.from("customers").insert({
+            email: null, name: customer_name, phone: customer_phone,
+            last_wallet_number: msisdn.replace(/\D/g, ""), last_wallet_type: wallet_type
+          }).select().single();
+          customer = result.data; custError = result.error;
+        }
+      }
       if (custError || !customer) throw new Error("Falha ao salvar/encontrar cliente.");
 
       // 2. Create Order FIRST with pending status (before API call)
@@ -84,6 +105,7 @@ serve(async (req) => {
       const { data: order, error: ordError } = await supabase.from("orders").insert({
         checkout_id: checkout.id, customer_id: customer.id, total_amount: totalAmountCents, currency: "MZN", status: "pending", 
         debito_reference: null, provider_order_id: uniqueRef, payment_provider: "debito",
+        wallet_type: wallet_type || null,
         selected_bumps: selected_bump_ids || [],
         utm_source: utm_data?.utm_source, utm_medium: utm_data?.utm_medium, utm_campaign: utm_data?.utm_campaign
       }).select().single();
@@ -143,9 +165,44 @@ serve(async (req) => {
           updatePayload.status = "paid";
         }
         
+        // Update order with Débito reference and status
         await supabase.from("orders").update(updatePayload).eq("id", order.id);
 
-        if (updatePayload.status === "paid" && checkout.first_offer_id) {
+        // If paid immediately — create order_items and trigger deliveries NOW
+        // (the webhook checks order_items.length > 0 before delivering, so items MUST exist)
+        if (updatePayload.status === "paid") {
+          const productsToDeliver: { id: string; price: number; type: string }[] = [
+            { id: mainProduct.id, price: mainProduct.price, type: "main" }
+          ];
+          if (selected_bump_ids?.length > 0) {
+            const { data: bumpProds } = await supabase.from("products").select("id, price").in("id", selected_bump_ids);
+            bumpProds?.forEach(b => productsToDeliver.push({ id: b.id, price: b.price, type: "bump" }));
+          }
+          for (const prod of productsToDeliver) {
+            const { data: newItem } = await supabase.from("order_items").insert({
+              order_id: order.id, product_id: prod.id, amount: prod.price, type: prod.type
+            }).select("id").single();
+            if (newItem) {
+              try {
+                await fetch(`${supabaseUrl}/functions/v1/delivery-send`, {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json", "Authorization": `Bearer ${supabaseKey}` },
+                  body: JSON.stringify({ order_id: order.id, order_item_id: newItem.id }),
+                });
+                console.log(`Delivery triggered for item ${newItem.id}`);
+              } catch (e) { console.warn(`Falha ao acionar entrega item ${newItem.id}:`, e); }
+            }
+          }
+
+          // Create offer session if needed
+          if (checkout.first_offer_id) {
+            const { data: existingOffer } = await supabase.from("offer_sessions").select("id").eq("order_id", order.id).maybeSingle();
+            if (!existingOffer) {
+              await supabase.from("offer_sessions").insert({ offer_id: checkout.first_offer_id, order_id: order.id, customer_id: customer.id, debito_reference: finalDebitoRef });
+            }
+          }
+        } else if (checkout.first_offer_id) {
+          // Not yet paid (PROCESSING) — create offer session if checkout has one, will activate via webhook later
           const { data: existingOffer } = await supabase.from("offer_sessions").select("id").eq("order_id", order.id).maybeSingle();
           if (!existingOffer) {
             await supabase.from("offer_sessions").insert({ offer_id: checkout.first_offer_id, order_id: order.id, customer_id: customer.id, debito_reference: finalDebitoRef });
@@ -202,9 +259,11 @@ serve(async (req) => {
             selectedBumps.forEach(bumpId => productsToRegister.push({ id: bumpId, type: "bump" }));
           }
           for (const item of productsToRegister) {
-            const { data: newItem } = await supabase.from("order_items").insert({
-              order_id: dbOrder.id, product_id: item.id, amount: 0, type: item.type
+            const { data: prodPrice } = await supabase.from("products").select("price").eq("id", item.id).single();
+            const { data: newItem, error: itemErr } = await supabase.from("order_items").insert({
+              order_id: dbOrder.id, product_id: item.id, amount: prodPrice?.price ?? 1, type: item.type
             }).select().single();
+            if (itemErr) { console.error("Failed to insert order_item:", itemErr.message); }
             if (newItem) {
               try {
                 await fetch(`${Deno.env.get("SUPABASE_URL")}/functions/v1/delivery-send`, {
@@ -267,9 +326,11 @@ serve(async (req) => {
                   selectedBumps.forEach(bumpId => productsToRegister.push({ id: bumpId, type: "bump" }));
                 }
                 for (const item of productsToRegister) {
-                  const { data: newItem } = await supabase.from("order_items").insert({
-                    order_id: dbOrder.id, product_id: item.id, amount: 0, type: item.type
+                  const { data: prodPrice } = await supabase.from("products").select("price").eq("id", item.id).single();
+                  const { data: newItem, error: itemErr } = await supabase.from("order_items").insert({
+                    order_id: dbOrder.id, product_id: item.id, amount: prodPrice?.price ?? 1, type: item.type
                   }).select().single();
+                  if (itemErr) { console.error("Failed to insert order_item:", itemErr.message); }
                   if (newItem) {
                     try {
                       await fetch(`${Deno.env.get("SUPABASE_URL")}/functions/v1/delivery-send`, {
